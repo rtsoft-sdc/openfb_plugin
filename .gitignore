@@ -1,0 +1,13 @@
+out
+dist
+old/
+node_modules
+.vscode-test/
+.vscode/
+.vscode-test.mjs
+eslint.config.mjs
+package-lock.json
+webpack.config.js
+webview_diagram_template.html
+.git/
+files/
