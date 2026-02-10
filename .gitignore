@@ -3,7 +3,6 @@ dist
 old/
 node_modules
 .vscode-test/
-.vscode/
 .vscode-test.mjs
 eslint.config.mjs
 package-lock.json
