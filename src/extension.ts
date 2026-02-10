@@ -261,18 +261,20 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       gap: 12px;
       background: #f3f3f3;
       padding: 0 12px;
-      border-top: 1px solid #ddd;
+      border: 1px solid #ddd;
       box-shadow: 0 -1px 4px rgba(0,0,0,0.06);
       font-family: sans-serif;
     }
     #toolbar button {
       padding: 8px 12px;
       border: 1px solid #bbb;
-      background: #fff;
+      background: #28a745;
+      color: #fff;
       cursor: pointer;
       border-radius: 4px;
+      font-family: Roboto, sans-serif;
     }
-    #toolbar button:hover { background: #eee; }
+    #toolbar button:hover { background: #218838; }
   </style>
 </head>
 <body>
