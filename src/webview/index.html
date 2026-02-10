@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'none'; img-src vscode-resource: https:; script-src 'unsafe-inline' vscode-resource:;"
+  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FB Diagram</title>
+</head>
+<body style="margin:0; overflow:hidden;">
+  <canvas id="canvas"></canvas>
+
+  <div id="toolbar">
+    <button id="deployBtn">Деплой</button>
+  </div>
+
+  <style>
+    /* Bottom full-width toolbar */
+    #toolbar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 48px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: #f3f3f3;
+      padding: 0 12px;
+      border-top: 1px solid #ddd;
+      box-shadow: 0 -1px 4px rgba(0,0,0,0.06);
+      font-family: sans-serif;
+    }
+    #toolbar button {
+      padding: 8px 12px;
+      border: 1px solid #bbb;
+      background: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    #toolbar button:hover { background: #eee; }
+  </style>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

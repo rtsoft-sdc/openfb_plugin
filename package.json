@@ -1,0 +1,54 @@
+{
+  "name": "openfb_plugin",
+  "displayName": "openfb plugin",
+  "description": "Отображает диаграмму проекта на основе .sys файла, fbt элементов, генерит .fboot файл",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "openfb.plugin.showSysDiagram",
+        "title": "OpenFB: Открыть диаграмму проекта"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceFilename =~ /\\.sys$/",
+          "command": "openfb.plugin.showSysDiagram",
+          "group": "openfb@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "OpenFB",
+      "properties": {
+        "openfb.fbLibraryPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Paths to search for .fbt function block libraries",
+          "scope": "window"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./ && npx tsc -p tsconfig.webview.json && node postprocess-webview.js",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.12",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.3.4"
+  }
+}

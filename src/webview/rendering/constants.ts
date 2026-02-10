@@ -1,0 +1,225 @@
+/**
+ * Canvas rendering constants
+ * All magic numbers, colors, and sizes are defined here for easy configuration
+ */
+
+// ============================================================================
+// NODE RENDERING
+// ============================================================================
+
+/** Width of rendered node block */
+export const NODE_WIDTH = 140;
+
+/** Height of rendered node block */
+export const NODE_HEIGHT = 80;
+
+/** Radius for rounded corners on node rectangles */
+export const NODE_BORDER_RADIUS = 8;
+
+/** Node background fill color */
+export const NODE_BACKGROUND_COLOR = "#ffffff";
+
+/** Node border stroke color */
+export const NODE_BORDER_COLOR = "#2c2c2c";
+
+/** Node border width in pixels */
+export const NODE_BORDER_WIDTH = 1;
+
+/** Node shadow color (semi-transparent black) */
+export const NODE_SHADOW_COLOR = "rgba(0,0,0,0.2)";
+
+/** Node shadow blur radius in pixels */
+export const NODE_SHADOW_BLUR = 3;
+
+/** Node shadow X offset in pixels */
+export const NODE_SHADOW_OFFSET_X = 2;
+
+/** Node shadow Y offset in pixels */
+export const NODE_SHADOW_OFFSET_Y = 2;
+
+/** Node label font style */
+export const NODE_LABEL_FONT = "bold 15px monospace";
+
+/** Node label text color */
+export const NODE_LABEL_COLOR = "#1a1a1a";
+
+/** Padding above node for label placement */
+export const NODE_LABEL_PADDING = 6;
+
+// ============================================================================
+// PORT RENDERING
+// ============================================================================
+
+/** Port indicator circle radius in pixels */
+export const PORT_RADIUS = 4;
+
+/** Vertical spacing between ports in pixels */
+export const PORT_SPACING = 18;
+
+/** Starting Y offset for port layout */
+export const PORT_LAYOUT_START_Y = 12;
+
+/** Gap between event and data port zones */
+export const PORT_ZONE_GAP = 8;
+
+/** Event port color (bright green) */
+export const EVENT_PORT_COLOR = "#22DD22";
+
+/** Data port color (bright blue) */
+export const DATA_PORT_COLOR = "#2255FF";
+
+/** Port type indicator (E/D label) font */
+export const PORT_TYPE_FONT = "bold 9px monospace";
+
+/** Port type indicator text color */
+export const PORT_TYPE_COLOR = "#fff";
+
+/** Port name label font */
+export const PORT_NAME_FONT = "11px monospace";
+
+/** Port name label text color */
+export const PORT_NAME_COLOR = "#222";
+
+/** Padding from port circle to name label */
+export const PORT_LABEL_OFFSET = 8;
+
+// ============================================================================
+// CONNECTION RENDERING
+// ============================================================================
+
+/** Event connection line color (matches event ports) */
+export const EVENT_CONNECTION_COLOR = "#22DD22";
+
+/** Event connection line width in pixels */
+export const EVENT_CONNECTION_WIDTH = 2;
+
+/** Event connection dash pattern [dash, gap] */
+export const EVENT_CONNECTION_DASH = [5, 3];
+
+/** Data connection line color (matches data ports) */
+export const DATA_CONNECTION_COLOR = "#2255FF";
+
+/** Data connection line width in pixels */
+export const DATA_CONNECTION_WIDTH = 2.5;
+
+/** Data connection is solid (no dash) */
+export const DATA_CONNECTION_DASH: number[] = [];
+
+// ============================================================================
+// GRID RENDERING
+// ============================================================================
+
+/** Grid cell size in pixels */
+export const GRID_SIZE = 20;
+
+/** Grid line stroke color */
+export const GRID_COLOR = "#d4d2d2";
+
+/** Grid line width in pixels */
+export const GRID_LINE_WIDTH = 0.4;
+
+/** Grid line dash pattern [dash, gap] */
+export const GRID_DASH = [3, 3];
+
+// ============================================================================
+// CAMERA / VIEWPORT
+// ============================================================================
+
+/** Padding around nodes when fitting camera to view */
+export const CAMERA_FIT_PADDING = 40;
+
+/** Maximum zoom level (don't zoom in, only fit to view) */
+export const CAMERA_MAX_ZOOM = 1;
+
+// ============================================================================
+// LEGEND AND STATS
+// ============================================================================
+
+/** Legend box background color (semi-transparent white) */
+export const LEGEND_BACKGROUND_COLOR = "rgba(255, 255, 255, 0.95)";
+
+/** Legend box border color */
+export const LEGEND_BORDER_COLOR = "#999";
+
+/** Legend box border width in pixels */
+export const LEGEND_BORDER_WIDTH = 1;
+
+/** Legend title text font */
+export const LEGEND_TITLE_FONT = "bold 12px monospace";
+
+/** Legend text color */
+export const LEGEND_TEXT_COLOR = "#333";
+
+/** Legend item font */
+export const LEGEND_ITEM_FONT = "10px monospace";
+
+/** Maximum width of legend box in pixels */
+export const LEGEND_MAX_WIDTH = 240;
+
+/** Padding inside legend box */
+export const LEGEND_PADDING = 8;
+
+/** Line height for legend items */
+export const LEGEND_LINE_HEIGHT = 14;
+
+/** Legend title height in pixels */
+export const LEGEND_TITLE_HEIGHT = 18;
+
+/** Number of content lines in legend */
+export const LEGEND_CONTENT_LINES = 4;
+
+/** Padding for stats text */
+export const STATS_PADDING = 10;
+
+/** Stats text font */
+export const STATS_FONT = "12px monospace";
+
+/** Stats text color */
+export const STATS_TEXT_COLOR = "#333";
+
+/** Line height for stats text */
+export const STATS_LINE_HEIGHT = 16;
+
+// ============================================================================
+// TEXT CANVAS RENDERING
+// ============================================================================
+
+/** Default text alignment (for reset operations) */
+export const DEFAULT_TEXT_ALIGN = "left";
+
+/** Default text baseline (for reset operations) */
+export const DEFAULT_TEXT_BASELINE = "alphabetic";
+
+/** Empty nodes message when no nodes are loaded */
+export const EMPTY_NODES_MESSAGE = "No nodes loaded";
+
+/** Empty nodes message font */
+export const EMPTY_NODES_FONT = "14px monospace";
+
+/** Empty nodes message color */
+export const EMPTY_NODES_COLOR = "#aaa";
+
+/** Empty nodes message X position */
+export const EMPTY_NODES_X = 20;
+
+/** Empty nodes message Y position */
+export const EMPTY_NODES_Y = 30;
+
+// ============================================================================
+// LEGEND ITEM LABELS (Russian)
+// ============================================================================
+
+/** Legend title in Russian */
+export const LEGEND_TITLE = "ЛЕГЕНДА";
+
+/** Event port type label */
+export const LEGEND_EVENT_PORT = "Событие (E)";
+
+/** Data port type label */
+export const LEGEND_DATA_PORT = "Данные (D)";
+
+/** Event connection label */
+export const LEGEND_EVENT_CONNECTION = "Соб. связь";
+
+/** Data connection label */
+export const LEGEND_DATA_CONNECTION = "Дан. связь";
