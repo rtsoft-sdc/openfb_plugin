@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
+import { OpenFBHandler } from "./openfb/handler";
 import { parseSysFile } from "./domain/sysParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
@@ -139,6 +141,34 @@ export function activate(context: vscode.ExtensionContext) {
                 clearTimeout(timeoutHandle);
                 timeoutHandle = undefined;
               }
+              return;
+            } else if (m?.type === "deploy") {
+              try {
+                // Compute .fboot path next to .sys file
+                const sysPath = uri.fsPath;
+                const parsed = path.parse(sysPath);
+                const fbootPath = path.join(parsed.dir, parsed.name + ".fboot");
+                logger.info("Deploy requested", fbootPath);
+
+                if (!fs.existsSync(fbootPath)) {
+                  vscode.window.showErrorMessage(`.fboot file not found: ${fbootPath}`);
+                  return;
+                }
+
+                const handler = new OpenFBHandler();
+                handler.deploy(fbootPath)
+                  .then(() => {
+                    vscode.window.showInformationMessage(`Deploy completed: ${fbootPath}`);
+                  })
+                  .catch((err) => {
+                    logger.error("Deploy failed", err);
+                    vscode.window.showErrorMessage(`Deploy failed: ${err}`);
+                  });
+              } catch (err) {
+                logger.error("Error handling deploy message", err);
+                vscode.window.showErrorMessage(`Error during deploy: ${err}`);
+              }
+              return;
             }
           } catch (err) {
             logger.error("Error handling webview message", err);
@@ -231,18 +261,20 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       gap: 12px;
       background: #f3f3f3;
       padding: 0 12px;
-      border-top: 1px solid #ddd;
+      border: 1px solid #ddd;
       box-shadow: 0 -1px 4px rgba(0,0,0,0.06);
       font-family: sans-serif;
     }
     #toolbar button {
       padding: 8px 12px;
       border: 1px solid #bbb;
-      background: #fff;
+      background: #28a745;
+      color: #fff;
       cursor: pointer;
       border-radius: 4px;
+      font-family: Roboto, sans-serif;
     }
-    #toolbar button:hover { background: #eee; }
+    #toolbar button:hover { background: #218838; }
   </style>
 </head>
 <body>

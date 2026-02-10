@@ -34,6 +34,24 @@
           "default": [],
           "description": "Paths to search for .fbt function block libraries",
           "scope": "window"
+        },
+        "openfb.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host/IP address of openFB runtime server",
+          "scope": "window"
+        },
+        "openfb.port": {
+          "type": "number",
+          "default": 61499,
+          "description": "Port of openFB runtime server",
+          "scope": "window"
+        },
+        "openfb.deployTimeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "Timeout in milliseconds for deploy operation",
+          "scope": "window"
         }
       }
     }
