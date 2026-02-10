@@ -32,13 +32,35 @@ new InteractionEngine(canvas, state, renderer);
 
 function resize() {
   canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  logger.debug(`Canvas resized to ${canvas.width}x${canvas.height}`);
+  // If toolbar present at bottom, subtract its height so canvas is not covered
+  const tb = document.getElementById("toolbar");
+  const tbHeight = tb ? tb.offsetHeight : 0;
+  canvas.height = Math.max(0, window.innerHeight - tbHeight);
+  logger.debug(`Canvas resized to ${canvas.width}x${canvas.height} (toolbar ${tbHeight}px)`);
   renderer.render(state);
 }
 
 window.addEventListener("resize", resize);
 resize();
+
+// Toolbar button handlers
+const deployBtn = document.getElementById("deployBtn") as HTMLButtonElement | null;
+if (deployBtn) {
+  deployBtn.addEventListener("click", () => {
+    logger.info("Deploy button clicked");
+    try {
+      if (typeof vscode !== "undefined" && vscode.postMessage) {
+        vscode.postMessage({ type: "deploy" });
+      } else {
+        logger.warn("vscode.postMessage not available for deploy");
+      }
+    } catch (err) {
+      logger.error("Failed to post deploy message", err);
+    }
+  });
+} else {
+  logger.warn("Deploy button not found in DOM");
+}
 
 // Register message handler BEFORE anything else
 logger.info("Registering message handler...");
