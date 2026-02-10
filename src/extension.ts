@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
+import { OpenFBHandler } from "./openfb/handler";
 import { parseSysFile } from "./domain/sysParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
@@ -139,6 +141,34 @@ export function activate(context: vscode.ExtensionContext) {
                 clearTimeout(timeoutHandle);
                 timeoutHandle = undefined;
               }
+              return;
+            } else if (m?.type === "deploy") {
+              try {
+                // Compute .fboot path next to .sys file
+                const sysPath = uri.fsPath;
+                const parsed = path.parse(sysPath);
+                const fbootPath = path.join(parsed.dir, parsed.name + ".fboot");
+                logger.info("Deploy requested", fbootPath);
+
+                if (!fs.existsSync(fbootPath)) {
+                  vscode.window.showErrorMessage(`.fboot file not found: ${fbootPath}`);
+                  return;
+                }
+
+                const handler = new OpenFBHandler();
+                handler.deploy(fbootPath)
+                  .then(() => {
+                    vscode.window.showInformationMessage(`Deploy completed: ${fbootPath}`);
+                  })
+                  .catch((err) => {
+                    logger.error("Deploy failed", err);
+                    vscode.window.showErrorMessage(`Deploy failed: ${err}`);
+                  });
+              } catch (err) {
+                logger.error("Error handling deploy message", err);
+                vscode.window.showErrorMessage(`Error during deploy: ${err}`);
+              }
+              return;
             }
           } catch (err) {
             logger.error("Error handling webview message", err);
