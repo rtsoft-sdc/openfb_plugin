@@ -1,17 +1,31 @@
-import { EditorState } from "./editorState";
+import { EditorState, DiagramModel } from "./editorState";
 import { CanvasRenderer } from "./canvasRenderer";
-import { InteractionEngine } from "./interactionEngine";
+import { CanvasInputManager } from "./canvasInputManager";
 import { FBTypeModel } from "../domain/fbtModel";
 import { initializeWebviewLogger } from "./logging";
 
-declare const acquireVsCodeApi: () => {
-  postMessage(message: any): void;
-};
+/**
+ * VS Code Webview API for communication with the extension host
+ */
+interface VsCodeApi {
+  postMessage(message: unknown): void;
+}
+
+/**
+ * Message from extension host to webview
+ */
+interface ExtensionMessage {
+  type: string;
+  payload?: DiagramModel;
+  fbTypes?: [string, FBTypeModel][];
+}
+
+declare const acquireVsCodeApi: () => VsCodeApi;
 
 const logger = initializeWebviewLogger();
 logger.info("main.ts starting...");
 
-let vscode: any;
+let vscode: VsCodeApi | undefined;
 try {
   vscode = acquireVsCodeApi();
   logger.info("acquireVsCodeApi success");
@@ -28,7 +42,7 @@ if (!canvas) {
 
 const state = new EditorState();
 const renderer = new CanvasRenderer(canvas);
-new InteractionEngine(canvas, state, renderer);
+new CanvasInputManager(canvas, state, renderer);
 
 function resize() {
   canvas.width = window.innerWidth;
@@ -36,6 +50,10 @@ function resize() {
   const tb = document.getElementById("toolbar");
   const tbHeight = tb ? tb.offsetHeight : 0;
   canvas.height = Math.max(0, window.innerHeight - tbHeight);
+  
+  // Update renderer with toolbar height for fitToView calculations
+  renderer.setToolbarHeight(tbHeight);
+  
   logger.debug(`Canvas resized to ${canvas.width}x${canvas.height} (toolbar ${tbHeight}px)`);
   renderer.render(state);
 }
@@ -49,7 +67,7 @@ if (deployBtn) {
   deployBtn.addEventListener("click", () => {
     logger.info("Deploy button clicked");
     try {
-      if (typeof vscode !== "undefined" && vscode.postMessage) {
+      if (vscode) {
         vscode.postMessage({ type: "deploy" });
       } else {
         logger.warn("vscode.postMessage not available for deploy");
@@ -64,7 +82,7 @@ if (deployBtn) {
 
 // Register message handler BEFORE anything else
 logger.info("Registering message handler...");
-const messageHandler = (event: MessageEvent) => {
+const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
   logger.debug("=== MESSAGE RECEIVED ===");
   logger.debug("event.data type", typeof event.data);
   logger.debug("event.data keys", Object.keys(event.data || {}));
@@ -74,10 +92,16 @@ const messageHandler = (event: MessageEvent) => {
     logger.info("Processing load-diagram message");
     const fbTypes = new Map<string, FBTypeModel>(event.data.fbTypes || []);
     logger.info("FB Types count", fbTypes.size);
-    logger.debug("Diagram blocks", event.data.payload?.blocks);
+    
+    if (!event.data.payload) {
+      logger.error("No payload in load-diagram message");
+      return;
+    }
+    
+    logger.debug("Diagram blocks", event.data.payload.blocks);
     
     // Log each block's position
-    for (const block of (event.data.payload?.blocks || [])) {
+    for (const block of event.data.payload.blocks) {
       logger.debug(`Block: ${block.id} (type=${block.type}) at (${block.x}, ${block.y})`);
     }
 
@@ -85,6 +109,14 @@ const messageHandler = (event: MessageEvent) => {
     logger.info("Loaded nodes", state.nodes.length);
     logger.debug("State nodes data", state.nodes);
     logger.info("Loaded connections", state.connections.length);
+
+    // Fit diagram to view on first load
+    const tb = document.getElementById("toolbar");
+    const tbHeight = tb ? tb.offsetHeight : 0;
+    state.fitToView(canvas.width, canvas.height, tbHeight);
+
+    // Also fit the camera to nodes for proper centering
+    renderer.fitCameraToNodes(state.nodes, canvas.width, canvas.height, tbHeight);
 
     renderer.render(state);
     logger.info("Rendered");
@@ -98,7 +130,7 @@ logger.info("Message handler registered");
 
 // Send ready handshake to extension host
 try {
-  if (typeof vscode !== "undefined" && vscode.postMessage) {
+  if (vscode) {
     logger.info("Posting ready to extension host");
     vscode.postMessage({ type: "ready" });
   } else {
