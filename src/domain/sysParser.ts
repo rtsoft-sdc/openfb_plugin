@@ -1,6 +1,14 @@
 import * as fs from "fs";
 import { XMLParser } from "fast-xml-parser";
-import { SysBlock, SysConnection, SysModel } from "./sysModel";
+import { 
+  SysBlock, 
+  SysConnection, 
+  SysModel, 
+  SysParameter,
+  SysDevice,
+  SysResource,
+  SysMapping 
+} from "./sysModel";
 import { getLogger } from "../logging";
 
 export function parseSysFile(filePath: string): SysModel {
@@ -13,14 +21,20 @@ export function parseSysFile(filePath: string): SysModel {
   });
 
   const doc = parser.parse(xml);
+  const system = doc?.System;
+  if (!system) throw new Error("No System in SYS");
 
-  const app = doc?.System?.Application;
+  const app = system.Application;
   if (!app) throw new Error("No Application in SYS");
 
+  const applicationName = app.Name || "DefaultApp";
   const blocks: SysBlock[] = [];
+  const parameters: SysParameter[] = [];
   const connections: SysConnection[] = [];
+  const devices: SysDevice[] = [];
+  const mappings: SysMapping[] = [];
 
-  // FBs can be either directly in Application or inside SubAppNetwork
+  // ============ PARSE FB INSTANCES ============
   let fbList = app.FB;
   if (!fbList && app.SubAppNetwork?.FB) {
     fbList = app.SubAppNetwork.FB;
@@ -31,15 +45,31 @@ export function parseSysFile(filePath: string): SysModel {
 
   for (const fb of fbArray) {
     if (!fb) continue;
+    
     blocks.push({
       id: fb.Name,
       type: fb.Type,
       x: Number(fb.x ?? 0),
-      y: Number(fb.y ?? 0)
+      y: Number(fb.y ?? 0),
+      application: applicationName
     });
+
+    // Extract parameters for this FB
+    if (fb.Parameter) {
+      const paramList = Array.isArray(fb.Parameter) ? fb.Parameter : [fb.Parameter];
+      for (const param of paramList) {
+        if (param?.Name && param?.Value !== undefined) {
+          parameters.push({
+            fbName: fb.Name,
+            name: param.Name,
+            value: param.Value
+          });
+        }
+      }
+    }
   }
 
-  // SubApps can also be in SubAppNetwork
+  // Also parse SubApps
   let subAppList = app.SubAppNetwork?.SubApp;
   const subAppArray = subAppList ? (Array.isArray(subAppList) ? subAppList : [subAppList]) : [];
   logger.debug("Found SubApp elements", subAppArray.length);
@@ -50,31 +80,27 @@ export function parseSysFile(filePath: string): SysModel {
       id: subApp.Name,
       type: subApp.Type,
       x: Number(subApp.x ?? 0),
-      y: Number(subApp.y ?? 0)
+      y: Number(subApp.y ?? 0),
+      application: applicationName
     });
   }
 
   logger.info("Total blocks parsed", blocks.length);
+
+  // ============ PARSE CONNECTIONS ============
+  // EventConnections
+  const eventConnList = app.SubAppNetwork?.EventConnections?.Connection;
+  const eventConnArray = eventConnList ? (Array.isArray(eventConnList) ? eventConnList : [eventConnList]) : [];
   
-  let connList = app.Connection;
-  if (!connList && app.SubAppNetwork?.Connection) {
-    connList = app.SubAppNetwork.Connection;
-  }
+  // DataConnections
+  const dataConnList = app.SubAppNetwork?.DataConnections?.Connection;
+  const dataConnArray = dataConnList ? (Array.isArray(dataConnList) ? dataConnList : [dataConnList]) : [];
 
-  // Also check FBNetwork connections
-  if (!connList && app.SubAppNetwork?.FBNetwork?.EventConnections?.Connection) {
-    connList = app.SubAppNetwork.FBNetwork.EventConnections.Connection;
-  }
-  if (!connList && app.SubAppNetwork?.FBNetwork?.DataConnections?.Connection) {
-    connList = app.SubAppNetwork.FBNetwork.DataConnections.Connection;
-  }
+  const allConnArray = [...eventConnArray, ...dataConnArray];
+  logger.debug("Found connection elements", allConnArray.length);
 
-  const connArray = connList ? (Array.isArray(connList) ? connList : [connList]) : [];
-  logger.debug("Found connection elements", connArray.length);
-
-  for (const c of connArray) {
+  for (const c of allConnArray) {
     if (!c) continue;
-    // Parse connection format: e.g., "BlockName.PortName" -> "BlockName.PortName"
     const fromParts = c.Source?.split(".") || ["", ""];
     const toParts = c.Destination?.split(".") || ["", ""];
     
@@ -82,11 +108,76 @@ export function parseSysFile(filePath: string): SysModel {
       fromBlock: fromParts[0],
       fromPort: fromParts[1] || "",
       toBlock: toParts[0],
-      toPort: toParts[1] || ""
+      toPort: toParts[1] || "",
+      type: eventConnArray.includes(c) ? "event" : "data"
     });
   }
 
   logger.info("Total connections parsed", connections.length);
-  return { blocks, connections };
+
+  // ============ PARSE DEVICES & RESOURCES ============
+  const deviceList = system.Device;
+  const deviceArray = deviceList ? (Array.isArray(deviceList) ? deviceList : [deviceList]) : [];
+  logger.debug("Found Device elements", deviceArray.length);
+
+  for (const device of deviceArray) {
+    if (!device) continue;
+
+    const resourceList = device.Resource;
+    const resourceArray = resourceList ? (Array.isArray(resourceList) ? resourceList : [resourceList]) : [];
+    
+    const sysResources: SysResource[] = [];
+    for (const res of resourceArray) {
+      if (!res) continue;
+      sysResources.push({
+        name: res.Name,
+        type: res.Type,
+        device: device.Name
+      });
+    }
+
+    devices.push({
+      name: device.Name,
+      type: device.Type,
+      resources: sysResources
+    });
+  }
+
+  logger.info("Total devices parsed", devices.length);
+
+  // ============ PARSE MAPPINGS ============
+  const mappingList = system.Mapping;
+  const mappingArray = mappingList ? (Array.isArray(mappingList) ? mappingList : [mappingList]) : [];
+  logger.debug("Found Mapping elements", mappingArray.length);
+
+  for (const mapping of mappingArray) {
+    if (!mapping?.From || !mapping?.To) continue;
+
+    // Parse "From": e.g., "washer_detectorApp.CAMERA"
+    const fromParts = mapping.From.split(".");
+    const fbInstance = mapping.From;
+
+    // Parse "To": e.g., "FORTE_PC.EMB_RES" or just "FORTE_PC"
+    const toParts = mapping.To.split(".");
+    const deviceName = toParts[0];
+    const resourceName = toParts[1] || "EMB_RES"; // Default resource name
+
+    mappings.push({
+      fbInstance,
+      device: deviceName,
+      resource: resourceName
+    });
+  }
+
+  logger.info("Total mappings parsed", mappings.length);
+
+  return {
+    applicationName,
+    blocks,
+    parameters,
+    connections,
+    devices,
+    mappings
+  };
 }
 
