@@ -189,8 +189,8 @@ export function activate(context: vscode.ExtensionContext) {
             } else if (m?.type === "generateFboot") {
               logger.info("Generate FBOOT requested");
 
-              const fbGenerator = new FBootGenerator();
-              fbGenerator.generate(uri.fsPath)
+              const fbGenerator = new FBootGenerator(model, uri.fsPath);
+              fbGenerator.generate()
                 .then((files) => {
                   const message = `FBOOT создан: ${files.length} файл(ов)`;
                   logger.info(message, files);

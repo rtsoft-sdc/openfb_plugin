@@ -9,49 +9,46 @@ import {
   SysConnection,
   SysMapping 
 } from "../../domain/sysModel";
-import { parseSysFile } from "../../domain/sysParser";
 import { getLogger } from "../../logging";
 
 export class FBootGenerator {
   private logger = getLogger();
+  private model: SysModel;
+  private sysPath: string;
+
+  constructor(model: SysModel, sysPath: string) {
+    this.model = model;
+    this.sysPath = sysPath;
+  }
 
   /**
-   * Main entry point: generates .fboot files for all devices/resources in a .sys file
-   * @param sysPath - Absolute path to the .sys file
+   * Main entry point: generates .fboot files for all devices/resources
    * @returns Array of generated .fboot file paths
    */
-  async generate(sysPath: string): Promise<string[]> {
-    // Check file exists
-    if (!fs.existsSync(sysPath)) {
-      throw new Error(`File not found: ${sysPath}`);
-    }
-
-    this.logger.info(`Parsing .sys file: ${sysPath}`);
-    const model = parseSysFile(sysPath);
-
+  async generate(): Promise<string[]> {
     // Validate model has required data
-    if (!model.devices || model.devices.length === 0) {
+    if (!this.model.devices || this.model.devices.length === 0) {
       throw new Error("No devices in .sys");
     }
-    if (!model.mappings || model.mappings.length === 0) {
+    if (!this.model.mappings || this.model.mappings.length === 0) {
       throw new Error("No mappings in .sys");
     }
 
     // Count resources for logging
-    const totalResources = model.devices.reduce((sum, d) => sum + d.resources.length, 0);
-    this.logger.debug(`Found ${model.devices.length} devices with ${totalResources} resources`);
+    const totalResources = this.model.devices.reduce((sum, d) => sum + d.resources.length, 0);
+    this.logger.debug(`Found ${this.model.devices.length} devices with ${totalResources} resources`);
 
     const generatedFiles: string[] = [];
-    const outputDir = path.dirname(sysPath);
-    const systemName = model.applicationName;
+    const outputDir = path.dirname(this.sysPath);
+    const systemName = this.model.applicationName;
 
     // Generate .fboot for each device/resource pair
-    for (const device of model.devices) {
+    for (const device of this.model.devices) {
       for (const resource of device.resources) {
         this.logger.debug(`Generating .fboot for Device=${device.name}, Resource=${resource.name}`);
 
         // Generate content
-        const content = this.generateFBootForResource(device, resource, model);
+        const content = this.generateFBootForResource(device, resource, this.model);
 
         // Build filename
         const filename = `${systemName}_${device.name}.fboot`;
@@ -144,7 +141,7 @@ export class FBootGenerator {
    */
   private buildCreateFBCmd(fb: SysBlock, mapping: SysMapping, id: number, resourceName: string): string {
     const escapedType = this.escapeXmlValue(fb.type);
-    return `${resourceName};<Request ID="${id}" Action="CREATE"><FB Name="${mapping.fbInstance}" Type="${escapedType}" /></Request>`;
+    return `${resourceName};<Request ID="${id}" Action="CREATE"><FB Name="${mapping.fbInstance}" Type="${escapedType}"></FB></Request>`;
   }
 
   /**
@@ -212,9 +209,9 @@ export class FBootGenerator {
     model: SysModel
   ): string {
     const lines: string[] = [];
-    let cmdId = 1;
+    let cmdId = 3;
 
-    // 1. CREATE Resource (ID=1)
+    //CREATE Resource 
     lines.push(this.buildCreateResourceCmd(resource, cmdId++));
 
     // Get filtered data for this resource
@@ -234,7 +231,7 @@ export class FBootGenerator {
       }
     }
 
-    // 2. CREATE FB Instances (ID=2, 3, 4, ...)
+    // CREATE FB Instances
     for (const fb of fbs) {
       const mapping = fbToMapping.get(fb.id);
       if (mapping) {
@@ -242,7 +239,7 @@ export class FBootGenerator {
       }
     }
 
-    // 3. WRITE Parameters (ID=5, 6, 7, ...)
+    //WRITE Parameters 
     for (const param of parameters) {
       const mapping = fbToMapping.get(param.fbName);
       if (mapping) {
@@ -250,12 +247,12 @@ export class FBootGenerator {
       }
     }
 
-    // 4. CREATE Connections (ID=..., ...)
+    // CREATE Connections
     for (const conn of connections) {
       lines.push(this.buildCreateConnectionCmd(conn, fbToMapping, cmdId++, resource.name));
     }
 
-    // 5. START (final ID)
+    // START 
     lines.push(this.buildStartCmd(cmdId, resource.name));
 
     return lines.join("\n");
