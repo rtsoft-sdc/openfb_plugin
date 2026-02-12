@@ -279,13 +279,12 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
     canvas { display: block; background: #ffffff; }
-    /* Toolbar styles */
-    /* Bottom full-width toolbar */
+    /* Top full-width toolbar */
     #toolbar {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 0;
+      top: 0;
       height: 48px;
       z-index: 1000;
       display: flex;
@@ -295,7 +294,8 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       background: #f3f3f3;
       padding: 0 12px;
       border: 1px solid #ddd;
-      box-shadow: 0 -1px 4px rgba(0,0,0,0.06);
+      border-bottom: 1px solid #ddd;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
       font-family: sans-serif;
     }
     #toolbar button {
@@ -311,11 +311,11 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   </style>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
   <div id="toolbar">
     <button id="generateFbootBtn">Создать FBOOT</button>
     <button id="deployBtn">Деплой</button>
   </div>
+  <canvas id="canvas" style="margin-top: 48px;"></canvas>
   <script type="module" src="${scriptUri}"></script>
 </body>
 </html>`;
