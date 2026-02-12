@@ -277,13 +277,14 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src ${webview.cspSource}; style-src 'unsafe-inline';">
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-    canvas { display: block; background: #ffffff; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    
     /* Top full-width toolbar */
     #toolbar {
       position: absolute;
       left: 0;
-      right: 0;
+      right: 300px;
       top: 0;
       height: 48px;
       z-index: 1000;
@@ -293,10 +294,8 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       gap: 12px;
       background: #f3f3f3;
       padding: 0 12px;
-      border: 1px solid #ddd;
       border-bottom: 1px solid #ddd;
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-      font-family: sans-serif;
     }
     #toolbar button {
       padding: 8px 12px;
@@ -308,6 +307,102 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       font-family: Roboto, sans-serif;
     }
     #toolbar button:hover { background: #218838; }
+    
+    /* Canvas - adjusted for right panel */
+    canvas {
+      display: block;
+      background: #ffffff;
+      position: absolute;
+      left: 0;
+      top: 48px;
+      right: 300px;
+      bottom: 0;
+    }
+    
+    /* Right sidepanel */
+    #sidepanel {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 300px;
+      height: 100vh;
+      background: #ffffff;
+      border-left: 1px solid #ddd;
+      overflow-y: auto;
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #sidepanel-header {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      background: #f3f3f3;
+      font-weight: 600;
+      font-size: 13px;
+      color: #333;
+      position: sticky;
+      top: 0;
+    }
+    
+    #sidepanel-content {
+      flex: 1;
+      padding: 12px;
+      font-size: 12px;
+      color: #555;
+    }
+    
+    .sidepanel-section {
+      margin-bottom: 16px;
+    }
+    
+    .sidepanel-section-title {
+      font-weight: 600;
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .sidepanel-item {
+      padding: 4px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .sidepanel-label {
+      color: #666;
+      font-size: 11px;
+    }
+    
+    .sidepanel-value {
+      color: #333;
+      font-weight: 500;
+      word-break: break-word;
+      text-align: right;
+      flex: 1;
+      margin-left: 8px;
+    }
+    
+    .sidepanel-empty {
+      color: #999;
+      font-style: italic;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .port-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
@@ -315,7 +410,16 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     <button id="generateFbootBtn">Создать FBOOT</button>
     <button id="deployBtn">Деплой</button>
   </div>
-  <canvas id="canvas" style="margin-top: 48px;"></canvas>
+  
+  <canvas id="canvas"></canvas>
+  
+  <div id="sidepanel">
+    <div id="sidepanel-header">Информация о блоке</div>
+    <div id="sidepanel-content">
+      <div class="sidepanel-empty">Выберите блок на диаграмме</div>
+    </div>
+  </div>
+  
   <script type="module" src="${scriptUri}"></script>
 </body>
 </html>`;

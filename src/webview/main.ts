@@ -16,7 +16,7 @@ interface VsCodeApi {
  */
 interface ExtensionMessage {
   type: string;
-  payload?: DiagramModel;
+  payload?: any;  // Can be DiagramModel or its superset with additional properties
   fbTypes?: [string, FBTypeModel][];
 }
 
@@ -44,9 +44,106 @@ const state = new EditorState();
 const renderer = new CanvasRenderer(canvas);
 new CanvasInputManager(canvas, state, renderer);
 
+/**
+ * Update sidepanel with selected block data
+ */
+function updateSidepanel() {
+  const sidepanelContent = document.getElementById("sidepanel-content");
+  if (!sidepanelContent) return;
+  
+  const selectedNodeId = state.selection.nodeId;
+  
+  if (!selectedNodeId) {
+    sidepanelContent.innerHTML = '<div class="sidepanel-empty">Выберите блок на диаграмме</div>';
+    return;
+  }
+  
+  const node = state.nodes.find(n => n.id === selectedNodeId);
+  if (!node) {
+    sidepanelContent.innerHTML = '<div class="sidepanel-empty">Блок не найден</div>';
+    return;
+  }
+  
+  // Get FB type info
+  const fbType = state.fbTypes?.get(node.type);
+  
+  // Build map of node parameters for quick lookup
+  const nodeParamMap = new Map<string, string>();
+  if (state.model && state.model.parameters) {
+    state.model.parameters
+      .filter((p: any) => p.fbName === node.id)
+      .forEach((p: any) => {
+        nodeParamMap.set(p.name, p.value);
+      });
+  }
+  
+  // Build HTML content
+  let html = '';
+  
+  // Block name and type
+  html += `<div class="sidepanel-section">`;
+  html += `<div class="sidepanel-item"><span class="sidepanel-label">Имя:</span><span class="sidepanel-value">${node.id}</span></div>`;
+  html += `<div class="sidepanel-item"><span class="sidepanel-label">Тип:</span><span class="sidepanel-value">${node.type}</span></div>`;
+  html += `</div>`;
+  
+  // Position (compact - single line)
+  html += `<div class="sidepanel-section">`;
+  html += `<div class="sidepanel-item"><span class="sidepanel-label">Позиция:</span><span class="sidepanel-value">X: ${node.x.toFixed(0)}, Y: ${node.y.toFixed(0)}</span></div>`;
+  html += `</div>`;
+  
+  // Input Ports
+  if (fbType && fbType.ports && fbType.ports.length > 0) {
+    const inputPorts = fbType.ports.filter(p => p.direction === 'input');
+    if (inputPorts.length > 0) {
+      html += `<div class="sidepanel-section">`;
+      html += `<div class="sidepanel-section-title">Входы (${inputPorts.length})</div>`;
+      for (const port of inputPorts) {
+        const portColor = port.kind === 'event' ? '#22DD22' : '#2255FF';
+        const paramValue = nodeParamMap.get(port.name);
+        html += `<div class="sidepanel-item">`;
+        html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}</span>`;
+        if (paramValue) {
+          html += `<span class="sidepanel-value" style="font-size: 11px;">${paramValue}</span>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+  }
+  
+  // Output Ports
+  if (fbType && fbType.ports && fbType.ports.length > 0) {
+    const outputPorts = fbType.ports.filter(p => p.direction === 'output');
+    if (outputPorts.length > 0) {
+      html += `<div class="sidepanel-section">`;
+      html += `<div class="sidepanel-section-title">Выходы (${outputPorts.length})</div>`;
+      for (const port of outputPorts) {
+        const portColor = port.kind === 'event' ? '#22DD22' : '#2255FF';
+        const paramValue = nodeParamMap.get(port.name);
+        html += `<div class="sidepanel-item">`;
+        html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}</span>`;
+        if (paramValue) {
+          html += `<span class="sidepanel-value" style="font-size: 11px;">${paramValue}</span>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+  }
+  
+  sidepanelContent.innerHTML = html;
+}
+
+// Subscribe to state changes
+const originalSelectNode = state.selectNode.bind(state);
+state.selectNode = function(nodeId?: string) {
+  originalSelectNode(nodeId);
+  updateSidepanel();
+};
+
 function resize() {
-  canvas.width = window.innerWidth;
-  // If toolbar present at bottom, subtract its height so canvas is not covered
+  canvas.width = window.innerWidth - 300; // Account for right panel
+  // If toolbar present at top, subtract its height so canvas is not covered
   const tb = document.getElementById("toolbar");
   const tbHeight = tb ? tb.offsetHeight : 0;
   canvas.height = Math.max(0, window.innerHeight - tbHeight);

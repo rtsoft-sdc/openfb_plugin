@@ -70,6 +70,8 @@ export class EditorState {
   nodes: EditorNode[] = [];
   connections: EditorConnection[] = [];
   isDragging = false;
+  fbTypes?: Map<string, FBTypeModel>;
+  model?: any;  // Can have additional properties like parameters
   private logger = getWebviewLogger();
 
   // Cached diagram bounds to avoid recalculation
@@ -95,6 +97,10 @@ export class EditorState {
     diagram: DiagramModel,
     fbTypes: Map<string, FBTypeModel>
   ) {
+    // Store for later access (e.g., in sidepanel)
+    this.fbTypes = fbTypes;
+    this.model = diagram;
+    
     // Clear caches when loading new diagram
     this.cachedBounds = null;
     this.dimensionCache.clear();

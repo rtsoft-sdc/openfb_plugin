@@ -52,17 +52,53 @@ export class CanvasInputManager {
       return;
     }
 
-    // Left mouse button for node dragging or panning
+    // Left mouse button for node dragging, node selection, or panning
     if (e.button !== 0) return;
 
-    // Try to start node drag first
+    // Get world coordinates to check for node selection
+    const worldPos = this.getMousePos(e);
+    
+    // Try to find and select a node at click position
+    const clickedNode = this.findNodeAtPoint(worldPos.x, worldPos.y);
+    if (clickedNode) {
+      // Node was clicked - select it
+      this.state.selectNode(clickedNode.id);
+      this.renderer.render(this.state);
+      return;
+    }
+
+    // Try to start node drag (if a node is already selected, might drag it)
     if (this.nodeDragHandler.tryStartDrag(e)) {
       return;
     }
 
-    // Empty area was clicked - start panning
+    // Empty area was clicked - deselect any node and start panning
+    this.state.selectNode(undefined);
+    this.renderer.render(this.state);
     this.viewportController.startPanning(e);
   };
+
+  /**
+   * Find the node at the given world coordinates
+   * Returns the topmost node if multiple nodes overlap
+   * @param worldX - World coordinate X
+   * @param worldY - World coordinate Y
+   * @returns The node at the point, or undefined if no node
+   */
+  private findNodeAtPoint(worldX: number, worldY: number) {
+    for (const node of this.state.nodes) {
+      // Check if point is inside node bounding box
+      if (
+        worldX >= node.x &&
+        worldX <= node.x + node.width &&
+        worldY >= node.y &&
+        worldY <= node.y + node.height
+      ) {
+        return node;
+      }
+    }
+    return undefined;
+  }
 
   private onWindowMouseMove = (e: MouseEvent) => {
     this.nodeDragHandler.updateDragPosition(e);

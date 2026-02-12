@@ -107,6 +107,7 @@ export function drawStatsAndLegend(
   );
   ctx.fill();
   ctx.fillStyle = C.LEGEND_TEXT_COLOR;
+  ctx.font = C.LEGEND_ITEM_FONT;
   ctx.fillText(C.LEGEND_DATA_PORT, legendX + C.LEGEND_PADDING + 16, yPos);
   yPos += C.LEGEND_LINE_HEIGHT;
 

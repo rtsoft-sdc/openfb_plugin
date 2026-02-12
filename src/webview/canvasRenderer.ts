@@ -122,7 +122,7 @@ export class CanvasRenderer {
     applyCamera(this.ctx, this.camera);
 
     drawConnections(this.ctx, state);
-    drawNodes(this.ctx, state.nodes);
+    drawNodes(this.ctx, state.nodes, state.selection.nodeId);
 
     this.ctx.restore();
 
