@@ -91,18 +91,25 @@ export function activate(context: vscode.ExtensionContext) {
         const searchPaths = Array.from(uniquePaths);
         
         logger.info("FB library search paths", searchPaths);
+        
+        // Extract the FB types that are actually used in the SYS file
+        const usedTypeNames = new Set<string>();
+        for (const block of model.blocks) {
+          usedTypeNames.add(block.type);
+        }
+        logger.info("FB types used in SYS file", Array.from(usedTypeNames));
+        
         const registry = new FBTypeRegistry(searchPaths);
-        registry.scan();
-        const allTypes = registry.getAllTypes();
-        logger.info("Found FB types", allTypes.map((t) => t.name));
-
+        // Scan only for the types that are used in the SYS file
+        registry.scanForTypes(Array.from(usedTypeNames));
+        
         const fbTypeMap = new Map();
-        for (const type of allTypes) {
-          const fbModel = registry.getTypeModel(type.name);
+        for (const typeName of usedTypeNames) {
+          const fbModel = registry.getTypeModel(typeName);
           if (fbModel) {
-            fbTypeMap.set(type.name, fbModel);
+            fbTypeMap.set(typeName, fbModel);
             logger.debug(
-              `Type "${type.name}" ports:`,
+              `Type "${typeName}" ports:`,
               fbModel.ports.map((p) => `${p.name}(${p.direction}/${p.kind})`)
             );
           }
