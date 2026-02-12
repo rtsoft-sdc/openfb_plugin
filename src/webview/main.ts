@@ -80,6 +80,24 @@ if (deployBtn) {
   logger.warn("Deploy button not found in DOM");
 }
 
+const generateFbootBtn = document.getElementById("generateFbootBtn") as HTMLButtonElement | null;
+if (generateFbootBtn) {
+  generateFbootBtn.addEventListener("click", () => {
+    logger.info("generateFbootBtn button clicked");
+    try {
+      if (vscode) {
+        vscode.postMessage({ type: "generateFboot" });
+      } else {
+        logger.warn("vscode.postMessage not available for deploy");
+      }
+    } catch (err) {
+      logger.error("Failed to post generateFboot message", err);
+    }
+  });
+} else {
+  logger.warn("generateFboot button not found in DOM");
+}
+
 // Register message handler BEFORE anything else
 logger.info("Registering message handler...");
 const messageHandler = (event: MessageEvent<ExtensionMessage>) => {

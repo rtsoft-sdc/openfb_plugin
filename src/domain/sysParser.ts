@@ -36,8 +36,10 @@ export function parseSysFile(filePath: string): SysModel {
 
   // ============ PARSE FB INSTANCES ============
   let fbList = app.FB;
+  let fbInSubAppNetwork = false;
   if (!fbList && app.SubAppNetwork?.FB) {
     fbList = app.SubAppNetwork.FB;
+    fbInSubAppNetwork = true;
   }
 
   const fbArray = fbList ? (Array.isArray(fbList) ? fbList : [fbList]) : [];
@@ -46,8 +48,11 @@ export function parseSysFile(filePath: string): SysModel {
   for (const fb of fbArray) {
     if (!fb) continue;
     
+    // If FB is in SubAppNetwork, add application name as prefix (like "appName.fbName")
+    const fbId = fbInSubAppNetwork ? `${applicationName}.${fb.Name}` : fb.Name;
+    
     blocks.push({
-      id: fb.Name,
+      id: fbId,
       type: fb.Type,
       x: Number(fb.x ?? 0),
       y: Number(fb.y ?? 0),
@@ -60,7 +65,7 @@ export function parseSysFile(filePath: string): SysModel {
       for (const param of paramList) {
         if (param?.Name && param?.Value !== undefined) {
           parameters.push({
-            fbName: fb.Name,
+            fbName: fbId,
             name: param.Name,
             value: param.Value
           });
@@ -69,15 +74,19 @@ export function parseSysFile(filePath: string): SysModel {
     }
   }
 
-  // Also parse SubApps
+  // Also parse SubApps (with their application prefix)
   let subAppList = app.SubAppNetwork?.SubApp;
   const subAppArray = subAppList ? (Array.isArray(subAppList) ? subAppList : [subAppList]) : [];
   logger.debug("Found SubApp elements", subAppArray.length);
 
   for (const subApp of subAppArray) {
     if (!subApp) continue;
+    
+    // SubApps also need application prefix
+    const subAppId = `${applicationName}.${subApp.Name}`;
+    
     blocks.push({
-      id: subApp.Name,
+      id: subAppId,
       type: subApp.Type,
       x: Number(subApp.x ?? 0),
       y: Number(subApp.y ?? 0),

@@ -5,6 +5,7 @@ import { OpenFBHandler, setResponsesChannel } from "./openfb/handler";
 import { parseSysFile } from "./domain/sysParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
+import { FBootGenerator } from "./generators/fboot/fbootGenerator";
 
 // Store subscriptions for cleanup on deactivation
 const extensionSubscriptions: vscode.Disposable[] = [];
@@ -185,6 +186,22 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage(`Ошибка при деплое: ${err}`);
               }
               return;
+            } else if (m?.type === "generateFboot") {
+              logger.info("Generate FBOOT requested");
+
+              const fbGenerator = new FBootGenerator();
+              fbGenerator.generate(uri.fsPath)
+                .then((files) => {
+                  const message = `FBOOT создан: ${files.length} файл(ов)`;
+                  logger.info(message, files);
+                  vscode.window.showInformationMessage(message);
+                })
+                .catch((err) => {
+                  const errorMsg = `Не удалось создать FBOOT: ${err}`;
+                  logger.error(errorMsg, err);
+                  vscode.window.showErrorMessage(errorMsg);
+                });
+              return;
             }
           } catch (err) {
             logger.error("Error handling webview message", err);
@@ -296,6 +313,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
 <body>
   <canvas id="canvas"></canvas>
   <div id="toolbar">
+    <button id="generateFbootBtn">Создать FBOOT</button>
     <button id="deployBtn">Деплой</button>
   </div>
   <script type="module" src="${scriptUri}"></script>
