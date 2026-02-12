@@ -87,7 +87,7 @@ let globalLogger: Logger;
 export function initializeLogger(outputChannel?: vscode.OutputChannel): Logger {
   globalLogger = new Logger("OpenFB", outputChannel);
   // Set default log level to info (can be increased to debug for development)
-  if (process.env.OPENF_DEBUG === "true") {
+  if (process.env.OPENFB_DEBUG === "true") {
     globalLogger.setLogLevel("debug");
   }
   return globalLogger;

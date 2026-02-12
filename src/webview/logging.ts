@@ -77,7 +77,7 @@ let globalLogger: WebviewLogger;
 export function initializeWebviewLogger(): WebviewLogger {
   globalLogger = new WebviewLogger("OpenFB Webview");
   // Set default log level to info (can be increased to debug for development)
-  if ((window as any).OPENF_DEBUG === true) {
+  if ((window as any).OPENFB_DEBUG === true) {
     globalLogger.setLogLevel("debug");
   }
   return globalLogger;

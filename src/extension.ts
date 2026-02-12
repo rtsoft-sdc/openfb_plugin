@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { OpenFBHandler } from "./openfb/handler";
+import { OpenFBHandler, setResponsesChannel } from "./openfb/handler";
 import { parseSysFile } from "./domain/sysParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
@@ -10,14 +10,23 @@ import { initializeLogger, getLogger } from "./logging";
 const extensionSubscriptions: vscode.Disposable[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
-  const logger = initializeLogger();
+  // Ensure the responses output channel exists and is registered in the Output panel
+  const responsesChannel = vscode.window.createOutputChannel("OpenFBPlugin");
+  context.subscriptions.push(responsesChannel);
+  try { responsesChannel.show(true); } catch (e) {}
+
+  // Initialize logger with the responses channel so all logger output goes there
+  const logger = initializeLogger(responsesChannel);
   logger.info("OpenFB plugin activated");
+
+  // Register the responses channel with the handler module so it uses this instance
+  try { setResponsesChannel(responsesChannel); } catch (e) {}
   
   const commandDisposable = vscode.commands.registerCommand(
     "openfb.plugin.showSysDiagram",
     async (uri: vscode.Uri) => {
       if (!uri) {
-        vscode.window.showErrorMessage("No SYS file selected");
+        vscode.window.showErrorMessage("Не выбран SYS-файл");
         return;
       }
 
@@ -59,7 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
         // Load FBType definitions from .fbt files
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
         if (!workspaceFolder) {
-          vscode.window.showErrorMessage("File is not in a workspace");
+          vscode.window.showErrorMessage("Файл не находится в рабочей области");
           panel.dispose();
           return;
         }
@@ -151,22 +160,22 @@ export function activate(context: vscode.ExtensionContext) {
                 logger.info("Deploy requested", fbootPath);
 
                 if (!fs.existsSync(fbootPath)) {
-                  vscode.window.showErrorMessage(`.fboot file not found: ${fbootPath}`);
+                  vscode.window.showErrorMessage(`.fboot файл не найден: ${fbootPath}`);
                   return;
                 }
 
                 const handler = new OpenFBHandler();
                 handler.deploy(fbootPath)
                   .then(() => {
-                    vscode.window.showInformationMessage(`Deploy completed: ${fbootPath}`);
+                    vscode.window.showInformationMessage(`Деплой завершён: ${fbootPath}`);
                   })
                   .catch((err) => {
                     logger.error("Deploy failed", err);
-                    vscode.window.showErrorMessage(`Deploy failed: ${err}`);
+                    vscode.window.showErrorMessage(`Не удалось выполнить деплой: ${err}`);
                   });
               } catch (err) {
                 logger.error("Error handling deploy message", err);
-                vscode.window.showErrorMessage(`Error during deploy: ${err}`);
+                vscode.window.showErrorMessage(`Ошибка при деплое: ${err}`);
               }
               return;
             }
@@ -188,13 +197,13 @@ export function activate(context: vscode.ExtensionContext) {
             logger.info("Message sent to webview (fallback)");
           } catch (error) {
             logger.error("Failed to send message to webview (fallback)", error);
-            vscode.window.showErrorMessage(`Failed to send to webview: ${error}`);
+            vscode.window.showErrorMessage(`Не удалось отправить данные вебвью: ${error}`);
           }
         }, 1500);
 
       } catch (error) {
         logger.error("Error loading diagram", error);
-        vscode.window.showErrorMessage(`Error: ${error}`);
+        vscode.window.showErrorMessage(`Ошибка: ${error}`);
         // Dispose panel on error
         panel.dispose();
       }
