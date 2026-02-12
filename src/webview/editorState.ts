@@ -23,6 +23,7 @@ export interface DiagramConnection {
   fromPort: string;
   toBlock: string;
   toPort: string;
+  type?: "event" | "data";  // Connection type from SYS file
 }
 
 /**
@@ -54,6 +55,7 @@ export interface EditorConnection {
   id: string;
   fromPortId: string;
   toPortId: string;
+  type?: "event" | "data";  // Connection type from diagram
 }
 
 export interface ViewState {
@@ -69,6 +71,12 @@ export class EditorState {
   connections: EditorConnection[] = [];
   isDragging = false;
   private logger = getWebviewLogger();
+
+  // Cached diagram bounds to avoid recalculation
+  private cachedBounds: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
+
+  // Cache node dimensions by FB type to avoid recalculation
+  private dimensionCache: Map<string, { width: number; height: number }> = new Map();
 
   view: ViewState = {
     zoom: 1.0,
@@ -87,14 +95,25 @@ export class EditorState {
     diagram: DiagramModel,
     fbTypes: Map<string, FBTypeModel>
   ) {
-    // First pass: create nodes and find bounds
+    // Clear caches when loading new diagram
+    this.cachedBounds = null;
+    this.dimensionCache.clear();
+
+    // First pass: create nodes and cache dimensions by type, find bounds
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
 
     const rawNodes = diagram.blocks.map((b: DiagramBlock) => {
       const fbType = fbTypes.get(b.type);
       const ports = fbType ? this.buildPorts(b.id, fbType) : [];
-      const { width, height } = calculateNodeDimensions(ports);
+      
+      // Use cached dimensions or calculate and cache them (optimization #4)
+      let dimensions = this.dimensionCache.get(b.type);
+      if (!dimensions) {
+        dimensions = calculateNodeDimensions(ports);
+        this.dimensionCache.set(b.type, dimensions);
+      }
+      const { width, height } = dimensions;
       
       minX = Math.min(minX, b.x);
       maxX = Math.max(maxX, b.x + width);
@@ -115,16 +134,37 @@ export class EditorState {
     // Normalize and scale coordinates
     this.nodes = this.normalizeAndScaleCoordinates(rawNodes, minX, maxX, minY, maxY);
 
+    // Store normalized bounds for later use (optimization #2)
+    this.cachedBounds = {
+      minX: Math.min(...this.nodes.map(n => n.x)),
+      maxX: Math.max(...this.nodes.map(n => n.x + n.width)),
+      minY: Math.min(...this.nodes.map(n => n.y)),
+      maxY: Math.max(...this.nodes.map(n => n.y + n.height))
+    };
+
     this.logger.info("Total nodes created", this.nodes.length);
 
     // Load connections
-    this.connections = diagram.connections.map((c: DiagramConnection) => ({
-      id: `${c.fromBlock}.${c.fromPort}->${c.toBlock}.${c.toPort}`,
-      fromPortId: `${c.fromBlock}.${c.fromPort}`,
-      toPortId: `${c.toBlock}.${c.toPort}`
-    }));
+    this.logger.debug("Input diagram connections count", diagram.connections.length);
+    if (diagram.connections.length > 0) {
+      this.logger.debug("Input diagram connections", diagram.connections);
+    }
+
+    this.connections = diagram.connections.map((c: DiagramConnection) => {
+      const editorConn = {
+        id: `${c.fromBlock}.${c.fromPort}->${c.toBlock}.${c.toPort}`,
+        fromPortId: `${c.fromBlock}.${c.fromPort}`,
+        toPortId: `${c.toBlock}.${c.toPort}`,
+        type: c.type  // Preserve connection type from diagram
+      };
+      this.logger.debug(`Created EditorConnection: ${editorConn.id} (type=${editorConn.type})`);
+      return editorConn;
+    });
 
     this.logger.info("Total connections created", this.connections.length);
+    if (this.connections.length > 0) {
+      this.logger.debug("All EditorConnections", this.connections);
+    }
   }
 
   private buildPorts(
@@ -211,8 +251,13 @@ export class EditorState {
       return;
     }
 
-    // Calculate bounding box of all nodes
-    const { minX, maxX, minY, maxY } = this.calculateBoundingBox(this.nodes);
+    // Use cached bounds from loadFromDiagram instead of recalculating (optimization #2)
+    let bounds = this.cachedBounds;
+    if (!bounds) {
+      // Fallback if bounds weren't cached (shouldn't happen in normal flow)
+      bounds = this.calculateBoundingBox(this.nodes);
+    }
+    const { minX, maxX, minY, maxY } = bounds;
 
     const realDiagramWidth = maxX - minX;
     const realDiagramHeight = maxY - minY;

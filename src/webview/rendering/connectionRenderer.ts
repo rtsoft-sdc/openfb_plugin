@@ -5,6 +5,7 @@
 
 import * as C from "./constants";
 import { EditorState } from "../editorState";
+import { getWebviewLogger } from "../logging";
 
 /**
  * Draw all connections between nodes
@@ -18,6 +19,13 @@ export function drawConnections(
   ctx: CanvasRenderingContext2D,
   state: EditorState
 ): void {
+  const logger = getWebviewLogger();
+  
+  logger.debug(`Drawing ${state.connections.length} connections`);
+  
+  let drawnCount = 0;
+  let skippedCount = 0;
+  
   for (const c of state.connections) {
     // Find source and target ports
     const fromPort = state.nodes
@@ -30,11 +38,15 @@ export function drawConnections(
 
     // Skip if ports not found (disconnected reference)
     if (!fromPort || !toPort) {
+      logger.debug(`Connection ${c.id}: port not found (fromPort=${!!fromPort}, toPort=${!!toPort})`);
+      skippedCount++;
       continue;
     }
 
-    // Determine visual style based on port kind
-    const isEventConnection = fromPort.kind === "event";
+    drawnCount++;
+
+    // Determine visual style based on connection type (from diagram) or port kind (fallback)
+    const isEventConnection = c.type === "event" || (c.type === undefined && fromPort.kind === "event");
 
     ctx.beginPath();
     ctx.strokeStyle = isEventConnection
@@ -59,4 +71,6 @@ export function drawConnections(
     // Reset line dash for next draw
     ctx.setLineDash([]);
   }
+  
+  logger.debug(`Connections rendered: ${drawnCount} drawn, ${skippedCount} skipped`);
 }

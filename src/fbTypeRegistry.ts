@@ -107,7 +107,7 @@ export class FBTypeRegistry {
     if (notFound.length > 0) {
       this.logger.warn(`FB types not found: ${notFound.join(", ")}`);
     }
-    this.logger.info("FB type scan complete, found", totalFound, "types, not found", notFound.length);
+    this.logger.info(`FB type scan complete, found ${totalFound} types, not found ${notFound.length} types`);
   }
 
   /**

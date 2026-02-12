@@ -117,6 +117,10 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
     }
     
     logger.debug("Diagram blocks", event.data.payload.blocks);
+    logger.info("Diagram connections count", event.data.payload.connections?.length || 0);
+    if (event.data.payload.connections && event.data.payload.connections.length > 0) {
+      logger.debug("Diagram connections", event.data.payload.connections);
+    }
     
     // Log each block's position
     for (const block of event.data.payload.blocks) {
