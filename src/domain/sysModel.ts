@@ -1,3 +1,5 @@
+import { FBKind } from "./FBKind";
+
 export type PortKind = "event" | "data";
 export type PortDirection = "input" | "output";
 
@@ -7,6 +9,7 @@ export interface SysBlock {
   x: number;
   y: number;
   application?: string; // parent application name
+  kind?: FBKind;        // FB type classification: BASIC | COMPOSITE | SERVICE | ADAPTER | SUBAPP | UNKNOWN
 }
 
 export interface SysParameter {

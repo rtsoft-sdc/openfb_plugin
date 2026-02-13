@@ -216,6 +216,20 @@ function updateSidepanel() {
   html += `<div class="sidepanel-section">`;
   html += `<div class="sidepanel-item"><span class="sidepanel-label">Имя:</span><span class="sidepanel-value">${node.id}</span></div>`;
   html += `<div class="sidepanel-item"><span class="sidepanel-label">Тип:</span><span class="sidepanel-value">${node.type}</span></div>`;
+  // Display detected FB kind if present
+  const nodeAny: any = node;
+  if (nodeAny.fbKind) {
+    const kindLabels: Record<string,string> = {
+      BASIC: "Basic",
+      COMPOSITE: "Composite",
+      ADAPTER: "Adapter",
+      SUBAPP: "Sub-app",
+      SERVICE: "Service",
+      UNKNOWN: "Unknown"
+    };
+    const kindLabel = kindLabels[String(nodeAny.fbKind)] || String(nodeAny.fbKind);
+    html += `<div class="sidepanel-item"><span class="sidepanel-label">Класс:</span><span class="sidepanel-value">${kindLabel}</span></div>`;
+  }
   html += `</div>`;
   
   // Position (compact - single line)

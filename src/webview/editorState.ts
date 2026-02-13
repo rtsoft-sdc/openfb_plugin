@@ -1,4 +1,5 @@
 import { FBTypeModel, FBPort } from "../domain/fbtModel";
+import { FBKind } from "../domain/FBKind";
 import { getWebviewLogger } from "./logging";
 import { ZOOM_CONFIG, PADDING_CONFIG, DIAGRAM_CONFIG } from "./constants";
 import { calculateNodeDimensions } from "./nodeLayout";
@@ -13,6 +14,12 @@ export interface DiagramBlock {
   y: number;
   width?: number;
   height?: number;
+}
+
+/** Extended DiagramBlock includes detection info from SYS parser */
+export interface DiagramBlockWithKind extends DiagramBlock {
+  fbKind?: FBKind;
+  resolvedTypePath?: string;
 }
 
 /**
@@ -52,6 +59,8 @@ export interface EditorNode {
   width: number;
   height: number;
   deviceColor?: string;  // Color from device mapping (R,G,B)
+  fbKind?: FBKind;
+  resolvedTypePath?: string;
 }
 
 export interface EditorConnection {
@@ -112,7 +121,7 @@ export class EditorState {
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
 
-    const rawNodes = diagram.blocks.map((b: DiagramBlock) => {
+    const rawNodes = diagram.blocks.map((b: any) => {
       const fbType = fbTypes.get(b.type);
       const ports = fbType ? this.buildPorts(b.id, fbType) : [];
       
@@ -147,7 +156,9 @@ export class EditorState {
         ports: ports,
         width: width,
         height: height,
-        deviceColor: deviceColor
+        deviceColor: deviceColor,
+        fbKind: (b as any).kind,
+        resolvedTypePath: (b as any).resolvedTypePath
       };
     });
 

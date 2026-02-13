@@ -10,6 +10,8 @@ import {
   SysMapping 
 } from "./sysModel";
 import { getLogger } from "../logging";
+import * as path from "path";
+import { loadFbt } from "./fbtParser";
 
 /**
  * Parse block name and port from a connection reference
@@ -44,7 +46,7 @@ function parseBlockAndPort(
   return { block, port };
 }
 
-export function parseSysFile(filePath: string): SysModel {
+export function parseSysFile(filePath: string, searchPaths?: string[]): SysModel {
   const logger = getLogger();
   const xml = fs.readFileSync(filePath, "utf8");
 
@@ -104,6 +106,42 @@ export function parseSysFile(filePath: string): SysModel {
         }
       }
     }
+  }
+
+  // Attempt to resolve FB kinds by scanning for .fbt files in provided search paths
+  try {
+    const uniqueTypes = Array.from(new Set(blocks.map(b => b.type).filter(Boolean)));
+    const sysDir = path.dirname(filePath);
+    const pathsToSearch = [sysDir].concat(searchPaths || []);
+
+    for (const typeName of uniqueTypes) {
+      if (!typeName) continue;
+      let foundPath: string | null = null;
+      for (const sp of pathsToSearch) {
+        if (!sp) continue;
+        const candidate = path.join(sp, `${typeName}.fbt`);
+        if (fs.existsSync(candidate)) { foundPath = candidate; break; }
+        const candidateUpper = path.join(sp, `${typeName.toUpperCase()}.fbt`);
+        if (fs.existsSync(candidateUpper)) { foundPath = candidateUpper; break; }
+      }
+
+      if (foundPath) {
+        const { kind } = loadFbt(foundPath);
+        // assign kind to all blocks with this type
+        for (const b of blocks) {
+          if (b.type === typeName) {
+            b.kind = kind;
+            (b as any).resolvedTypePath = foundPath;
+          }
+        }
+        logger.debug(`Resolved type ${typeName} -> ${foundPath} (kind=${kind})`);
+      } else {
+        // Leave kind undefined (caller can treat as unknown) or set UNKNOWN
+        logger.debug(`Type ${typeName} .fbt not found in search paths`);
+      }
+    }
+  } catch (err) {
+    logger.warn("FB type resolution failed", err);
   }
 
   // Also parse SubApps (with their application prefix)

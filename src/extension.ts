@@ -3,6 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { OpenFBHandler, setResponsesChannel } from "./openfb/handler";
 import { parseSysFile } from "./domain/sysParser";
+import { loadFbt } from "./domain/fbtParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
 import { FBootGenerator } from "./generators/fboot/fbootGenerator";
@@ -62,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         const logger = getLogger();
         logger.info("Loading SYS file", uri.fsPath);
-        const model = parseSysFile(uri.fsPath);
+        let model = parseSysFile(uri.fsPath);
         logger.info("Loaded SYS model blocks", model.blocks.map((b) => `${b.id}(${b.type})`));
         logger.info("Loaded SYS model connections", model.connections.length);
 
@@ -103,6 +104,29 @@ export function activate(context: vscode.ExtensionContext) {
         const registry = new FBTypeRegistry(searchPaths);
         // Scan only for the types that are used in the SYS file
         registry.scanForTypes(Array.from(usedTypeNames));
+        // Resolve FB kinds using registry results (preferred: registry searches recursively)
+        try {
+          for (const b of model.blocks) {
+            const typeName = b.type;
+            if (!typeName) continue;
+            const info = registry.get(typeName);
+            if (info && info.filePath) {
+              try {
+                const { kind } = loadFbt(info.filePath);
+                b.kind = kind;
+                (b as any).resolvedTypePath = info.filePath;
+                logger.debug(`Resolved type ${typeName} -> ${info.filePath} (kind=${kind})`);
+              } catch (err) {
+                logger.warn(`Failed to load FBT for type ${typeName}`, err);
+              }
+            } else {
+              logger.debug(`FB type ${typeName} not found in registry`);
+            }
+          }
+          logger.info("FB type classification via registry complete");
+        } catch (err) {
+          logger.warn("FB type classification via registry failed", err);
+        }
         
         const fbTypeMap = new Map();
         for (const typeName of usedTypeNames) {
