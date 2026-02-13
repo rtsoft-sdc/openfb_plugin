@@ -16,11 +16,12 @@ import { loadFbt } from "./fbtParser";
 /**
  * Parse block name and port from a connection reference
  * E.g., "MULTIPLE_RESOURCES_ide3App.OUT_ANY_CONSOLE.REQ" -> { block: "MULTIPLE_RESOURCES_ide3App.OUT_ANY_CONSOLE", port: "REQ" }
- * Tries to match against known block IDs first
+ * Tries to match against known block IDs first, including short names and partial references
  */
 function parseBlockAndPort(
   reference: string,
   knownBlockIds: string[],
+  idToBlockMap: Map<string, SysBlock>,
   logger: any
 ): { block: string; port: string } {
   const parts = reference.split(".");
@@ -34,14 +35,17 @@ function parseBlockAndPort(
     const potentialPort = parts[i];
     
     if (knownBlockIds.includes(potentialBlock)) {
-      logger.debug(`Matched "${reference}" -> block="${potentialBlock}" port="${potentialPort}"`);
-      return { block: potentialBlock, port: potentialPort };
+      // Resolve alternate name back to canonical full ID
+      const block = idToBlockMap.get(potentialBlock)?.id || potentialBlock;
+      logger.debug(`Matched "${reference}" -> block="${block}" port="${potentialPort}"`);
+      return { block, port: potentialPort };
     }
   }
   
   // Fallback: assume last part is port, rest is block
-  const block = parts.slice(0, -1).join(".");
+  const potentialBlock = parts.slice(0, -1).join(".");
   const port = parts[parts.length - 1];
+  const block = idToBlockMap.get(potentialBlock)?.id || potentialBlock;
   logger.debug(`No match found for "${reference}", fallback -> block="${block}" port="${port}"`);
   return { block, port };
 }
@@ -167,8 +171,34 @@ export function parseSysFile(filePath: string, searchPaths?: string[]): SysModel
   logger.info("Total blocks parsed", blocks.length);
 
   // Build list of all known block IDs for connection parsing
-  const knownBlockIds = blocks.map(b => b.id);
-  logger.debug("Known block IDs for connection parsing", knownBlockIds);
+  // Expand with alternate forms: full id, short name, and last 2 segments (if applicable)
+  const knownBlockIds: string[] = [];
+  const idToBlockMap = new Map<string, SysBlock>();
+  
+  for (const b of blocks) {
+    knownBlockIds.push(b.id);
+    idToBlockMap.set(b.id, b);
+    
+    // Add short name (last segment after final ".")
+    const shortName = b.id.includes('.') ? b.id.split('.').pop()! : b.id;
+    if (shortName !== b.id && !knownBlockIds.includes(shortName)) {
+      knownBlockIds.push(shortName);
+      idToBlockMap.set(shortName, b);
+    }
+    
+    // Add last 2 segments if applicable (e.g., "app.BlockName" from "system.app.BlockName")
+    const parts = b.id.split('.');
+    if (parts.length > 2) {
+      const lastTwo = parts.slice(-2).join('.');
+      if (lastTwo !== b.id && !knownBlockIds.includes(lastTwo)) {
+        knownBlockIds.push(lastTwo);
+        idToBlockMap.set(lastTwo, b);
+      }
+    }
+  }
+  
+  logger.debug("Known block IDs for connection parsing (expanded)", knownBlockIds);
+  logger.debug("Total unique block references", knownBlockIds.length);
 
   // ============ PARSE CONNECTIONS ============
   // EventConnections
@@ -198,8 +228,8 @@ export function parseSysFile(filePath: string, searchPaths?: string[]): SysModel
   // Process EventConnections
   for (const c of eventConnArray) {
     if (!c) continue;
-    const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, logger);
-    const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, logger);
+    const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, idToBlockMap, logger);
+    const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, idToBlockMap, logger);
     
     const conn = {
       fromBlock: fromParsed.block,
@@ -209,15 +239,15 @@ export function parseSysFile(filePath: string, searchPaths?: string[]): SysModel
       type: "event" as const
     };
     
-    logger.info(`Parsed EventConnection: "${c.Source}" -> "${c.Destination}" = ${conn.fromBlock}.${conn.fromPort} -> ${conn.toBlock}.${conn.toPort}`);
+    //logger.info(`Parsed EventConnection: "${c.Source}" -> "${c.Destination}" = ${conn.fromBlock}.${conn.fromPort} -> ${conn.toBlock}.${conn.toPort}`);
     connections.push(conn);
   }
 
   // Process DataConnections
   for (const c of dataConnArray) {
     if (!c) continue;
-    const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, logger);
-    const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, logger);
+    const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, idToBlockMap, logger);
+    const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, idToBlockMap, logger);
     
     const conn = {
       fromBlock: fromParsed.block,
@@ -227,7 +257,7 @@ export function parseSysFile(filePath: string, searchPaths?: string[]): SysModel
       type: "data" as const
     };
     
-    logger.info(`Parsed DataConnection: "${c.Source}" -> "${c.Destination}" = ${conn.fromBlock}.${conn.fromPort} -> ${conn.toBlock}.${conn.toPort}`);
+    //logger.info(`Parsed DataConnection: "${c.Source}" -> "${c.Destination}" = ${conn.fromBlock}.${conn.fromPort} -> ${conn.toBlock}.${conn.toPort}`);
     connections.push(conn);
   }
 
@@ -300,8 +330,8 @@ export function parseSysFile(filePath: string, searchPaths?: string[]): SysModel
         // Process EventConnections from Resource
         for (const c of resEventConnArray) {
           if (!c) continue;
-          const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, logger);
-          const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, logger);
+          const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, idToBlockMap, logger);
+          const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, idToBlockMap, logger);
           
           const conn = {
             fromBlock: fromParsed.block,
@@ -318,8 +348,8 @@ export function parseSysFile(filePath: string, searchPaths?: string[]): SysModel
         // Process DataConnections from Resource
         for (const c of resDataConnArray) {
           if (!c) continue;
-          const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, logger);
-          const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, logger);
+          const fromParsed = parseBlockAndPort(c.Source || "", knownBlockIds, idToBlockMap, logger);
+          const toParsed = parseBlockAndPort(c.Destination || "", knownBlockIds, idToBlockMap, logger);
           
           const conn = {
             fromBlock: fromParsed.block,

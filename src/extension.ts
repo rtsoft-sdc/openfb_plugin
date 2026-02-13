@@ -64,8 +64,8 @@ export function activate(context: vscode.ExtensionContext) {
         const logger = getLogger();
         logger.info("Loading SYS file", uri.fsPath);
         let model = parseSysFile(uri.fsPath);
-        logger.info("Loaded SYS model blocks", model.blocks.map((b) => `${b.id}(${b.type})`));
-        logger.info("Loaded SYS model connections", model.connections.length);
+        //logger.info("Loaded SYS model blocks", model.blocks.map((b) => `${b.id}(${b.type})`));
+        //logger.info("Loaded SYS model connections", model.connections.length);
 
         // Load FBType definitions from .fbt files
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
