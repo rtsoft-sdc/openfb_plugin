@@ -75,6 +75,16 @@ export function drawNode(ctx: CanvasRenderingContext2D, node: any): void {
 
   ctx.restore();
 
+  // Draw device color border if available (2px, on top of node border)
+  if ((node as any).deviceColor) {
+    ctx.save();
+    ctx.strokeStyle = `rgb(${(node as any).deviceColor})`;
+    ctx.lineWidth = 2;
+    roundedRectPath(ctx, x, y, w, h, C.NODE_BORDER_RADIUS);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Draw node label above the box, centered
   ctx.fillStyle = C.NODE_LABEL_COLOR;
   ctx.font = C.NODE_LABEL_FONT;

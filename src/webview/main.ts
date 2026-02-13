@@ -76,7 +76,9 @@ function updateDevicePanel() {
     const fbListId = `${deviceId}-fbs`;
     const connListId = `${deviceId}-conns`;
     
-    html += `<div class="device-section">`;
+    // Use device color if available, otherwise use default green
+    const borderColor = (device as any).color ? `rgb(${(device as any).color})` : '#28a745';
+    html += `<div class="device-section" style="border-left: 3px solid ${borderColor}">`;
     html += `<div class="device-header">`;
     html += `<div class="device-name">${device.name}</div>`;
     html += `</div>`;

@@ -33,6 +33,7 @@ export interface SysDevice {
   name: string;         // device name (e.g., "FORTE_PC")
   type?: string;        // device type (e.g., "iec61499::system::FORTE_PC")
   resources: SysResource[];
+  color?: string;       // optional color attribute in format "R,G,B"
   parameters?: Array<{  // device parameters
     name: string;
     value: string;

@@ -206,6 +206,7 @@ export function parseSysFile(filePath: string): SysModel {
     
     const sysResources: SysResource[] = [];
     const deviceParameters: Array<{ name: string; value: string }> = [];
+    let deviceColor: string | undefined;
     
     // Parse device parameters
     const paramList = device.Parameter;
@@ -216,6 +217,15 @@ export function parseSysFile(filePath: string): SysModel {
           name: param.Name,
           value: param.Value || ''
         });
+      }
+    }
+
+    // Parse device attributes (e.g., <Attribute Name="Color" Value="255,190,111" />)
+    const attrList = device.Attribute;
+    const attrArray = attrList ? (Array.isArray(attrList) ? attrList : [attrList]) : [];
+    for (const attr of attrArray) {
+      if (attr && attr.Name === 'Color' && attr.Value) {
+        deviceColor = String(attr.Value);
       }
     }
     
@@ -291,7 +301,8 @@ export function parseSysFile(filePath: string): SysModel {
       name: device.Name,
       type: device.Type,
       resources: sysResources,
-      parameters: deviceParameters
+      parameters: deviceParameters,
+      color: deviceColor
     });
   }
 

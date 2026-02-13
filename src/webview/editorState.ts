@@ -32,6 +32,8 @@ export interface DiagramConnection {
 export interface DiagramModel {
   blocks: DiagramBlock[];
   connections: DiagramConnection[];
+  mappings?: Array<{ fbInstance: string; device: string; resource?: string }>;
+  devices?: Array<{ name: string; type?: string; color?: string; [key: string]: any }>;
 }
 
 export interface EditorPort extends FBPort {
@@ -49,6 +51,7 @@ export interface EditorNode {
   ports: EditorPort[];
   width: number;
   height: number;
+  deviceColor?: string;  // Color from device mapping (R,G,B)
 }
 
 export interface EditorConnection {
@@ -126,6 +129,16 @@ export class EditorState {
       minY = Math.min(minY, b.y);
       maxY = Math.max(maxY, b.y + height);
       
+      // Find device color if this block is mapped to a device
+      let deviceColor: string | undefined;
+      const blockMapping = diagram.mappings?.find((m: any) => m.fbInstance === b.id);
+      if (blockMapping && diagram.devices) {
+        const device = diagram.devices.find((d: any) => d.name === blockMapping.device);
+        if (device && (device as any).color) {
+          deviceColor = (device as any).color;
+        }
+      }
+      
       return {
         id: b.id,
         type: b.type,
@@ -133,7 +146,8 @@ export class EditorState {
         y: b.y,
         ports: ports,
         width: width,
-        height: height
+        height: height,
+        deviceColor: deviceColor
       };
     });
 
