@@ -205,6 +205,20 @@ export function parseSysFile(filePath: string): SysModel {
     const resourceArray = resourceList ? (Array.isArray(resourceList) ? resourceList : [resourceList]) : [];
     
     const sysResources: SysResource[] = [];
+    const deviceParameters: Array<{ name: string; value: string }> = [];
+    
+    // Parse device parameters
+    const paramList = device.Parameter;
+    const paramArray = paramList ? (Array.isArray(paramList) ? paramList : [paramList]) : [];
+    for (const param of paramArray) {
+      if (param && param.Name) {
+        deviceParameters.push({
+          name: param.Name,
+          value: param.Value || ''
+        });
+      }
+    }
+    
     for (const res of resourceArray) {
       if (!res) continue;
       sysResources.push({
@@ -276,7 +290,8 @@ export function parseSysFile(filePath: string): SysModel {
     devices.push({
       name: device.Name,
       type: device.Type,
-      resources: sysResources
+      resources: sysResources,
+      parameters: deviceParameters
     });
   }
 

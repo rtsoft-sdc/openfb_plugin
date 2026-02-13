@@ -284,7 +284,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     #toolbar {
       position: absolute;
       left: 0;
-      right: 300px;
+      right: 0;
       top: 0;
       height: 48px;
       z-index: 1000;
@@ -294,6 +294,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       gap: 12px;
       background: #f3f3f3;
       padding: 0 12px;
+      border-top: 1px solid #ddd;
       border-bottom: 1px solid #ddd;
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
@@ -308,24 +309,180 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     #toolbar button:hover { background: #218838; }
     
-    /* Canvas - adjusted for right panel */
+    /* Canvas - adjusted for left and right panels */
     canvas {
       display: block;
       background: #ffffff;
       position: absolute;
-      left: 0;
+      left: 250px;
       top: 48px;
       right: 300px;
       bottom: 0;
+    }
+    
+    /* Left sidepanel for devices */
+    #left-sidepanel {
+      position: fixed;
+      left: 0;
+      top: 48px;
+      width: 250px;
+      height: calc(100vh - 48px);
+      background: #ffffff;
+      border-right: 1px solid #ddd;
+      overflow-y: auto;
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #left-sidepanel-header {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      background: #f3f3f3;
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+      position: sticky;
+      top: 0;
+    }
+    
+    #left-sidepanel-content {
+      flex: 1;
+      padding: 8px;
+      font-size: 13px;
+      color: #555;
+    }
+    
+    .device-section {
+      margin-bottom: 12px;
+      padding: 8px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      border-left: 3px solid #28a745;
+    }
+    
+    .device-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    
+    .device-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: #333;
+      word-break: break-word;
+      flex: 1;
+    }
+    
+    .device-info-container {
+      margin-bottom: 8px;
+    }
+    
+    .device-subsection {
+      margin-top: 8px;
+    }
+    
+    .device-section-title {
+      font-weight: 600;
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .device-section-title-collapsible {
+      font-weight: 600;
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .device-item {
+      padding: 2px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+    
+    .device-conns-container .device-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .device-label {
+      color: #666;
+      font-size: 10px;
+      min-width: 70px;
+    }
+    
+    .device-conns-container .device-label {
+      min-width: auto;
+      word-break: break-word;
+      font-size: 9px;
+    }
+    
+    .device-value {
+      color: #333;
+      font-weight: 500;
+      text-align: right;
+      word-break: break-word;
+      flex: 1;
+      margin-left: 8px;
+    }
+    
+    .device-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      width: 12px;
+      height: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #666;
+      flex-shrink: 0;
+    }
+    
+    .device-toggle:hover {
+      color: #333;
+    }
+    
+    .device-fbs-container {
+      padding: 4px 0;
+    }
+    
+    .device-conns-container {
+      padding: 4px 0;
+    }
+    
+    .resource-item {
+      padding: 1px 0 1px 8px;
+      color: #555;
+      font-size: 12px;
     }
     
     /* Right sidepanel */
     #sidepanel {
       position: fixed;
       right: 0;
-      top: 0;
+      top: 48px;
       width: 300px;
-      height: 100vh;
+      height: calc(100vh - 48px);
       background: #ffffff;
       border-left: 1px solid #ddd;
       overflow-y: auto;
@@ -391,8 +548,9 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     .sidepanel-empty {
       color: #999;
       font-style: italic;
-      padding: 16px;
+      padding: 12px 8px;
       text-align: center;
+      font-size: 13px;
     }
     
     .port-dot {
@@ -409,6 +567,13 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   <div id="toolbar">
     <button id="generateFbootBtn">Создать FBOOT</button>
     <button id="deployBtn">Деплой</button>
+  </div>
+  
+  <div id="left-sidepanel">
+    <div id="left-sidepanel-header">Устройства</div>
+    <div id="left-sidepanel-content">
+      <div class="sidepanel-empty">Нет устройств</div>
+    </div>
   </div>
   
   <canvas id="canvas"></canvas>

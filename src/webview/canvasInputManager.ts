@@ -58,17 +58,17 @@ export class CanvasInputManager {
     // Get world coordinates to check for node selection
     const worldPos = this.getMousePos(e);
     
-    // Try to find and select a node at click position
+    // Try to find and start dragging a node at click position
     const clickedNode = this.findNodeAtPoint(worldPos.x, worldPos.y);
     if (clickedNode) {
-      // Node was clicked - select it
+      // Try to start drag first (so click-and-drag works)
+      if (this.nodeDragHandler.tryStartDrag(e)) {
+        return;
+      }
+
+      // If drag didn't start, select the node
       this.state.selectNode(clickedNode.id);
       this.renderer.render(this.state);
-      return;
-    }
-
-    // Try to start node drag (if a node is already selected, might drag it)
-    if (this.nodeDragHandler.tryStartDrag(e)) {
       return;
     }
 

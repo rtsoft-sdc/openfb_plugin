@@ -45,6 +45,136 @@ const renderer = new CanvasRenderer(canvas);
 new CanvasInputManager(canvas, state, renderer);
 
 /**
+ * Update left panel with devices information
+ */
+function updateDevicePanel() {
+  const leftSidepanelContent = document.getElementById("left-sidepanel-content");
+  if (!leftSidepanelContent) return;
+  
+  // Get devices from model
+  if (!state.model || !state.model.devices || state.model.devices.length === 0) {
+    leftSidepanelContent.innerHTML = '<div class="sidepanel-empty">Нет устройств</div>';
+    return;
+  }
+  
+  let html = '';
+  
+  for (const device of state.model.devices) {
+    // Find FB blocks mapped to this device
+    const deviceFBs = state.model?.mappings?.filter((m: any) => m.device === device.name) || [];
+    const uniqueFBs = Array.from(new Set(deviceFBs.map((m: any) => m.fbInstance)));
+    const deviceFBSet = new Set(uniqueFBs);
+    
+    // Find connections within this device (both blocks are in this device)
+    const deviceConnections = state.model?.connections?.filter((conn: any) => {
+      const fromBlockInDevice = uniqueFBs.some(fb => conn.fromBlock.startsWith(fb));
+      const toBlockInDevice = uniqueFBs.some(fb => conn.toBlock.startsWith(fb));
+      return fromBlockInDevice && toBlockInDevice;
+    }) || [];
+    
+    const deviceId = `device-${device.name.replace(/\s+/g, '_')}`;
+    const fbListId = `${deviceId}-fbs`;
+    const connListId = `${deviceId}-conns`;
+    
+    html += `<div class="device-section">`;
+    html += `<div class="device-header">`;
+    html += `<div class="device-name">${device.name}</div>`;
+    html += `</div>`;
+    
+    // Device info
+    html += `<div class="device-info-container">`;
+    if (device.type) {
+      html += `<div class="device-item"><span class="device-label">Тип:</span><span class="device-value">${device.type}</span></div>`;
+    }
+    html += `</div>`;
+    
+    // Parameters section (collapsible)
+    if (device.parameters && device.parameters.length > 0) {
+      const paramsId = `${deviceId}-params`;
+      html += `<div class="device-subsection">`;
+      html += `<div class="device-section-title-collapsible">`;
+      html += `<button class="device-toggle" data-device-id="${paramsId}" title="Раскрыть/скрыть параметры">▶</button>`;
+      html += `<span>Параметры (${device.parameters.length})</span>`;
+      html += `</div>`;
+      html += `<div class="device-params-container" id="${paramsId}" style="display: none;">`;
+      for (const param of device.parameters) {
+        html += `<div class="device-item"><span class="device-label">${param.name}</span><span class="device-value">${param.value}</span></div>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
+    }
+    
+    // Resources section (collapsible)
+    if (device.resources && device.resources.length > 0) {
+      const resId = `${deviceId}-resources`;
+      html += `<div class="device-subsection">`;
+      html += `<div class="device-section-title-collapsible">`;
+      html += `<button class="device-toggle" data-device-id="${resId}" title="Раскрыть/скрыть ресурсы">▶</button>`;
+      html += `<span>Ресурсы (${device.resources.length})</span>`;
+      html += `</div>`;
+      html += `<div class="device-resources-container" id="${resId}" style="display: none;">`;
+      for (const resource of device.resources) {
+        html += `<div class="device-item"><span class="device-label">${resource.name}</span></div>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
+    }
+    
+    // Function blocks section (collapsible)
+    if (uniqueFBs.length > 0) {
+      html += `<div class="device-subsection">`;
+      html += `<div class="device-section-title-collapsible">`;
+      html += `<button class="device-toggle" data-device-id="${fbListId}" title="Раскрыть/скрыть список FB">▶</button>`;
+      html += `<span>Function Blocks (${uniqueFBs.length})</span>`;
+      html += `</div>`;
+      html += `<div class="device-fbs-container" id="${fbListId}" style="display: none;">`;
+      for (const fb of uniqueFBs) {
+        html += `<div class="device-item"><span class="device-label">${fb}</span></div>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
+    }
+    
+    // Connections section (collapsible)
+    if (deviceConnections.length > 0) {
+      html += `<div class="device-subsection">`;
+      html += `<div class="device-section-title-collapsible">`;
+      html += `<button class="device-toggle" data-device-id="${connListId}" title="Раскрыть/скрыть список соединений">▶</button>`;
+      html += `<span>Connections (${deviceConnections.length})</span>`;
+      html += `</div>`;
+      html += `<div class="device-conns-container" id="${connListId}" style="display: none;">`;
+      for (const conn of deviceConnections) {
+        const connLabel = `${conn.fromBlock}.${conn.fromPort} → ${conn.toBlock}.${conn.toPort}`;
+        const connType = conn.type ? ` [${conn.type}]` : '';
+        html += `<div class="device-item"><span class="device-label" title="${connLabel}">${connLabel}${connType}</span></div>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
+    }
+    
+    html += `</div>`;
+  }
+  
+  leftSidepanelContent.innerHTML = html;
+  
+  // Setup toggle buttons
+  document.querySelectorAll('.device-toggle').forEach((button) => {
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const deviceIdAttr = (button as HTMLButtonElement).getAttribute('data-device-id');
+      if (deviceIdAttr) {
+        const container = document.getElementById(deviceIdAttr);
+        if (container) {
+          const isHidden = container.style.display === 'none';
+          container.style.display = isHidden ? 'block' : 'none';
+          button.textContent = isHidden ? '▼' : '▶';
+        }
+      }
+    });
+  });
+}
+
+/**
  * Update sidepanel with selected block data
  */
 function updateSidepanel() {
@@ -91,12 +221,17 @@ function updateSidepanel() {
   html += `<div class="sidepanel-item"><span class="sidepanel-label">Позиция:</span><span class="sidepanel-value">X: ${node.x.toFixed(0)}, Y: ${node.y.toFixed(0)}</span></div>`;
   html += `</div>`;
   
-  // Input Ports
+  // Input Ports (collapsible)
   if (fbType && fbType.ports && fbType.ports.length > 0) {
     const inputPorts = fbType.ports.filter(p => p.direction === 'input');
     if (inputPorts.length > 0) {
+      const inputsId = `node-${selectedNodeId}-inputs`;
       html += `<div class="sidepanel-section">`;
-      html += `<div class="sidepanel-section-title">Входы (${inputPorts.length})</div>`;
+      html += `<div class="device-section-title-collapsible">`;
+      html += `<button class="device-toggle side-toggle" data-device-id="${inputsId}" title="Раскрыть/скрыть входы">▶</button>`;
+      html += `<span>Входы (${inputPorts.length})</span>`;
+      html += `</div>`;
+      html += `<div class="sidepanel-ports-container" id="${inputsId}" style="display: none;">`;
       for (const port of inputPorts) {
         const portColor = port.kind === 'event' ? '#22DD22' : '#2255FF';
         const paramValue = nodeParamMap.get(port.name);
@@ -108,15 +243,21 @@ function updateSidepanel() {
         html += `</div>`;
       }
       html += `</div>`;
+      html += `</div>`;
     }
   }
   
-  // Output Ports
+  // Output Ports (collapsible)
   if (fbType && fbType.ports && fbType.ports.length > 0) {
     const outputPorts = fbType.ports.filter(p => p.direction === 'output');
     if (outputPorts.length > 0) {
+      const outputsId = `node-${selectedNodeId}-outputs`;
       html += `<div class="sidepanel-section">`;
-      html += `<div class="sidepanel-section-title">Выходы (${outputPorts.length})</div>`;
+      html += `<div class="device-section-title-collapsible">`;
+      html += `<button class="device-toggle side-toggle" data-device-id="${outputsId}" title="Раскрыть/скрыть выходы">▶</button>`;
+      html += `<span>Выходы (${outputPorts.length})</span>`;
+      html += `</div>`;
+      html += `<div class="sidepanel-ports-container" id="${outputsId}" style="display: none;">`;
       for (const port of outputPorts) {
         const portColor = port.kind === 'event' ? '#22DD22' : '#2255FF';
         const paramValue = nodeParamMap.get(port.name);
@@ -128,10 +269,27 @@ function updateSidepanel() {
         html += `</div>`;
       }
       html += `</div>`;
+      html += `</div>`;
     }
   }
   
   sidepanelContent.innerHTML = html;
+
+  // Setup sidepanel toggles
+  document.querySelectorAll('.side-toggle').forEach((button) => {
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = (button as HTMLButtonElement).getAttribute('data-device-id');
+      if (id) {
+        const container = document.getElementById(id);
+        if (container) {
+          const isHidden = container.style.display === 'none';
+          container.style.display = isHidden ? 'block' : 'none';
+          button.textContent = isHidden ? '▼' : '▶';
+        }
+      }
+    });
+  });
 }
 
 // Subscribe to state changes
@@ -142,7 +300,7 @@ state.selectNode = function(nodeId?: string) {
 };
 
 function resize() {
-  canvas.width = window.innerWidth - 300; // Account for right panel
+  canvas.width = window.innerWidth - 480; // Account for left (250px) and right (300px) panels
   // If toolbar present at top, subtract its height so canvas is not covered
   const tb = document.getElementById("toolbar");
   const tbHeight = tb ? tb.offsetHeight : 0;
@@ -236,6 +394,9 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
 
     // Also fit the camera to nodes for proper centering
     renderer.fitCameraToNodes(state.nodes, canvas.width, canvas.height, tbHeight);
+
+    // Update device panel
+    updateDevicePanel();
 
     renderer.render(state);
     logger.info("Rendered");

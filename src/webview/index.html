@@ -47,6 +47,36 @@
       font-family: Roboto, sans-serif;
     }
     #toolbar button:hover { background: #218838; }
+    /* Collapsible section styles for side panels */
+    .device-section-title-collapsible,
+    .sidepanel-section-title-collapsible {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-weight: 600;
+      color: #333;
+      cursor: default;
+    }
+    .device-toggle,
+    .side-toggle {
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .device-toggle:focus,
+    .side-toggle:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(33,136,255,0.16);
+      border-radius: 3px;
+    }
+    .device-item { padding: 2px 0; }
+    .sidepanel-ports-container .sidepanel-item { padding-left: 18px; }
   </style>
 
   <script type="module" src="./main.js"></script>
