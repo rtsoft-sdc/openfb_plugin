@@ -1,4 +1,5 @@
-import { PortKind, PortDirection } from "./sysModel";
+export type PortKind = "event" | "data";
+export type PortDirection = "input" | "output";
 
 export interface FBPort {
   name: string;

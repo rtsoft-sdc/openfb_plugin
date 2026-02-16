@@ -73,6 +73,16 @@ export function drawNode(ctx: CanvasRenderingContext2D, node: any): void {
   roundedRectPath(ctx, x, y, w, h, C.NODE_BORDER_RADIUS);
   ctx.stroke();
 
+  // Draw SubApp border overlay (dashed)
+  if ((node as any).fbKind === "SUBAPP") {
+    ctx.strokeStyle = C.NODE_BORDER_COLOR;
+    ctx.lineWidth = C.SUBAPP_BORDER_WIDTH;
+    ctx.setLineDash(C.SUBAPP_BORDER_DASH);
+    roundedRectPath(ctx, x, y, w, h, C.NODE_BORDER_RADIUS);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   ctx.restore();
 
   // Draw device color border if available (2px, on top of node border)
@@ -91,7 +101,7 @@ export function drawNode(ctx: CanvasRenderingContext2D, node: any): void {
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
 
-  const label = String(node.type || "");
+  const label = String(node.id || "");
   const labelY = node.y - C.NODE_LABEL_PADDING;
   ctx.fillText(label, node.x + node.width / 2, labelY);
 

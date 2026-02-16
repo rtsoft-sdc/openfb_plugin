@@ -3,6 +3,7 @@ import { promises as fsPromises } from "fs";
 import * as path from "path";
 import { XMLParser } from "fast-xml-parser";
 import { parseFbtFile } from "./domain/fbtParser";
+import { parseSubFile } from "./domain/subParser";
 import { FBTypeModel } from "./domain/fbtModel";
 import { getLogger } from "./logging";
 
@@ -10,6 +11,7 @@ export interface FBTypeInfo {
   name: string;
   filePath: string;
   rawXml?: string;
+  fileType?: "fbt" | "sub";
 }
 
 export class FBTypeRegistry {
@@ -70,26 +72,53 @@ export class FBTypeRegistry {
 
         try {
           // Search for typeName.fbt recursively in basePath and subdirectories
-          const filePath = this.findFileRecursive(basePath, `${typeName}.fbt`);
-          if (filePath) {
+          const fbtPath = this.findFileRecursive(basePath, `${typeName}.fbt`);
+          if (fbtPath) {
             let declaredName = typeName;
             try {
-              const xml = fs.readFileSync(filePath, 'utf8');
+              const xml = fs.readFileSync(fbtPath, "utf8");
               const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
               const doc = parser.parse(xml);
               const insideName = doc?.FBType?.Name;
-              if (insideName && typeof insideName === 'string' && insideName.length > 0) {
+              if (insideName && typeof insideName === "string" && insideName.length > 0) {
                 declaredName = insideName;
               }
             } catch (err) {
-              this.logger.warn(`Failed to parse FBT file ${filePath}, using filename as type name`, err);
+              this.logger.warn(`Failed to parse FBT file ${fbtPath}, using filename as type name`, err);
             }
 
             this.cache.set(declaredName, {
               name: declaredName,
-              filePath: filePath,
+              filePath: fbtPath,
+              fileType: "fbt",
             });
-            this.logger.debug(`Found FB type "${typeName}" at ${filePath}`);
+            this.logger.debug(`Found FB type "${typeName}" at ${fbtPath}`);
+            totalFound++;
+            found = true;
+            break;
+          }
+
+          const subPath = this.findFileRecursive(basePath, `${typeName}.sub`);
+          if (subPath) {
+            let declaredName = typeName;
+            try {
+              const xml = fs.readFileSync(subPath, "utf8");
+              const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
+              const doc = parser.parse(xml);
+              const insideName = doc?.SubAppType?.Name;
+              if (insideName && typeof insideName === "string" && insideName.length > 0) {
+                declaredName = insideName;
+              }
+            } catch (err) {
+              this.logger.warn(`Failed to parse SUB file ${subPath}, using filename as type name`, err);
+            }
+
+            this.cache.set(declaredName, {
+              name: declaredName,
+              filePath: subPath,
+              fileType: "sub",
+            });
+            this.logger.debug(`Found SubApp type "${typeName}" at ${subPath}`);
             totalFound++;
             found = true;
             break;
@@ -185,7 +214,9 @@ export class FBTypeRegistry {
     }
 
     try {
-      const iface = parseFbtFile(info.filePath);
+      const iface = info.fileType === "sub"
+        ? parseSubFile(info.filePath)
+        : parseFbtFile(info.filePath);
 
       const ports = [
         ...iface.eventInputs.map((name) => ({

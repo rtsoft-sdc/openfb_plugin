@@ -6,7 +6,6 @@ import { parseSysFile } from "./domain/sysParser";
 import { loadFbt } from "./domain/fbtParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
-import { FBootGenerator } from "./generators/fboot/fbootGenerator";
 
 // Store subscriptions for cleanup on deactivation
 const extensionSubscriptions: vscode.Disposable[] = [];
@@ -62,12 +61,6 @@ export function activate(context: vscode.ExtensionContext) {
 
       try {
         const logger = getLogger();
-        logger.info("Loading SYS file", uri.fsPath);
-        let model = parseSysFile(uri.fsPath);
-        //logger.info("Loaded SYS model blocks", model.blocks.map((b) => `${b.id}(${b.type})`));
-        //logger.info("Loaded SYS model connections", model.connections.length);
-
-        // Load FBType definitions from .fbt files
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
         if (!workspaceFolder) {
           vscode.window.showErrorMessage("Файл не находится в рабочей области");
@@ -93,12 +86,26 @@ export function activate(context: vscode.ExtensionContext) {
         const searchPaths = Array.from(uniquePaths);
         
         logger.info("FB library search paths", searchPaths);
+
+        logger.info("Loading SYS file", uri.fsPath);
+        let model = parseSysFile(uri.fsPath, searchPaths);
+        //logger.info("Loaded SYS model blocks", model.blocks.map((b) => `${b.id}(${b.type})`));
+        //logger.info("Loaded SYS model connections", model.connections.length);
+
+        // Load FBType definitions from .fbt/.sub files
         
         // Extract the FB types that are actually used in the SYS file
         const usedTypeNames = new Set<string>();
-        for (const block of model.blocks) {
-          usedTypeNames.add(block.type);
-        }
+        const collectTypeNames = (network: any) => {
+          for (const block of network?.blocks || []) {
+            if (block?.typeShort) usedTypeNames.add(block.typeShort);
+          }
+          for (const subApp of network?.subApps || []) {
+            if (subApp?.typeShort) usedTypeNames.add(subApp.typeShort);
+            if (subApp?.subAppNetwork) collectTypeNames(subApp.subAppNetwork);
+          }
+        };
+        collectTypeNames(model.subAppNetwork);
         logger.info("FB types used in SYS file", Array.from(usedTypeNames));
         
         const registry = new FBTypeRegistry(searchPaths);
@@ -106,14 +113,14 @@ export function activate(context: vscode.ExtensionContext) {
         registry.scanForTypes(Array.from(usedTypeNames));
         // Resolve FB kinds using registry results (preferred: registry searches recursively)
         try {
-          for (const b of model.blocks) {
-            const typeName = b.type;
+          for (const b of model.subAppNetwork.blocks) {
+            const typeName = b.typeShort;
             if (!typeName) continue;
             const info = registry.get(typeName);
             if (info && info.filePath) {
               try {
                 const { kind } = loadFbt(info.filePath);
-                b.kind = kind;
+                b.fbKind = kind;
                 (b as any).resolvedTypePath = info.filePath;
                 logger.debug(`Resolved type ${typeName} -> ${info.filePath} (kind=${kind})`);
               } catch (err) {
@@ -143,16 +150,16 @@ export function activate(context: vscode.ExtensionContext) {
         logger.debug(
           "Sending to webview",
           {
-            diagramBlocks: model.blocks.length,
+            diagramBlocks: model.subAppNetwork.blocks.length,
             fbTypesCount: fbTypeMap.size,
-            connections: model.connections.length,
+            //connections: model.connections.length,
           }
         );
         
         // Log detailed block info
         logger.debug("Detailed block info");
-        for (const block of model.blocks) {
-          logger.debug(`Block: ${block.id} (type=${block.type}) at (${block.x}, ${block.y})`);
+        for (const block of model.subAppNetwork.blocks) {
+          logger.debug(`Block: ${block.id} (type=${block.typeShort}) at (${block.x}, ${block.y})`);
         }
 
         // Prepare message payload
@@ -213,7 +220,7 @@ export function activate(context: vscode.ExtensionContext) {
             } else if (m?.type === "generateFboot") {
               logger.info("Generate FBOOT requested");
 
-              const fbGenerator = new FBootGenerator(model, uri.fsPath);
+              /* const fbGenerator = new FBootGenerator(model, uri.fsPath);
               fbGenerator.generate()
                 .then((files) => {
                   const message = `FBOOT создан: ${files.length} файл(ов)`;
@@ -225,7 +232,7 @@ export function activate(context: vscode.ExtensionContext) {
                   logger.error(errorMsg, err);
                   vscode.window.showErrorMessage(errorMsg);
                 });
-              return;
+              return; */
             }
           } catch (err) {
             logger.error("Error handling webview message", err);

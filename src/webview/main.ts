@@ -196,17 +196,15 @@ function updateSidepanel() {
     return;
   }
   
-  // Get FB type info
-  const fbType = state.fbTypes?.get(node.type);
+  const nodePorts = node.ports || [];
   
   // Build map of node parameters for quick lookup
   const nodeParamMap = new Map<string, string>();
-  if (state.model && state.model.parameters) {
-    state.model.parameters
-      .filter((p: any) => p.fbName === node.id)
-      .forEach((p: any) => {
-        nodeParamMap.set(p.name, p.value);
-      });
+  const diagramBlock = state.model?.subAppNetwork?.blocks?.find((b: any) => b.id === node.id);
+  if (diagramBlock?.parameters) {
+    for (const p of diagramBlock.parameters) {
+      nodeParamMap.set(p.name, p.value);
+    }
   }
   
   // Build HTML content
@@ -238,8 +236,8 @@ function updateSidepanel() {
   html += `</div>`;
   
   // Input Ports (collapsible)
-  if (fbType && fbType.ports && fbType.ports.length > 0) {
-    const inputPorts = fbType.ports.filter(p => p.direction === 'input');
+  if (nodePorts.length > 0) {
+    const inputPorts = nodePorts.filter(p => p.direction === 'input');
     if (inputPorts.length > 0) {
       const inputsId = `node-${selectedNodeId}-inputs`;
       html += `<div class="sidepanel-section">`;
@@ -253,7 +251,7 @@ function updateSidepanel() {
         const paramValue = nodeParamMap.get(port.name);
         html += `<div class="sidepanel-item">`;
         html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}</span>`;
-        if (paramValue) {
+        if (paramValue !== undefined) {
           html += `<span class="sidepanel-value" style="font-size: 11px;">${paramValue}</span>`;
         }
         html += `</div>`;
@@ -264,8 +262,8 @@ function updateSidepanel() {
   }
   
   // Output Ports (collapsible)
-  if (fbType && fbType.ports && fbType.ports.length > 0) {
-    const outputPorts = fbType.ports.filter(p => p.direction === 'output');
+  if (nodePorts.length > 0) {
+    const outputPorts = nodePorts.filter(p => p.direction === 'output');
     if (outputPorts.length > 0) {
       const outputsId = `node-${selectedNodeId}-outputs`;
       html += `<div class="sidepanel-section">`;
@@ -387,15 +385,18 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
       return;
     }
     
-    logger.debug("Diagram blocks", event.data.payload.blocks);
-    logger.info("Diagram connections count", event.data.payload.connections?.length || 0);
-    if (event.data.payload.connections && event.data.payload.connections.length > 0) {
-      logger.debug("Diagram connections", event.data.payload.connections);
+    logger.debug("Diagram blocks", event.data.payload.subAppNetwork?.blocks);
+    logger.info(
+      "Diagram connections count",
+      event.data.payload.subAppNetwork?.connections?.length || 0
+    );
+    if (event.data.payload.subAppNetwork?.connections && event.data.payload.subAppNetwork.connections.length > 0) {
+      logger.debug("Diagram connections", event.data.payload.subAppNetwork.connections);
     }
     
     // Log each block's position
-    for (const block of event.data.payload.blocks) {
-      logger.debug(`Block: ${block.id} (type=${block.type}) at (${block.x}, ${block.y})`);
+    for (const block of event.data.payload.subAppNetwork.blocks) {
+      logger.debug(`Block: ${block.id} (type=${block.typeShort}) at (${block.x}, ${block.y})`);
     }
 
     state.loadFromDiagram(event.data.payload, fbTypes);

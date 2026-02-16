@@ -9,11 +9,13 @@ import { calculateNodeDimensions } from "./nodeLayout";
  */
 export interface DiagramBlock {
   id: string;
-  type: string;
+  typeShort: string;
+  typeLong: string;
   x: number;
   y: number;
   width?: number;
   height?: number;
+  subAppInterfaceParams?: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>;
 }
 
 /** Extended DiagramBlock includes detection info from SYS parser */
@@ -36,9 +38,15 @@ export interface DiagramConnection {
 /**
  * Represents the complete diagram model loaded from a file
  */
-export interface DiagramModel {
+export interface DiagramSubAppNetwork {
   blocks: DiagramBlock[];
-  connections: DiagramConnection[];
+  subApps?: DiagramBlock[];
+  connections?: DiagramConnection[];
+}
+
+export interface DiagramModel {
+  applicationName: string;
+  subAppNetwork: DiagramSubAppNetwork;
   mappings?: Array<{ fbInstance: string; device: string; resource?: string }>;
   devices?: Array<{ name: string; type?: string; color?: string; [key: string]: any }>;
 }
@@ -121,15 +129,24 @@ export class EditorState {
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
 
-    const rawNodes = diagram.blocks.map((b: any) => {
-      const fbType = fbTypes.get(b.type);
-      const ports = fbType ? this.buildPorts(b.id, fbType) : [];
+    const diagramBlocks: DiagramBlock[] = [
+      ...(diagram.subAppNetwork.blocks || []),
+      ...((diagram.subAppNetwork as any).subApps || []),
+    ];
+
+    const rawNodes = diagramBlocks.map((b: any) => {
+      const subAppParams = (b as any).subAppInterfaceParams as Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }> | undefined;
+      const fbType = fbTypes.get(b.typeShort);
+      const ports = subAppParams
+        ? this.buildPortsFromSubApp(b.id, subAppParams)
+        : (fbType ? this.buildPorts(b.id, fbType) : []);
+      const inferredKind = subAppParams ? "SUBAPP" : (b as any).fbKind;
       
       // Use cached dimensions or calculate and cache them (optimization #4)
-      let dimensions = this.dimensionCache.get(b.type);
+      let dimensions = this.dimensionCache.get(b.typeShort);
       if (!dimensions) {
         dimensions = calculateNodeDimensions(ports);
-        this.dimensionCache.set(b.type, dimensions);
+        this.dimensionCache.set(b.typeShort, dimensions);
       }
       const { width, height } = dimensions;
       
@@ -150,15 +167,16 @@ export class EditorState {
       
       return {
         id: b.id,
-        type: b.type,
+        type: b.typeShort,
         x: b.x,
         y: b.y,
         ports: ports,
         width: width,
         height: height,
         deviceColor: deviceColor,
-        fbKind: (b as any).kind,
-        resolvedTypePath: (b as any).resolvedTypePath
+        fbKind: inferredKind,
+        resolvedTypePath: (b as any).resolvedTypePath,
+        subAppInterfaceParams: (b as any).subAppInterfaceParams,
       };
     });
 
@@ -176,12 +194,13 @@ export class EditorState {
     this.logger.info("Total nodes created", this.nodes.length);
 
     // Load connections
-    this.logger.debug("Input diagram connections count", diagram.connections.length);
-    if (diagram.connections.length > 0) {
-      this.logger.debug("Input diagram connections", diagram.connections);
+    const diagramConnections = diagram.subAppNetwork.connections || [];
+    this.logger.debug("Input diagram connections count", diagramConnections.length);
+    if (diagramConnections.length > 0) {
+      this.logger.debug("Input diagram connections", diagramConnections);
     }
 
-    this.connections = diagram.connections.map((c: DiagramConnection) => {
+    this.connections = diagramConnections.map((c: DiagramConnection) => {
       const editorConn = {
         id: `${c.fromBlock}.${c.fromPort}->${c.toBlock}.${c.toPort}`,
         fromPortId: `${c.fromBlock}.${c.fromPort}`,
@@ -204,6 +223,21 @@ export class EditorState {
   ): EditorPort[] {
     return fbType.ports.map((p, index) => ({
       ...p,
+      id: `${nodeId}.${p.name}`,
+      nodeId,
+      x: 0,
+      y: 0
+    }));
+  }
+
+  private buildPortsFromSubApp(
+    nodeId: string,
+    params: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>
+  ): EditorPort[] {
+    return params.map((p) => ({
+      name: p.name,
+      kind: p.kind,
+      direction: p.direction,
       id: `${nodeId}.${p.name}`,
       nodeId,
       x: 0,
