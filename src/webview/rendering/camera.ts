@@ -82,7 +82,10 @@ export function fitCameraToNodes(
   // Calculate zoom level to fit all nodes
   const scaleX = availableWidth / boundsWidth;
   const scaleY = availableHeight / boundsHeight;
-  camera.scale = Math.min(scaleX, scaleY, C.CAMERA_MAX_ZOOM);
+  
+  // Apply zoom reduction factor (0.8) to avoid filling entire screen
+  const fitScale = Math.min(scaleX, scaleY) * 0.8;
+  camera.scale = Math.min(fitScale, C.CAMERA_MAX_ZOOM);
 
   // Calculate pan offset to center the diagram
   const scaledWidth = boundsWidth * camera.scale;

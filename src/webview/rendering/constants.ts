@@ -25,6 +25,12 @@ export const NODE_BORDER_COLOR = "#2c2c2c";
 /** Node border width in pixels */
 export const NODE_BORDER_WIDTH = 1;
 
+/** SubApp border width in pixels */
+export const SUBAPP_BORDER_WIDTH = 2;
+
+/** SubApp border dash pattern [dash, gap] */
+export const SUBAPP_BORDER_DASH = [4, 3];
+
 /** Node shadow color (semi-transparent black) */
 export const NODE_SHADOW_COLOR = "rgba(0,0,0,0.2)";
 

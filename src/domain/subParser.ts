@@ -1,20 +1,13 @@
 import * as fs from "fs";
 import { XMLParser } from "fast-xml-parser";
-import { detectFBKind } from "./FBKind";
 import { FBKind } from "./FBKind";
+import { FBInterface } from "./fbtParser";
 import { FBPort } from "./fbtModel";
 
-export interface FBInterface {
-  eventInputs: string[];
-  eventOutputs: string[];
-  dataInputs: FBPort[];
-  dataOutputs: FBPort[];
-}
-
 /**
- * Parse only the InterfaceList from a .fbt file (backward compatible)
+ * Parse only the SubAppInterfaceList from a .sub file
  */
-export function parseFbtFile(filePath: string): FBInterface {
+export function parseSubFile(filePath: string): FBInterface {
   const xml = fs.readFileSync(filePath, "utf8");
 
   const parser = new XMLParser({
@@ -24,7 +17,7 @@ export function parseFbtFile(filePath: string): FBInterface {
 
   const doc = parser.parse(xml);
 
-  const iface = doc?.FBType?.InterfaceList;
+  const iface = doc?.SubAppType?.SubAppInterfaceList;
   if (!iface) {
     return {
       eventInputs: [],
@@ -34,7 +27,7 @@ export function parseFbtFile(filePath: string): FBInterface {
     };
   }
 
-  const extractEvents = (node: any, key: string) => {
+  const extract = (node: any, key: string) => {
     if (!node?.[key]) return [];
     const arr = Array.isArray(node[key]) ? node[key] : [node[key]];
     return arr.map((p: any) => p.Name).filter(Boolean);
@@ -54,40 +47,39 @@ export function parseFbtFile(filePath: string): FBInterface {
   };
 
   return {
-    eventInputs: extractEvents(iface.EventInputs, "Event"),
-    eventOutputs: extractEvents(iface.EventOutputs, "Event"),
+    eventInputs: extract(iface.SubAppEventInputs, "SubAppEvent"),
+    eventOutputs: extract(iface.SubAppEventOutputs, "SubAppEvent"),
     dataInputs: extractDataVars(iface.InputVars, "VarDeclaration", "input"),
     dataOutputs: extractDataVars(iface.OutputVars, "VarDeclaration", "output"),
   };
 }
 
 /**
- * Load .fbt file and return parsed FBType object, the interface and detected kind.
- * This function centralizes parsing and structural detection for callers like sysParser.
+ * Load .sub file and return parsed SubAppType object, the interface and detected kind.
  */
-export function loadFbt(filePath: string): { fbType: any | null; iface: FBInterface; kind: FBKind } {
+export function loadSub(filePath: string): { subAppType: any | null; iface: FBInterface; kind: FBKind } {
   try {
     const xml = fs.readFileSync(filePath, "utf8");
     const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
     const doc = parser.parse(xml);
-    const fbType = doc?.FBType ?? null;
+    const subAppType = doc?.SubAppType ?? null;
 
-    const iface = fbType?.InterfaceList
+    const iface = subAppType?.SubAppInterfaceList
       ? {
           eventInputs: ((): string[] => {
-            const node = fbType.InterfaceList.EventInputs;
+            const node = subAppType.SubAppInterfaceList.SubAppEventInputs;
             if (!node) return [];
-            const arr = Array.isArray(node.Event) ? node.Event : [node.Event];
+            const arr = Array.isArray(node.SubAppEvent) ? node.SubAppEvent : [node.SubAppEvent];
             return arr.map((n: any) => n?.Name).filter(Boolean);
           })(),
           eventOutputs: ((): string[] => {
-            const node = fbType.InterfaceList.EventOutputs;
+            const node = subAppType.SubAppInterfaceList.SubAppEventOutputs;
             if (!node) return [];
-            const arr = Array.isArray(node.Event) ? node.Event : [node.Event];
+            const arr = Array.isArray(node.SubAppEvent) ? node.SubAppEvent : [node.SubAppEvent];
             return arr.map((n: any) => n?.Name).filter(Boolean);
           })(),
           dataInputs: ((): FBPort[] => {
-            const node = fbType.InterfaceList.InputVars;
+            const node = subAppType.SubAppInterfaceList.InputVars;
             if (!node) return [];
             const arr = Array.isArray(node.VarDeclaration) ? node.VarDeclaration : [node.VarDeclaration];
             return arr
@@ -100,7 +92,7 @@ export function loadFbt(filePath: string): { fbType: any | null; iface: FBInterf
               }));
           })(),
           dataOutputs: ((): FBPort[] => {
-            const node = fbType.InterfaceList.OutputVars;
+            const node = subAppType.SubAppInterfaceList.OutputVars;
             if (!node) return [];
             const arr = Array.isArray(node.VarDeclaration) ? node.VarDeclaration : [node.VarDeclaration];
             return arr
@@ -115,9 +107,9 @@ export function loadFbt(filePath: string): { fbType: any | null; iface: FBInterf
         }
       : { eventInputs: [], eventOutputs: [], dataInputs: [], dataOutputs: [] };
 
-    const kind = detectFBKind(fbType);
-    return { fbType, iface, kind };
+    const kind = subAppType ? FBKind.SUBAPP : FBKind.UNKNOWN;
+    return { subAppType, iface, kind };
   } catch (err) {
-    return { fbType: null, iface: { eventInputs: [], eventOutputs: [], dataInputs: [], dataOutputs: [] }, kind: FBKind.UNKNOWN };
+    return { subAppType: null, iface: { eventInputs: [], eventOutputs: [], dataInputs: [], dataOutputs: [] }, kind: FBKind.UNKNOWN };
   }
 }

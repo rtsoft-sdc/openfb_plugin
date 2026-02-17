@@ -98,12 +98,12 @@ export function drawPorts(ctx: CanvasRenderingContext2D, node: any): void {
       ctx.textBaseline = "middle";
       ctx.fillText(p.name, p.x + C.PORT_RADIUS + C.PORT_LABEL_OFFSET, p.y);
     } else {
-      // Output: arrow points to the left
+      // Output: arrow points to the right
       ctx.fillStyle = portColor;
       ctx.beginPath();
-      ctx.moveTo(p.x - C.PORT_RADIUS, p.y); // left (point)
-      ctx.lineTo(p.x + C.PORT_RADIUS, p.y - C.PORT_RADIUS); // top-right
-      ctx.lineTo(p.x + C.PORT_RADIUS, p.y + C.PORT_RADIUS); // bottom-right
+      ctx.moveTo(p.x + C.PORT_RADIUS, p.y); // right (point)
+      ctx.lineTo(p.x - C.PORT_RADIUS, p.y - C.PORT_RADIUS); // top-left
+      ctx.lineTo(p.x - C.PORT_RADIUS, p.y + C.PORT_RADIUS); // bottom-left
       ctx.closePath();
       ctx.fill();
 

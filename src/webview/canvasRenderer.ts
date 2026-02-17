@@ -35,6 +35,8 @@ export class CanvasRenderer {
 
   /** Camera state for viewport transformations */
   camera: Camera;
+  private isFirstRender = true;
+  private toolbarHeight = 0;
 
   /**
    * Initialize renderer with canvas element
@@ -55,13 +57,38 @@ export class CanvasRenderer {
   }
 
   /**
+   * Set toolbar height for fitToView calculations
+   */
+  setToolbarHeight(height: number) {
+    this.toolbarHeight = height;
+  }
+
+  /**
+   * Fit camera to nodes - centers and zooms to show all nodes
+   */
+  fitCameraToNodes(
+    nodes: Array<{ x: number; y: number; width: number; height: number }>,
+    canvasWidth: number,
+    canvasHeight: number,
+    toolbarHeight: number = 0
+  ): void {
+    const effectiveHeight = canvasHeight - toolbarHeight;
+    fitCameraToNodes(this.camera, nodes, canvasWidth, effectiveHeight);
+    this.logger.debug("Camera fitted to nodes", {
+      scale: this.camera.scale,
+      offsetX: this.camera.offsetX,
+      offsetY: this.camera.offsetY
+    });
+  }
+
+  /**
    * Main render method - orchestrates the rendering pipeline
    *
    * Rendering order:
    * 1. Clear canvas
    * 2. Draw grid background
-   * 3. Fit camera to nodes (if not dragging)
-   * 4. Apply camera transformation
+   * 3. Fit to view on first render
+   * 4. Apply camera and zoom transformations
    * 5. Draw connections and nodes
    * 6. Draw overlay (stats and legend)
    *
@@ -71,36 +98,39 @@ export class CanvasRenderer {
     this.logger.debug(`Rendering ${state.nodes.length} nodes`);
     this.logger.debug("Canvas size", this.canvas.width, "x", this.canvas.height);
 
-    // Step 1: Clear canvas completely
+    // 1: Clear canvas completely
     clearCanvas(this.ctx, this.canvas.width, this.canvas.height);
 
-    // Step 2: Draw grid background
+    // 2: Draw grid background
     drawGrid(this.ctx, this.canvas.width, this.canvas.height);
 
-    // Step 3: Auto-fit camera to show all nodes (but not during drag operations)
-    if (!state.isDragging) {
-      fitCameraToNodes(
-        this.camera,
-        state.nodes,
-        this.canvas.width,
-        this.canvas.height
-      );
+    // 3: Auto-fit to view on first render
+    if (this.isFirstRender && state.nodes.length > 0) {
+      state.fitToView(this.canvas.width, this.canvas.height, this.toolbarHeight);
+      this.isFirstRender = false;
     }
 
-    // Step 4-5: Apply camera transformation and draw diagram content
+    // 4-5: Apply camera and zoom transformations
     this.ctx.save();
+    
+    // Apply zoom from editor state
+    this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+    this.ctx.scale(state.view.zoom, state.view.zoom);
+    this.ctx.translate(-this.canvas.width / 2, -this.canvas.height / 2);
+    
+    // Apply camera transformation for compatibility with existing system
     applyCamera(this.ctx, this.camera);
 
     drawConnections(this.ctx, state);
-    drawNodes(this.ctx, state.nodes);
+    drawNodes(this.ctx, state.nodes, state.selection.nodeId);
 
     this.ctx.restore();
 
-    // Step 6: Draw overlay UI (stats and legend) - not affected by camera
+    // 6: Draw overlay UI (stats and legend) - not affected by zoom
     drawStatsAndLegend(this.ctx, state, this.canvas, {
       offsetX: this.camera.offsetX,
       offsetY: this.camera.offsetY,
-      scale: this.camera.scale,
+      scale: this.camera.scale * state.view.zoom,
     });
   }
 }
