@@ -128,16 +128,6 @@ export const GRID_LINE_WIDTH = 0.4;
 export const GRID_DASH = [3, 3];
 
 // ============================================================================
-// CAMERA / VIEWPORT
-// ============================================================================
-
-/** Padding around nodes when fitting camera to view */
-export const CAMERA_FIT_PADDING = 40;
-
-/** Maximum zoom level (don't zoom in, only fit to view) */
-export const CAMERA_MAX_ZOOM = 1;
-
-// ============================================================================
 // LEGEND AND STATS
 // ============================================================================
 

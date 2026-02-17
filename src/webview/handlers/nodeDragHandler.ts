@@ -42,8 +42,7 @@ export class NodeDragHandler {
 
     if (node) {
       this.draggingNodeId = node.id;
-      this.state.isDragging = true;
-      this.state.selectNode(node.id);
+      this.state.dispatch({ type: "START_DRAG", nodeId: node.id });
 
       // Calculate and store offset between mouse position and node top-left corner
       this.dragOffsetX = pos.x - node.x;
@@ -67,7 +66,12 @@ export class NodeDragHandler {
     const newX = pos.x - this.dragOffsetX;
     const newY = pos.y - this.dragOffsetY;
 
-    this.state.moveNode(this.draggingNodeId, newX, newY);
+    this.state.dispatch({
+      type: "MOVE_NODE",
+      nodeId: this.draggingNodeId,
+      x: newX,
+      y: newY
+    });
 
     // Auto-scroll camera if node goes out of view
     const node = this.state.nodes.find(n => n.id === this.draggingNodeId);
@@ -83,7 +87,7 @@ export class NodeDragHandler {
    */
   stopDrag(): void {
     if (this.draggingNodeId) {
-      this.state.isDragging = false;
+      this.state.dispatch({ type: "STOP_DRAG" });
     }
     this.draggingNodeId = undefined;
   }
@@ -123,8 +127,12 @@ export class NodeDragHandler {
 
     // Apply smooth camera movement
     if (offsetDeltaX !== 0 || offsetDeltaY !== 0) {
-      camera.offsetX += offsetDeltaX * PAN_CONFIG.AUTO_SCROLL_SPEED;
-      camera.offsetY += offsetDeltaY * PAN_CONFIG.AUTO_SCROLL_SPEED;
+      const appliedDeltaX = offsetDeltaX * PAN_CONFIG.AUTO_SCROLL_SPEED;
+      const appliedDeltaY = offsetDeltaY * PAN_CONFIG.AUTO_SCROLL_SPEED;
+
+      camera.offsetX += appliedDeltaX;
+      camera.offsetY += appliedDeltaY;
+      this.state.dispatch({ type: "PAN", dx: appliedDeltaX, dy: appliedDeltaY });
     }
   };
 }

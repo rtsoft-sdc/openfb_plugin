@@ -17,13 +17,13 @@ import { getWebviewLogger } from "./logging";
 import {
   createCamera,
   applyCamera,
-  fitCameraToNodes,
 } from "./rendering/camera";
 import { Camera } from "./rendering/types";
 import { clearCanvas, drawGrid } from "./rendering/grid";
 import { drawConnections } from "./rendering/connectionRenderer";
 import { drawNodes } from "./rendering/nodeRenderer";
 import { drawStatsAndLegend } from "./rendering/legendRenderer";
+import { layoutPorts } from "./rendering/portRenderer";
 
 /**
  * Main canvas renderer class
@@ -35,8 +35,6 @@ export class CanvasRenderer {
 
   /** Camera state for viewport transformations */
   camera: Camera;
-  private isFirstRender = true;
-  private toolbarHeight = 0;
 
   /**
    * Initialize renderer with canvas element
@@ -56,30 +54,7 @@ export class CanvasRenderer {
     this.ctx = ctx;
   }
 
-  /**
-   * Set toolbar height for fitToView calculations
-   */
-  setToolbarHeight(height: number) {
-    this.toolbarHeight = height;
-  }
 
-  /**
-   * Fit camera to nodes - centers and zooms to show all nodes
-   */
-  fitCameraToNodes(
-    nodes: Array<{ x: number; y: number; width: number; height: number }>,
-    canvasWidth: number,
-    canvasHeight: number,
-    toolbarHeight: number = 0
-  ): void {
-    const effectiveHeight = canvasHeight - toolbarHeight;
-    fitCameraToNodes(this.camera, nodes, canvasWidth, effectiveHeight);
-    this.logger.debug("Camera fitted to nodes", {
-      scale: this.camera.scale,
-      offsetX: this.camera.offsetX,
-      offsetY: this.camera.offsetY
-    });
-  }
 
   /**
    * Main render method - orchestrates the rendering pipeline
@@ -87,10 +62,11 @@ export class CanvasRenderer {
    * Rendering order:
    * 1. Clear canvas
    * 2. Draw grid background
-   * 3. Fit to view on first render
-   * 4. Apply camera and zoom transformations
-   * 5. Draw connections and nodes
-   * 6. Draw overlay (stats and legend)
+   * 3. Apply camera and zoom transformations
+   * 4. Layout ports (compute port positions)
+   * 5. Draw connections (needs port positions)
+   * 6. Draw nodes (will re-layout but that's ok for now)
+   * 7. Draw overlay (stats and legend)
    *
    * @param state - Current editor state with nodes and connections
    */
@@ -104,13 +80,7 @@ export class CanvasRenderer {
     // 2: Draw grid background
     drawGrid(this.ctx, this.canvas.width, this.canvas.height);
 
-    // 3: Auto-fit to view on first render
-    if (this.isFirstRender && state.nodes.length > 0) {
-      state.fitToView(this.canvas.width, this.canvas.height, this.toolbarHeight);
-      this.isFirstRender = false;
-    }
-
-    // 4-5: Apply camera and zoom transformations
+    // 3: Apply camera and zoom transformations
     this.ctx.save();
     
     // Apply zoom from editor state
@@ -121,12 +91,21 @@ export class CanvasRenderer {
     // Apply camera transformation for compatibility with existing system
     applyCamera(this.ctx, this.camera);
 
+    // 4: Layout ports BEFORE drawing connections
+    // This ensures port coordinates are computed before connections try to use them
+    for (const node of state.nodes) {
+      layoutPorts(node);
+    }
+
+    // 5: Draw connections (now port positions are available)
     drawConnections(this.ctx, state);
+    
+    // 6: Draw nodes (layoutPorts will be called again inside drawNode, but that's ok)
     drawNodes(this.ctx, state.nodes, state.selection.nodeId);
 
     this.ctx.restore();
 
-    // 6: Draw overlay UI (stats and legend) - not affected by zoom
+    // 7: Draw overlay UI (stats and legend) - not affected by zoom
     drawStatsAndLegend(this.ctx, state, this.canvas, {
       offsetX: this.camera.offsetX,
       offsetY: this.camera.offsetY,

@@ -14,8 +14,7 @@ export class WebviewLogger {
   }
 
   private formatMessage(level: LogLevel, message: string): string {
-    const style = this.getColorStyle(level);
-    return `%c[${this.getTimestamp()}] [${level.toUpperCase()}]%c ${message}`;
+    return `%c[${this.getTimestamp()}] [${this.name}] [${level.toUpperCase()}]%c ${message}`;
   }
 
   private getColorStyle(level: LogLevel): string[] {

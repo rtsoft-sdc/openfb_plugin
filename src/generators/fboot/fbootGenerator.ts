@@ -21,7 +21,6 @@ export class FBootGenerator {
   private logger = getLogger();
   private model: SysModel;
   private sysPath: string;
-  private searchPaths: string[];
   
   private fbtResolver: FbtResolver;
   private networkTraverser: NetworkTraverser;
@@ -32,7 +31,6 @@ export class FBootGenerator {
   constructor(model: SysModel, sysPath: string, searchPaths: string[] = []) {
     this.model = model;
     this.sysPath = sysPath;
-    this.searchPaths = searchPaths;
     
     // Initialize helper classes
     this.fbtResolver = new FbtResolver(sysPath, searchPaths);

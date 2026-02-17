@@ -19,15 +19,15 @@ export class CanvasInputManager {
     private renderer: CanvasRenderer
   ) {
     this.nodeDragHandler = new NodeDragHandler(canvas, state, renderer, this.getMousePos);
-    this.viewportController = new ViewportController(canvas, state, renderer);
+    this.viewportController = new ViewportController(state, renderer);
     this.init();
   }
 
   private init() {
     this.canvas.addEventListener("mousedown", this.onMouseDown);
-    this.canvas.addEventListener("wheel", this.onMouseWheel, { passive: false });
     this.canvas.addEventListener("mousemove", this.onCanvasMouseMove);
     this.canvas.addEventListener("mouseup", this.onCanvasMouseUp);
+    this.canvas.addEventListener("wheel", this.onWheel);
     window.addEventListener("mousemove", this.onWindowMouseMove);
     window.addEventListener("mouseup", this.onWindowMouseUp);
   }
@@ -61,19 +61,21 @@ export class CanvasInputManager {
     // Try to find and start dragging a node at click position
     const clickedNode = this.findNodeAtPoint(worldPos.x, worldPos.y);
     if (clickedNode) {
+      // Input layer dispatches interaction actions; state updates are handled by reducer.
       // Try to start drag first (so click-and-drag works)
       if (this.nodeDragHandler.tryStartDrag(e)) {
+        this.renderer.render(this.state);
         return;
       }
 
       // If drag didn't start, select the node
-      this.state.selectNode(clickedNode.id);
+      this.state.dispatch({ type: "SELECT_NODE", nodeId: clickedNode.id });
       this.renderer.render(this.state);
       return;
     }
 
     // Empty area was clicked - deselect any node and start panning
-    this.state.selectNode(undefined);
+    this.state.dispatch({ type: "SELECT_NODE", nodeId: undefined });
     this.renderer.render(this.state);
     this.viewportController.startPanning(e);
   };
@@ -108,24 +110,25 @@ export class CanvasInputManager {
     this.viewportController.updatePan(e);
   };
 
-  private onCanvasMouseUp = (e: MouseEvent) => {
+  private onCanvasMouseUp = () => {
     this.viewportController.stopPanning();
   };
 
   private onWindowMouseUp = () => {
     this.nodeDragHandler.stopDrag();
+    this.viewportController.stopPanning();
   };
 
-  private onMouseWheel = (e: WheelEvent) => {
+  private onWheel = (e: WheelEvent) => {
+    // Prevent default scroll behavior
     e.preventDefault();
 
-    // Ctrl+Wheel for zooming
-    if (e.ctrlKey) {
-      this.viewportController.handleZoom(e);
-    } else {
-      // Regular scroll wheel for panning (vertical)
-      // Shift+Wheel for horizontal panning
-      this.viewportController.handleScrollPan(e);
-    }
+    // Get mouse position relative to canvas
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    // Handle zoom with wheel
+    this.viewportController.handleZoom(e.deltaY, screenX, screenY);
   };
 }

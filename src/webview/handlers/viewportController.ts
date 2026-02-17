@@ -1,7 +1,6 @@
 import { EditorState } from "../editorState";
 import { CanvasRenderer } from "../canvasRenderer";
-import { ZOOM_CONFIG, PAN_CONFIG } from "../constants";
-import { screenToWorld, worldToScreen } from "../transformUtils";
+import { ZOOM_CONFIG } from "../constants";
 
 /**
  * Manages camera viewport transformations: panning and zooming
@@ -11,11 +10,8 @@ export class ViewportController {
   private isPanning = false;
   private panStartX = 0;
   private panStartY = 0;
-  private panStartOffsetX = 0;
-  private panStartOffsetY = 0;
 
   constructor(
-    private canvas: HTMLCanvasElement,
     private state: EditorState,
     private renderer: CanvasRenderer
   ) {}
@@ -34,8 +30,6 @@ export class ViewportController {
     this.isPanning = true;
     this.panStartX = e.clientX;
     this.panStartY = e.clientY;
-    this.panStartOffsetX = this.renderer.camera.offsetX;
-    this.panStartOffsetY = this.renderer.camera.offsetY;
   }
 
   /**
@@ -47,8 +41,12 @@ export class ViewportController {
     const deltaX = e.clientX - this.panStartX;
     const deltaY = e.clientY - this.panStartY;
 
-    this.renderer.camera.offsetX = this.panStartOffsetX + deltaX;
-    this.renderer.camera.offsetY = this.panStartOffsetY + deltaY;
+    this.state.dispatch({ type: "PAN", dx: deltaX, dy: deltaY });
+    this.renderer.camera.offsetX = this.state.view.offsetX;
+    this.renderer.camera.offsetY = this.state.view.offsetY;
+
+    this.panStartX = e.clientX;
+    this.panStartY = e.clientY;
 
     this.renderer.render(this.state);
   }
@@ -61,44 +59,31 @@ export class ViewportController {
   }
 
   /**
-   * Handle zooming via Ctrl+Wheel
+   * Handle zoom with wheel event
+   * Zooms in/out centered on the mouse position
+   * 
+   * @param delta - Wheel delta (negative = zoom in, positive = zoom out)
+   * @param screenX - Mouse X position in screen coordinates (relative to canvas)
+   * @param screenY - Mouse Y position in screen coordinates (relative to canvas)
    */
-  handleZoom(e: WheelEvent): void {
-    const rect = this.canvas.getBoundingClientRect();
-    const mouseScreenX = e.clientX - rect.left;
-    const mouseScreenY = e.clientY - rect.top;
+  handleZoom(delta: number, screenX: number, screenY: number): void {
+    // Calculate zoom factor based on wheel delta
+    // Negative delta = scroll up = zoom in (factor > 1)
+    // Positive delta = scroll down = zoom out (factor < 1)
+    const zoomFactor = delta > 0 
+      ? 1 - ZOOM_CONFIG.STEP 
+      : 1 + ZOOM_CONFIG.STEP;
 
-    const camera = this.renderer.camera;
-    const oldZoom = this.state.view.zoom;
+    // Dispatch ZOOM action
+    // Reducer will handle clamping and offset adjustment
+    this.state.dispatch({
+      type: "ZOOM",
+      factor: zoomFactor,
+      centerX: screenX,
+      centerY: screenY
+    });
 
-    // Get "world" coordinates at current zoom before change
-    const worldMouse = screenToWorld(this.canvas, camera, oldZoom, mouseScreenX, mouseScreenY);
-
-    // Calculate zoom delta
-    const zoomFactor = e.deltaY > 0 ? ZOOM_CONFIG.OUT_FACTOR : ZOOM_CONFIG.IN_FACTOR;
-    const newZoom = oldZoom * zoomFactor;
-
-    // Update zoom with clamping
-    this.state.updateZoom(newZoom);
-
-    // Recalculate camera offset so world position stays under cursor
-    const screenAtNewZoom = worldToScreen(this.canvas, camera, this.state.view.zoom, worldMouse.x, worldMouse.y);
-    
-    camera.offsetX -= mouseScreenX - screenAtNewZoom.x;
-    camera.offsetY -= mouseScreenY - screenAtNewZoom.y;
-
-    this.renderer.render(this.state);
-  }
-
-  /**
-   * Handle panning via scroll wheel (without Ctrl)
-   * Vertical by default, horizontal with Shift modifier
-   */
-  handleScrollPan(e: WheelEvent): void {
-    const panDirection = e.shiftKey ? 'offsetX' : 'offsetY';
-    const panDelta = e.deltaY > 0 ? PAN_CONFIG.WHEEL_SPEED : -PAN_CONFIG.WHEEL_SPEED;
-    this.renderer.camera[panDirection as keyof typeof this.renderer.camera] -= panDelta;
-
+    // Render updated state
     this.renderer.render(this.state);
   }
 }

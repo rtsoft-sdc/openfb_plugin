@@ -5,7 +5,6 @@
 
 import * as C from "./constants";
 import { layoutPorts, drawPorts } from "./portRenderer";
-import { EditorState } from "../editorState";
 
 /**
  * Draw a rounded rectangle path on canvas

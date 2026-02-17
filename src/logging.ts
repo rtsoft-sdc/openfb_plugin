@@ -7,7 +7,7 @@ export class Logger {
   private logLevel: LogLevel = "info";
 
   constructor(
-    private name: string,
+    name: string,
     outputChannel?: vscode.OutputChannel
   ) {
     this.outputChannel =
