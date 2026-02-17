@@ -6,6 +6,7 @@ import { parseSysFile } from "./domain/sysParser";
 import { loadFbt } from "./domain/fbtParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
+import { FBootGenerator } from "./generators/fboot/fbootGenerator";
 
 // Store subscriptions for cleanup on deactivation
 const extensionSubscriptions: vscode.Disposable[] = [];
@@ -89,10 +90,6 @@ export function activate(context: vscode.ExtensionContext) {
 
         logger.info("Loading SYS file", uri.fsPath);
         let model = parseSysFile(uri.fsPath, searchPaths);
-        //logger.info("Loaded SYS model blocks", model.blocks.map((b) => `${b.id}(${b.type})`));
-        //logger.info("Loaded SYS model connections", model.connections.length);
-
-        // Load FBType definitions from .fbt/.sub files
         
         // Extract the FB types that are actually used in the SYS file
         const usedTypeNames = new Set<string>();
@@ -152,7 +149,6 @@ export function activate(context: vscode.ExtensionContext) {
           {
             diagramBlocks: model.subAppNetwork.blocks.length,
             fbTypesCount: fbTypeMap.size,
-            //connections: model.connections.length,
           }
         );
         
@@ -175,7 +171,7 @@ export function activate(context: vscode.ExtensionContext) {
         /**
          * Message handler - listens for ready handshake from webview
          */
-        messageDisposable = panel.webview.onDidReceiveMessage((m) => {
+        messageDisposable = panel.webview.onDidReceiveMessage(async (m) => {
           try {
             logger.debug("Message from webview", m);
             if (m?.type === "ready") {
@@ -195,18 +191,32 @@ export function activate(context: vscode.ExtensionContext) {
                 // Compute .fboot path next to .sys file
                 const sysPath = uri.fsPath;
                 const parsed = path.parse(sysPath);
-                const fbootPath = path.join(parsed.dir, parsed.name + ".fboot");
-                logger.info("Deploy requested", fbootPath);
+                const systemName = model.systemName || parsed.name;
+                const deviceNames = model.devices?.map((d) => d.name) || [];
 
-                if (!fs.existsSync(fbootPath)) {
-                  vscode.window.showErrorMessage(`.fboot файл не найден: ${fbootPath}`);
+                const fbootPaths = deviceNames.length
+                  ? deviceNames.map((device) => path.join(parsed.dir, `${systemName}_${device}.fboot`))
+                  : [path.join(parsed.dir, `${systemName}.fboot`)];
+
+                const missingFiles = fbootPaths.filter((filePath) => !fs.existsSync(filePath));
+                if (missingFiles.length > 0) {
+                  vscode.window.showErrorMessage(`.fboot файл(ы) не найдены: ${missingFiles.join(", ")}`);
                   return;
                 }
 
+                logger.info("Deploy requested", fbootPaths);
+
                 const handler = new OpenFBHandler();
-                handler.deploy(fbootPath)
+                const deployPromise = fbootPaths.length > 1
+                  ? handler.deployMultiple(fbootPaths)
+                  : handler.deploy(fbootPaths[0]);
+
+                deployPromise
                   .then(() => {
-                    vscode.window.showInformationMessage(`Деплой завершён: ${fbootPath}`);
+                    const message = fbootPaths.length > 1
+                      ? `Деплой завершён: ${fbootPaths.length} файл(ов)`
+                      : `Деплой завершён: ${fbootPaths[0]}`;
+                    vscode.window.showInformationMessage(message);
                   })
                   .catch((err) => {
                     logger.error("Deploy failed", err);
@@ -220,19 +230,19 @@ export function activate(context: vscode.ExtensionContext) {
             } else if (m?.type === "generateFboot") {
               logger.info("Generate FBOOT requested");
 
-              /* const fbGenerator = new FBootGenerator(model, uri.fsPath);
+              const fbGenerator = new FBootGenerator(model, uri.fsPath, searchPaths);
               fbGenerator.generate()
-                .then((files) => {
+                .then((files: string[]) => {
                   const message = `FBOOT создан: ${files.length} файл(ов)`;
                   logger.info(message, files);
                   vscode.window.showInformationMessage(message);
                 })
-                .catch((err) => {
+                .catch((err: unknown) => {
                   const errorMsg = `Не удалось создать FBOOT: ${err}`;
                   logger.error(errorMsg, err);
                   vscode.window.showErrorMessage(errorMsg);
                 });
-              return; */
+              return; 
             }
           } catch (err) {
             logger.error("Error handling webview message", err);

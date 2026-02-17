@@ -249,8 +249,9 @@ function updateSidepanel() {
       for (const port of inputPorts) {
         const portColor = port.kind === 'event' ? '#22DD22' : '#2255FF';
         const paramValue = nodeParamMap.get(port.name);
+        const portType = (port as any).type ? ` <span style="color: #999; font-size: 11px;">(${(port as any).type})</span>` : '';
         html += `<div class="sidepanel-item">`;
-        html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}</span>`;
+        html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}${portType}</span>`;
         if (paramValue !== undefined) {
           html += `<span class="sidepanel-value" style="font-size: 11px;">${paramValue}</span>`;
         }
@@ -275,8 +276,9 @@ function updateSidepanel() {
       for (const port of outputPorts) {
         const portColor = port.kind === 'event' ? '#22DD22' : '#2255FF';
         const paramValue = nodeParamMap.get(port.name);
+        const portType = (port as any).type ? ` <span style="color: #999; font-size: 11px;">(${(port as any).type})</span>` : '';
         html += `<div class="sidepanel-item">`;
-        html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}</span>`;
+        html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}${portType}</span>`;
         if (paramValue) {
           html += `<span class="sidepanel-value" style="font-size: 11px;">${paramValue}</span>`;
         }

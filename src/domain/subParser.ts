@@ -2,6 +2,7 @@ import * as fs from "fs";
 import { XMLParser } from "fast-xml-parser";
 import { FBKind } from "./FBKind";
 import { FBInterface } from "./fbtParser";
+import { FBPort } from "./fbtModel";
 
 /**
  * Parse only the SubAppInterfaceList from a .sub file
@@ -32,11 +33,24 @@ export function parseSubFile(filePath: string): FBInterface {
     return arr.map((p: any) => p.Name).filter(Boolean);
   };
 
+  const extractDataVars = (node: any, key: string, direction: "input" | "output"): FBPort[] => {
+    if (!node?.[key]) return [];
+    const arr = Array.isArray(node[key]) ? node[key] : [node[key]];
+    return arr
+      .filter((p: any) => p.Name)
+      .map((p: any) => ({
+        name: p.Name,
+        kind: "data" as const,
+        direction,
+        type: p.Type || undefined,
+      }));
+  };
+
   return {
     eventInputs: extract(iface.SubAppEventInputs, "SubAppEvent"),
     eventOutputs: extract(iface.SubAppEventOutputs, "SubAppEvent"),
-    dataInputs: extract(iface.InputVars, "VarDeclaration"),
-    dataOutputs: extract(iface.OutputVars, "VarDeclaration"),
+    dataInputs: extractDataVars(iface.InputVars, "VarDeclaration", "input"),
+    dataOutputs: extractDataVars(iface.OutputVars, "VarDeclaration", "output"),
   };
 }
 
@@ -64,17 +78,31 @@ export function loadSub(filePath: string): { subAppType: any | null; iface: FBIn
             const arr = Array.isArray(node.SubAppEvent) ? node.SubAppEvent : [node.SubAppEvent];
             return arr.map((n: any) => n?.Name).filter(Boolean);
           })(),
-          dataInputs: ((): string[] => {
+          dataInputs: ((): FBPort[] => {
             const node = subAppType.SubAppInterfaceList.InputVars;
             if (!node) return [];
             const arr = Array.isArray(node.VarDeclaration) ? node.VarDeclaration : [node.VarDeclaration];
-            return arr.map((n: any) => n?.Name).filter(Boolean);
+            return arr
+              .filter((n: any) => n?.Name)
+              .map((n: any) => ({
+                name: n.Name,
+                kind: "data" as const,
+                direction: "input" as const,
+                type: n.Type || undefined,
+              }));
           })(),
-          dataOutputs: ((): string[] => {
+          dataOutputs: ((): FBPort[] => {
             const node = subAppType.SubAppInterfaceList.OutputVars;
             if (!node) return [];
             const arr = Array.isArray(node.VarDeclaration) ? node.VarDeclaration : [node.VarDeclaration];
-            return arr.map((n: any) => n?.Name).filter(Boolean);
+            return arr
+              .filter((n: any) => n?.Name)
+              .map((n: any) => ({
+                name: n.Name,
+                kind: "data" as const,
+                direction: "output" as const,
+                type: n.Type || undefined,
+              }));
           })(),
         }
       : { eventInputs: [], eventOutputs: [], dataInputs: [], dataOutputs: [] };

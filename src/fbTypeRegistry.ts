@@ -229,16 +229,8 @@ export class FBTypeRegistry {
           kind: "event" as const,
           direction: "output" as const,
         })),
-        ...iface.dataInputs.map((name) => ({
-          name,
-          kind: "data" as const,
-          direction: "input" as const,
-        })),
-        ...iface.dataOutputs.map((name) => ({
-          name,
-          kind: "data" as const,
-          direction: "output" as const,
-        })),
+        ...iface.dataInputs,
+        ...iface.dataOutputs,
       ];
 
       return {

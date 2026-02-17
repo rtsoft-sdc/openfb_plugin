@@ -1,11 +1,14 @@
 import { FBKind } from "./FBKind";
 
 export interface SysModel {
+  systemName: string; // System name
   applicationName: string; // Application name
   subAppNetwork: SysSubAppNetwork; // Application SubAppNetwork
   devices: SysDevice[]; // Devices with their resources
   mappings: SysMapping[]; // FB to Device/Resource mappings (CRITICAL)
 }
+
+export const SUBAPP_INTERFACE_BLOCK = "__SUBAPP_INTERFACE__";
 
 export interface SysSubAppNetwork {
   blocks: SysBlock[]; // FB instances with parameters

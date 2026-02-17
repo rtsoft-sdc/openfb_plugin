@@ -197,7 +197,7 @@ function parseSubAppNetworkFromNode(
     }
   }
 
-  const connections = parseConnections(network, logger);
+  const connections = parseConnections(network, logger, true);
 
   return {
     blocks,

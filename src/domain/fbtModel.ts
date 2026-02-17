@@ -5,6 +5,7 @@ export interface FBPort {
   name: string;
   kind: PortKind;           // event | data
   direction: PortDirection; // input | output
+  type?: string;            // Port data type (e.g., ANY_MAGNITUDE)
 }
 
 export interface FBTypeModel {

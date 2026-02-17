@@ -2,12 +2,13 @@ import * as fs from "fs";
 import { XMLParser } from "fast-xml-parser";
 import { detectFBKind } from "./FBKind";
 import { FBKind } from "./FBKind";
+import { FBPort } from "./fbtModel";
 
 export interface FBInterface {
   eventInputs: string[];
   eventOutputs: string[];
-  dataInputs: string[];
-  dataOutputs: string[];
+  dataInputs: FBPort[];
+  dataOutputs: FBPort[];
 }
 
 /**
@@ -33,17 +34,30 @@ export function parseFbtFile(filePath: string): FBInterface {
     };
   }
 
-  const extract = (node: any, key: string) => {
+  const extractEvents = (node: any, key: string) => {
     if (!node?.[key]) return [];
     const arr = Array.isArray(node[key]) ? node[key] : [node[key]];
     return arr.map((p: any) => p.Name).filter(Boolean);
   };
 
+  const extractDataVars = (node: any, key: string, direction: "input" | "output"): FBPort[] => {
+    if (!node?.[key]) return [];
+    const arr = Array.isArray(node[key]) ? node[key] : [node[key]];
+    return arr
+      .filter((p: any) => p.Name)
+      .map((p: any) => ({
+        name: p.Name,
+        kind: "data" as const,
+        direction,
+        type: p.Type || undefined,
+      }));
+  };
+
   return {
-    eventInputs: extract(iface.EventInputs, "Event"),
-    eventOutputs: extract(iface.EventOutputs, "Event"),
-    dataInputs: extract(iface.InputVars, "VarDeclaration"),
-    dataOutputs: extract(iface.OutputVars, "VarDeclaration"),
+    eventInputs: extractEvents(iface.EventInputs, "Event"),
+    eventOutputs: extractEvents(iface.EventOutputs, "Event"),
+    dataInputs: extractDataVars(iface.InputVars, "VarDeclaration", "input"),
+    dataOutputs: extractDataVars(iface.OutputVars, "VarDeclaration", "output"),
   };
 }
 
@@ -72,17 +86,31 @@ export function loadFbt(filePath: string): { fbType: any | null; iface: FBInterf
             const arr = Array.isArray(node.Event) ? node.Event : [node.Event];
             return arr.map((n: any) => n?.Name).filter(Boolean);
           })(),
-          dataInputs: ((): string[] => {
+          dataInputs: ((): FBPort[] => {
             const node = fbType.InterfaceList.InputVars;
             if (!node) return [];
             const arr = Array.isArray(node.VarDeclaration) ? node.VarDeclaration : [node.VarDeclaration];
-            return arr.map((n: any) => n?.Name).filter(Boolean);
+            return arr
+              .filter((n: any) => n?.Name)
+              .map((n: any) => ({
+                name: n.Name,
+                kind: "data" as const,
+                direction: "input" as const,
+                type: n.Type || undefined,
+              }));
           })(),
-          dataOutputs: ((): string[] => {
+          dataOutputs: ((): FBPort[] => {
             const node = fbType.InterfaceList.OutputVars;
             if (!node) return [];
             const arr = Array.isArray(node.VarDeclaration) ? node.VarDeclaration : [node.VarDeclaration];
-            return arr.map((n: any) => n?.Name).filter(Boolean);
+            return arr
+              .filter((n: any) => n?.Name)
+              .map((n: any) => ({
+                name: n.Name,
+                kind: "data" as const,
+                direction: "output" as const,
+                type: n.Type || undefined,
+              }));
           })(),
         }
       : { eventInputs: [], eventOutputs: [], dataInputs: [], dataOutputs: [] };

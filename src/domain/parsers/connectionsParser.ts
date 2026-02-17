@@ -1,8 +1,9 @@
-import { SysConnection } from "../sysModel";
+import { SysConnection, SUBAPP_INTERFACE_BLOCK } from "../sysModel";
 
 export function parseConnections(
   network: any,
   logger: any,
+  allowInterface: boolean = false,
 ): SysConnection[] {
   const connections: SysConnection[] = [];
 
@@ -22,18 +23,26 @@ export function parseConnections(
       const sourceParts = conn.Source.split(".");
       const destParts = conn.Destination.split(".");
 
-      if (sourceParts.length >= 2 && destParts.length >= 2) {
-        const fromPort = sourceParts.pop()!;
-        const toPort = destParts.pop()!;
+      const sourceIsInterface = allowInterface && sourceParts.length === 1;
+      const destIsInterface = allowInterface && destParts.length === 1;
 
-        connections.push({
-          fromBlock: sourceParts.join("."),
-          fromPort,
-          toBlock: destParts.join("."),
-          toPort,
-          type,
-        });
+      if ((sourceParts.length < 2 && !sourceIsInterface) || (destParts.length < 2 && !destIsInterface)) {
+        continue;
       }
+
+      const fromPort = sourceParts.pop()!;
+      const toPort = destParts.pop()!;
+
+      const fromBlock = sourceIsInterface ? SUBAPP_INTERFACE_BLOCK : sourceParts.join(".");
+      const toBlock = destIsInterface ? SUBAPP_INTERFACE_BLOCK : destParts.join(".");
+
+      connections.push({
+        fromBlock,
+        fromPort,
+        toBlock,
+        toPort,
+        type,
+      });
     }
   }
 

@@ -26,6 +26,7 @@ export function parseSysFile(
   const app = system.Application;
   if (!app) throw new Error("No Application in SYS");
 
+  const systemName = system.Name || "DefaultSystem";
   const applicationName = app.Name || "DefaultApp";
   const sysDir = path.dirname(filePath);
 
@@ -34,6 +35,7 @@ export function parseSysFile(
   const mappings = parseMappings(system, logger);
   
   return {
+    systemName,
     applicationName,
     subAppNetwork,
     devices,

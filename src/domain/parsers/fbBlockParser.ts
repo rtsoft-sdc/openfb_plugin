@@ -33,10 +33,12 @@ export function parseFBBlock(
           const attrList = Array.isArray(param.Attribute) ? param.Attribute : [param.Attribute];
           sysParam.attributes = attrList
             .filter((attr: any) => attr?.Name !== undefined)
-            .map((attr: any) => ({
-              name: attr.Name,
-              value: attr.Value || "",
-            }));
+            .map((attr: any) => {
+              return {
+                name: attr.Name,
+                value: attr.Value || "",
+              };
+            });
         }
 
         parameters.push(sysParam);

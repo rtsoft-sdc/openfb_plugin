@@ -302,12 +302,73 @@ export class OpenFBHandler {
     const timeoutMs = (config.get<number>("deployTimeoutMs") || 30000);
 
     // Load and parse file
-    let lines = await this.loadAndParseFile(fbootPath);
+    const lines = await this.loadAndParseFile(fbootPath);
+
+    return this.deployLines(
+      lines,
+      host,
+      port,
+      timeoutMs,
+      `Deploy ${path.basename(fbootPath)}`,
+    );
+  }
+
+  /**
+   * Deploy multiple .fboot files in a single socket session.
+   * Commands are sent sequentially in the order provided.
+   */
+  async deployMultiple(fbootPaths: string[]): Promise<void> {
+    this.logger.info("OpenFBHandler.deployMultiple called", fbootPaths);
+
+    if (!fbootPaths.length) {
+      throw new Error("No .fboot files to deploy");
+    }
+
+    const config = vscode.workspace.getConfiguration("openfb");
+    const host = (config.get<string>("host") || "127.0.0.1");
+    const port = (config.get<number>("port") || 61499);
+    const timeoutMs = (config.get<number>("deployTimeoutMs") || 30000);
+
+    const allLines: string[] = [];
+    for (const fbootPath of fbootPaths) {
+      if (!fs.existsSync(fbootPath)) {
+        throw new Error(`.fboot file not found: ${fbootPath}`);
+      }
+      // Load and parse each file, strip QUERY commands to avoid duplicates
+      const lines = (await this.loadAndParseFile(fbootPath)).filter(
+        (line) => !line.includes('Action="QUERY"'),
+      );
+      allLines.push(...lines);
+    }
+
+    if (allLines.length === 0) {
+      throw new Error(".fboot is empty or contains only comments");
+    }
+
+    return this.deployLines(
+      allLines,
+      host,
+      port,
+      timeoutMs,
+      `Deploy ${fbootPaths.length} fboot files`,
+    );
+  }
+
+  /**
+   * Shared deploy path for pre-parsed command lines.
+   */
+  private async deployLines(
+    lines: string[],
+    host: string,
+    port: number,
+    timeoutMs: number,
+    title: string,
+  ): Promise<void> {
     this.ensureQueryPresent(lines);
 
     return vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
-      title: `Deploy ${path.basename(fbootPath)}`,
+      title,
       cancellable: false,
     }, (progress) => {
       return new Promise<void>((resolve, reject) => {
