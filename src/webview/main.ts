@@ -3,6 +3,8 @@ import { CanvasRenderer } from "./canvasRenderer";
 import { CanvasInputManager } from "./canvasInputManager";
 import { FBTypeModel } from "../domain/fbtModel";
 import { initializeWebviewLogger } from "./logging";
+import { DEFAULT_PLUGIN_SETTINGS, PluginSettings } from "./pluginSettings";
+import { renderSettingsPanel } from "./settingsPanel";
 
 /**
  * VS Code Webview API for communication with the extension host
@@ -43,6 +45,112 @@ if (!canvas) {
 const state = new EditorState();
 const renderer = new CanvasRenderer(canvas);
 new CanvasInputManager(canvas, state, renderer);
+
+type SidePanelMode = "info" | "settings";
+let sidePanelMode: SidePanelMode = "info";
+let pluginSettings: PluginSettings = DEFAULT_PLUGIN_SETTINGS;
+let settingsDraft: PluginSettings = {
+  ...DEFAULT_PLUGIN_SETTINGS,
+  fbPaths: [...DEFAULT_PLUGIN_SETTINGS.fbPaths],
+  deploy: { ...DEFAULT_PLUGIN_SETTINGS.deploy },
+};
+let isSettingsLoading = false;
+let settingsLoadError: string | undefined;
+let settingsDirty = false;
+let isSettingsSaving = false;
+let settingsStatusText = "Сохранено";
+let settingsStatusColor = "#2e7d32";
+
+function clonePluginSettings(settings: PluginSettings): PluginSettings {
+  return {
+    ...settings,
+    fbPaths: [...settings.fbPaths],
+    deploy: { ...settings.deploy },
+  };
+}
+
+function updateSettingsDirtyState(dirty: boolean) {
+  settingsDirty = dirty;
+  if (dirty) {
+    settingsStatusText = "Есть несохранённые изменения";
+    settingsStatusColor = "#b76e00";
+  }
+}
+
+function setSettingsStatus(text: string, color: string): void {
+  settingsStatusText = text;
+  settingsStatusColor = color;
+}
+
+function normalizeAndValidateSettingsDraft(draft: PluginSettings): { ok: true; settings: PluginSettings } | { ok: false; error: string } {
+  const host = draft.deploy.host.trim();
+  if (!host) {
+    return { ok: false, error: "Host не должен быть пустым" };
+  }
+
+  const port = Math.trunc(draft.deploy.port);
+  if (!Number.isFinite(port) || port < 1 || port > 65535) {
+    return { ok: false, error: "Port должен быть от 1 до 65535" };
+  }
+
+  const timeoutMs = Math.trunc(draft.deploy.timeoutMs);
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1000) {
+    return { ok: false, error: "Timeout должен быть не меньше 1000 мс" };
+  }
+
+  const uniquePaths = new Set<string>();
+  const fbPaths: string[] = [];
+  for (const pathValue of draft.fbPaths) {
+    const normalizedPath = pathValue.trim();
+    if (!normalizedPath || uniquePaths.has(normalizedPath)) {
+      continue;
+    }
+    uniquePaths.add(normalizedPath);
+    fbPaths.push(normalizedPath);
+  }
+
+  return {
+    ok: true,
+    settings: {
+      fbPaths,
+      deploy: {
+        host,
+        port,
+        timeoutMs,
+      },
+      uiLanguage: draft.uiLanguage === "en" ? "en" : "ru",
+    },
+  };
+}
+
+function saveSettingsDraft(): void {
+  if (!vscode || isSettingsSaving) {
+    return;
+  }
+
+  const validation = normalizeAndValidateSettingsDraft(settingsDraft);
+  if (!validation.ok) {
+    setSettingsStatus(validation.error, "#b00020");
+    updateSidepanel();
+    return;
+  }
+
+  settingsDraft = clonePluginSettings(validation.settings);
+  isSettingsSaving = true;
+  setSettingsStatus("Сохранение...", "#3367d6");
+  updateSidepanel();
+  vscode.postMessage({ type: "settings:save", payload: validation.settings });
+}
+
+function requestSettingsPathPick(): void {
+  if (!vscode) {
+    setSettingsStatus("Host API недоступен", "#b00020");
+    updateSidepanel();
+    return;
+  }
+
+  vscode.postMessage({ type: "settings:pick-path" });
+}
 
 /**
  * Build generic device subsection HTML with collapsible content.
@@ -339,13 +447,62 @@ function buildPortsHtml(nodeId: string, ports: any[], nodeParamMap: Map<string, 
   return html;
 }
 
+function openSettingsPanel() {
+  sidePanelMode = "settings";
+  isSettingsLoading = true;
+  isSettingsSaving = false;
+  settingsLoadError = undefined;
+  if (!settingsDirty) {
+    setSettingsStatus("Сохранено", "#2e7d32");
+  }
+  if (vscode) {
+    vscode.postMessage({ type: "settings:load" });
+  } else {
+    isSettingsLoading = false;
+    settingsLoadError = "Host API недоступен";
+  }
+  updateSidepanel();
+}
+
+function openInfoPanel() {
+  sidePanelMode = "info";
+  updateSidepanel();
+}
+
 /**
  * Update sidepanel with selected block data.
  * Displays block information, ports (inputs/outputs), and parameters.
  */
 function updateSidepanel() {
+  const sidepanelHeader = document.getElementById("sidepanel-header");
   const sidepanelContent = document.getElementById("sidepanel-content");
   if (!sidepanelContent) return;
+
+  if (sidePanelMode === "settings") {
+    renderSettingsPanel(sidepanelHeader, sidepanelContent, {
+      draft: settingsDraft,
+      isLoading: isSettingsLoading,
+      loadError: settingsLoadError,
+      dirty: settingsDirty,
+      isSaving: isSettingsSaving,
+      statusText: settingsStatusText,
+      statusColor: settingsStatusColor,
+    }, {
+      onDraftChange: (nextDraft) => {
+        settingsDraft = nextDraft;
+      },
+      onDirtyChange: updateSettingsDirtyState,
+      onBack: openInfoPanel,
+      onSave: saveSettingsDraft,
+      onAddPath: requestSettingsPathPick,
+      rerender: updateSidepanel,
+    });
+    return;
+  }
+
+  if (sidepanelHeader) {
+    sidepanelHeader.textContent = "Информация о блоке";
+  }
   
   const selectedNodeId = state.selection.nodeId;
   
@@ -476,6 +633,16 @@ if (generateFbootBtn) {
   logger.warn("generateFboot button not found in DOM");
 }
 
+const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
+if (settingsBtn) {
+  settingsBtn.addEventListener("click", () => {
+    logger.info("settingsBtn button clicked");
+    openSettingsPanel();
+  });
+} else {
+  logger.warn("settings button not found in DOM");
+}
+
 // Register message handler BEFORE anything else
 logger.info("Registering message handler...");
 const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
@@ -484,7 +651,69 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
   logger.debug("event.data keys", Object.keys(event.data || {}));
   logger.debug("event.data", event.data);
 
-  if (event.data?.type === "load-diagram") {
+  if (event.data?.type === "settings:loaded") {
+    if (event.data.payload) {
+      pluginSettings = event.data.payload as PluginSettings;
+      settingsDraft = clonePluginSettings(pluginSettings);
+      isSettingsLoading = false;
+      isSettingsSaving = false;
+      settingsLoadError = undefined;
+      settingsDirty = false;
+      setSettingsStatus("Сохранено", "#2e7d32");
+      if (sidePanelMode === "settings") {
+        updateSidepanel();
+      }
+    }
+  } else if (event.data?.type === "settings:path-picked") {
+    const selectedPath = typeof event.data.payload === "string" ? event.data.payload.trim() : "";
+    if (!selectedPath) {
+      return;
+    }
+
+    if (settingsDraft.fbPaths.includes(selectedPath)) {
+      setSettingsStatus("Путь уже добавлен", "#b76e00");
+      if (sidePanelMode === "settings") {
+        updateSidepanel();
+      }
+      return;
+    }
+
+    const nextDraft = clonePluginSettings(settingsDraft);
+    nextDraft.fbPaths.push(selectedPath);
+    settingsDraft = nextDraft;
+    updateSettingsDirtyState(true);
+    if (sidePanelMode === "settings") {
+      updateSidepanel();
+    }
+  } else if (event.data?.type === "settings:saved") {
+    if (event.data.payload) {
+      pluginSettings = event.data.payload as PluginSettings;
+      settingsDraft = clonePluginSettings(pluginSettings);
+    }
+
+    isSettingsSaving = false;
+    settingsDirty = false;
+    setSettingsStatus("Сохранено", "#2e7d32");
+    if (sidePanelMode === "settings") {
+      updateSidepanel();
+    }
+  } else if (event.data?.type === "settings:error") {
+    const message = typeof event.data.payload === "string" ? event.data.payload : "Ошибка загрузки настроек";
+
+    if (isSettingsLoading) {
+      settingsLoadError = message;
+      isSettingsLoading = false;
+    }
+
+    if (isSettingsSaving) {
+      isSettingsSaving = false;
+      setSettingsStatus(message, "#b00020");
+    }
+
+    if (sidePanelMode === "settings") {
+      updateSidepanel();
+    }
+  } else if (event.data?.type === "load-diagram") {
     logger.info("Processing load-diagram message");
     const fbTypes = new Map<string, FBTypeModel>(event.data.fbTypes || []);
     logger.info("FB Types count", fbTypes.size);

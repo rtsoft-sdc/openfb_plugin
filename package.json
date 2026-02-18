@@ -52,6 +52,16 @@
           "default": 30000,
           "description": "Timeout in milliseconds for deploy operation",
           "scope": "window"
+        },
+        "openfb.uiLanguage": {
+          "type": "string",
+          "enum": [
+            "ru",
+            "en"
+          ],
+          "default": "ru",
+          "description": "UI language for OpenFB panel settings",
+          "scope": "window"
         }
       }
     }
