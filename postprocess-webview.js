@@ -53,14 +53,10 @@ if (fs.existsSync(webviewSrcDir)) {
   console.log('Webview source directory not found, skipping post-process');
 }
 
-// Copy index.html from src/webview to out/webview
-const srcIndexHtml = path.join(__dirname, 'src', 'webview', 'index.html');
-const destIndexHtml = path.join(__dirname, 'out', 'webview', 'index.html');
-
-if (fs.existsSync(srcIndexHtml)) {
-  let content = fs.readFileSync(srcIndexHtml, 'utf8');
-  fs.writeFileSync(destIndexHtml, content, 'utf8');
-  console.log('Copied: index.html');
-} else {
-  console.log('index.html not found in src/webview');
+// Remove duplicate colorScheme.js emitted into out/webview
+const duplicateColorScheme = path.join(webviewOutDir, 'colorScheme.js');
+if (fs.existsSync(duplicateColorScheme)) {
+  fs.rmSync(duplicateColorScheme, { force: true });
+  console.log('Removed duplicate colorScheme.js from out/webview');
 }
+

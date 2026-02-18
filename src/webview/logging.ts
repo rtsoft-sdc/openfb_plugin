@@ -1,3 +1,5 @@
+import { COLOR_SCHEME } from "../colorScheme";
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export class WebviewLogger {
@@ -20,13 +22,13 @@ export class WebviewLogger {
   private getColorStyle(level: LogLevel): string[] {
     switch (level) {
       case "debug":
-        return ["color: #666; font-weight: bold;", "color: #666;"];
+        return [`color: ${COLOR_SCHEME.UI.LOG_DEBUG}; font-weight: bold;`, `color: ${COLOR_SCHEME.UI.LOG_DEBUG};`];
       case "info":
-        return ["color: #0066cc; font-weight: bold;", "color: #0066cc;"];
+        return [`color: ${COLOR_SCHEME.UI.LOG_INFO}; font-weight: bold;`, `color: ${COLOR_SCHEME.UI.LOG_INFO};`];
       case "warn":
-        return ["color: #ff8800; font-weight: bold;", "color: #ff8800;"];
+        return [`color: ${COLOR_SCHEME.UI.LOG_WARN}; font-weight: bold;`, `color: ${COLOR_SCHEME.UI.LOG_WARN};`];
       case "error":
-        return ["color: #cc0000; font-weight: bold;", "color: #cc0000;"];
+        return [`color: ${COLOR_SCHEME.UI.LOG_ERROR}; font-weight: bold;`, `color: ${COLOR_SCHEME.UI.LOG_ERROR};`];
       default:
         return ["", ""];
     }

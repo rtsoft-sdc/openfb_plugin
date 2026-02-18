@@ -8,6 +8,7 @@ import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
 import { FBootGenerator } from "./generators/fboot/fbootGenerator";
 import { DEFAULT_PLUGIN_SETTINGS, PluginSettings, UiLanguage } from "./openfb/pluginSettings";
+import { EXTENSION_COLORS } from "./colorScheme";
 
 // Store subscriptions for cleanup on deactivation
 const extensionSubscriptions: vscode.Disposable[] = [];
@@ -503,10 +504,10 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       z-index: 1000;
       display: flex;
       align-items: center;
-      background: #f3f3f3;
+      background: ${EXTENSION_COLORS.TOOLBAR_BG};
       padding: 0 12px;
-      border-top: 1px solid #ddd;
-      border-bottom: 1px solid #ddd;
+      border-top: 1px solid ${EXTENSION_COLORS.TOOLBAR_BORDER};
+      border-bottom: 1px solid ${EXTENSION_COLORS.TOOLBAR_BORDER};
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
     .toolbar-left {
@@ -531,31 +532,31 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     #toolbar button {
       padding: 8px 12px;
-      border: 1px solid #bbb;
-      background: #28a745;
-      color: #fff;
+      border: 1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER};
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG};
+      color: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT};
       cursor: pointer;
       border-radius: 4px;
       font-family: Roboto, sans-serif;
     }
-    #toolbar button:hover { background: #218838; }
+    #toolbar button:hover { background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_HOVER}; }
     #toolbar #settingsBtn {
-      background: #e0e0e0;
-      color: #2f2f2f;
-      border: 1px solid #b5b5b5;
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_BG};
+      color: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_TEXT};
+      border: 1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_BORDER};
       display: inline-flex;
       align-items: center;
       gap: 6px;
       font-weight: 500;
     }
     #toolbar #settingsBtn:hover {
-      background: #d3d3d3;
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_HOVER};
     }
     
     /* Canvas - adjusted for left and right panels */
     canvas {
       display: block;
-      background: #ffffff;
+      background: ${EXTENSION_COLORS.PANEL_BG};
       position: absolute;
       left: 250px;
       top: 48px;
@@ -570,8 +571,8 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       top: 48px;
       width: 250px;
       height: calc(100vh - 48px);
-      background: #ffffff;
-      border-right: 1px solid #ddd;
+      background: ${EXTENSION_COLORS.PANEL_BG};
+      border-right: 1px solid ${EXTENSION_COLORS.BORDER_DEFAULT};
       overflow-y: auto;
       z-index: 500;
       display: flex;
@@ -580,11 +581,11 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     
     #left-sidepanel-header {
       padding: 10px;
-      border-bottom: 1px solid #eee;
-      background: #f3f3f3;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
       font-weight: 600;
       font-size: 14px;
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       position: sticky;
       top: 0;
     }
@@ -593,15 +594,15 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       flex: 1;
       padding: 8px;
       font-size: 13px;
-      color: #555;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
     }
     
     .device-section {
       margin-bottom: 12px;
       padding: 8px;
-      background: #f9f9f9;
+      background: ${EXTENSION_COLORS.DEVICE_SECTION_BG};
       border-radius: 4px;
-      border-left: 3px solid #28a745;
+      border-left: 3px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG};
     }
     
     .device-header {
@@ -614,7 +615,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     .device-name {
       font-weight: 600;
       font-size: 13px;
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       word-break: break-word;
       flex: 1;
     }
@@ -630,23 +631,23 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     .device-section-title {
       font-weight: 600;
       font-size: 10px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 4px;
       padding-bottom: 3px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
     }
     
     .device-section-title-collapsible {
       font-weight: 600;
       font-size: 10px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 4px;
       padding-bottom: 3px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
       display: flex;
       align-items: center;
       gap: 6px;
@@ -666,7 +667,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .device-label {
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       font-size: 10px;
       min-width: 70px;
     }
@@ -678,7 +679,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .device-value {
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       font-weight: 500;
       text-align: right;
       word-break: break-word;
@@ -697,12 +698,12 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       align-items: center;
       justify-content: center;
       font-size: 9px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       flex-shrink: 0;
     }
     
     .device-toggle:hover {
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
     }
     
     .device-fbs-container {
@@ -715,7 +716,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     
     .resource-item {
       padding: 1px 0 1px 8px;
-      color: #555;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
       font-size: 12px;
     }
     
@@ -726,8 +727,8 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       top: 48px;
       width: 300px;
       height: calc(100vh - 48px);
-      background: #ffffff;
-      border-left: 1px solid #ddd;
+      background: ${EXTENSION_COLORS.PANEL_BG};
+      border-left: 1px solid ${EXTENSION_COLORS.BORDER_DEFAULT};
       overflow-y: auto;
       z-index: 500;
       display: flex;
@@ -736,11 +737,11 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     
     #sidepanel-header {
       padding: 12px;
-      border-bottom: 1px solid #eee;
-      background: #f3f3f3;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
       font-weight: 600;
       font-size: 13px;
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       position: sticky;
       top: 0;
     }
@@ -749,7 +750,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       flex: 1;
       padding: 12px;
       font-size: 12px;
-      color: #555;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
     }
     
     .sidepanel-section {
@@ -759,12 +760,12 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     .sidepanel-section-title {
       font-weight: 600;
       font-size: 11px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 6px;
       padding-bottom: 4px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
     }
     
     .sidepanel-item {
@@ -775,12 +776,12 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .sidepanel-label {
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       font-size: 11px;
     }
     
     .sidepanel-value {
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       font-weight: 500;
       word-break: break-word;
       text-align: right;
@@ -789,7 +790,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .sidepanel-empty {
-      color: #999;
+      color: ${EXTENSION_COLORS.EMPTY_TEXT};
       font-style: italic;
       padding: 12px 8px;
       text-align: center;
@@ -809,7 +810,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
 <body>
   <div id="toolbar">
     <div class="toolbar-left">
-      <button id="addBlockBtn" style="padding:8px 12px; border:1px solid #bbb; background:#28a745; color:#fff; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">+ Добавить FB</button>
+      <button id="addBlockBtn" style="padding:8px 12px; border:1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER}; background:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG}; color:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT}; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">+ Добавить FB</button>
     </div>
     <div class="toolbar-center">
       <button id="generateFbootBtn">Создать FBOOT</button>

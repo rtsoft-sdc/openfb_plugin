@@ -5,6 +5,7 @@ import { FBTypeModel } from "../domain/fbtModel";
 import { initializeWebviewLogger } from "./logging";
 import { DEFAULT_PLUGIN_SETTINGS, PluginSettings } from "./pluginSettings";
 import { renderSettingsPanel } from "./settingsPanel";
+import { COLORS, CANVAS_COLORS } from "../colorScheme";
 
 /**
  * VS Code Webview API for communication with the extension host
@@ -80,7 +81,7 @@ let settingsLoadError: string | undefined;
 let settingsDirty = false;
 let isSettingsSaving = false;
 let settingsStatusText = "Сохранено";
-let settingsStatusColor = "#2e7d32";
+let settingsStatusColor: string = COLORS.SUCCESS_TEXT;
 
 function clonePluginSettings(settings: PluginSettings): PluginSettings {
   return {
@@ -94,7 +95,7 @@ function updateSettingsDirtyState(dirty: boolean) {
   settingsDirty = dirty;
   if (dirty) {
     settingsStatusText = "Есть несохранённые изменения";
-    settingsStatusColor = "#b76e00";
+    settingsStatusColor = COLORS.WARNING_TEXT;
   }
 }
 
@@ -151,21 +152,21 @@ function saveSettingsDraft(): void {
 
   const validation = normalizeAndValidateSettingsDraft(settingsDraft);
   if (!validation.ok) {
-    setSettingsStatus(validation.error, "#b00020");
+    setSettingsStatus(validation.error, COLORS.ERROR_TEXT);
     updateSidepanel();
     return;
   }
 
   settingsDraft = clonePluginSettings(validation.settings);
   isSettingsSaving = true;
-  setSettingsStatus("Сохранение...", "#3367d6");
+  setSettingsStatus("Сохранение...", COLORS.STATUS_SAVING);
   updateSidepanel();
   vscode.postMessage({ type: "settings:save", payload: validation.settings });
 }
 
 function requestSettingsPathPick(): void {
   if (!vscode) {
-    setSettingsStatus("Host API недоступен", "#b00020");
+    setSettingsStatus("Host API недоступен", COLORS.ERROR_TEXT);
     updateSidepanel();
     return;
   }
@@ -316,7 +317,7 @@ function updateDevicePanel() {
     }) || [];
     
     const deviceId = `device-${device.name.replace(/\s+/g, '_')}`;
-    const borderColor = (device as any).color ? `rgb(${(device as any).color})` : '#28a745';
+    const borderColor = (device as any).color ? `rgb(${(device as any).color})` : COLORS.BUTTON_PRIMARY_BG;
     
     // Build device section
     html += `<div class="device-section" style="border-left: 3px solid ${borderColor}">`;
@@ -418,9 +419,11 @@ function buildPortSectionHtml(
   html += `<div class="sidepanel-ports-container" id="${sectionId}" style="display: none;">`;
 
   for (const port of ports) {
-    const portColor = port.kind === 'event' ? '#22DD22' : '#2255FF';
+    const portColor = port.kind === "event"
+      ? CANVAS_COLORS.EVENT_PORT_COLOR
+      : CANVAS_COLORS.DATA_PORT_COLOR;
     const paramValue = nodeParamMap.get(port.name);
-    const portType = (port as any).type ? ` <span style="color: #999; font-size: 11px;">(${(port as any).type})</span>` : '';
+    const portType = (port as any).type ? ` <span style="color: ${COLORS.TEXT_MUTED}; font-size: 11px;">(${(port as any).type})</span>` : '';
 
     html += '<div class="sidepanel-item">';
     html += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}${portType}</span>`;
@@ -474,7 +477,7 @@ function openSettingsPanel() {
   isSettingsSaving = false;
   settingsLoadError = undefined;
   if (!settingsDirty) {
-    setSettingsStatus("Сохранено", "#2e7d32");
+    setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
   }
   if (vscode) {
     vscode.postMessage({ type: "settings:load" });
@@ -532,13 +535,13 @@ function renderBlockPalette() {
 
   // Show loading indicator if tree is being fetched
   if (fbTypesTreeLoading) {
-    leftContent.innerHTML = `<div style="padding:12px; text-align:center; color:#666; font-size:12px;">Загружаю библиотеку типов...</div>`;
+    leftContent.innerHTML = `<div style="padding:12px; text-align:center; color:${COLORS.TEXT_LIGHT}; font-size:12px;">Загружаю библиотеку типов...</div>`;
     return;
   }
 
   // Show error or empty state if no tree
   if (!fbTypesTree || fbTypesTree.length === 0) {
-    leftContent.innerHTML = '<div class="sidepanel-empty" style="padding:12px; text-align:center; color:#666; font-size:12px;">Нет доступных типов блоков</div>';
+    leftContent.innerHTML = '<div class="sidepanel-empty" style="padding:12px; text-align:center; color:' + COLORS.TEXT_LIGHT + '; font-size:12px;">Нет доступных типов блоков</div>';
     return;
   }
 
@@ -562,11 +565,11 @@ function renderBlockPalette() {
           padding:4px 6px;
           margin-left:${indent}px;
           border:none;
-          background:transparent;
+          background:${COLORS.PALETTE_BLOCK_BG_TRANSPARENT};
           cursor:grab;
           user-select:none;
           font-size:12px;
-          color:#333;
+          color:${COLORS.TEXT_PRIMARY};
           display:flex;
           align-items:center;
           gap:6px;
@@ -590,8 +593,8 @@ function renderBlockPalette() {
       // Styles differ based on depth: root level has full styling, nested levels are minimal
       const folderStyle = depth === 0 ? `
           padding:8px;
-          background:#f0f0f0;
-          border:1px solid #ddd;
+          background:${COLORS.PALETTE_LIB_HEADER_BG};
+          border:1px solid ${COLORS.PALETTE_LIB_HEADER_BORDER};
           border-radius:3px;
         ` : `
           padding:4px 0;
@@ -607,7 +610,7 @@ function renderBlockPalette() {
           user-select:none;
           font-size:12px;
           font-weight:bold;
-          color:#333;
+          color:${COLORS.TEXT_PRIMARY};
           display:flex;
           align-items:center;
           gap:6px;
@@ -634,8 +637,8 @@ function renderBlockPalette() {
     html += renderNode(node, 0, "", libIndex + 1);
   });
   
-  html += `<div style="padding:8px 0; border-top:1px solid #ddd; margin-top:8px;">
-    <button id="closePaletteBtn" style="width:100%; padding:6px 8px; border:1px solid #bbb; background:#f1f1f1; border-radius:3px; cursor:pointer; font-size:12px;">Назад к устройствам</button>
+  html += `<div style="padding:8px 0; border-top:1px solid ${COLORS.BORDER_COLOR}; margin-top:8px;">
+    <button id="closePaletteBtn" style="width:100%; padding:6px 8px; border:1px solid ${COLORS.UI_BORDER}; background:${COLORS.UI_ACTIVE_BG}; border-radius:3px; cursor:pointer; font-size:12px;">Назад к устройствам</button>
   </div></div>`;
 
   leftContent.innerHTML = html;
@@ -664,10 +667,10 @@ function renderBlockPalette() {
     
     // Add hover effect
     item.addEventListener("mouseenter", () => {
-      (item as HTMLElement).style.backgroundColor = "#e8f4f8";
+      (item as HTMLElement).style.backgroundColor = COLORS.PALETTE_BLOCK_BG_HOVER;
     });
     item.addEventListener("mouseleave", () => {
-      (item as HTMLElement).style.backgroundColor = "transparent";
+      (item as HTMLElement).style.backgroundColor = COLORS.PALETTE_BLOCK_BG_TRANSPARENT;
     });
   });
 
@@ -908,7 +911,7 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
       isSettingsSaving = false;
       settingsLoadError = undefined;
       settingsDirty = false;
-      setSettingsStatus("Сохранено", "#2e7d32");
+      setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
       if (sidePanelMode === "settings") {
         updateSidepanel();
       }
@@ -920,7 +923,7 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
     }
 
     if (settingsDraft.fbPaths.includes(selectedPath)) {
-      setSettingsStatus("Путь уже добавлен", "#b76e00");
+      setSettingsStatus("Путь уже добавлен", COLORS.WARNING_TEXT);
       if (sidePanelMode === "settings") {
         updateSidepanel();
       }
@@ -942,7 +945,7 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
 
     isSettingsSaving = false;
     settingsDirty = false;
-    setSettingsStatus("Сохранено", "#2e7d32");
+    setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
     if (sidePanelMode === "settings") {
       updateSidepanel();
     }
@@ -956,7 +959,7 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
 
     if (isSettingsSaving) {
       isSettingsSaving = false;
-      setSettingsStatus(message, "#b00020");
+      setSettingsStatus(message, COLORS.ERROR_TEXT);
     }
 
     if (sidePanelMode === "settings") {
@@ -1019,7 +1022,7 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
     if (leftPanelMode === "palette") {
       const leftContent = document.getElementById("left-sidepanel-content");
       if (leftContent) {
-        leftContent.innerHTML = `<div style="padding:12px; color:#d32f2f; font-size:12px;"><strong>Ошибка:</strong> ${event.data.payload || "Не удалось загрузить типы"}</div>`;
+        leftContent.innerHTML = `<div style="padding:12px; color:${COLORS.ERROR_TEXT}; font-size:12px;"><strong>Ошибка:</strong> ${event.data.payload || "Не удалось загрузить типы"}</div>`;
       }
     }
   } else {

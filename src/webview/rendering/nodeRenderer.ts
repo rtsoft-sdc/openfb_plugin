@@ -127,7 +127,7 @@ function drawNodeSelection(ctx: CanvasRenderingContext2D, node: any): void {
   ctx.save();
 
   // Draw glowing selection frame
-  ctx.strokeStyle = "#FFD700"; // Gold color for selection
+  ctx.strokeStyle = C.SELECTION_STROKE_COLOR; // Gold color for selection
   ctx.lineWidth = 3;
 
   // Draw rounded rectangle around node with padding
