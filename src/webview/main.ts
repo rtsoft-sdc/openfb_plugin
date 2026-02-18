@@ -20,6 +20,17 @@ interface ExtensionMessage {
   type: string;
   payload?: any;  // Can be DiagramModel or its superset with additional properties
   fbTypes?: [string, FBTypeModel][];
+  fbTypesTree?: TreeNode[];
+}
+
+/**
+ * Hierarchical tree node for FB palette
+ */
+interface TreeNode {
+  name: string;
+  type: "folder" | "type";
+  children?: TreeNode[];
+  sourcePath?: string;
 }
 
 declare const acquireVsCodeApi: () => VsCodeApi;
@@ -48,6 +59,16 @@ new CanvasInputManager(canvas, state, renderer);
 
 type SidePanelMode = "info" | "settings";
 let sidePanelMode: SidePanelMode = "info";
+
+type LeftPanelMode = "devices" | "palette";
+let leftPanelMode: LeftPanelMode = "devices";
+let draggedBlockType: string | null = null;
+
+// FB types tree (lazy loaded from extension when palette is opened)
+let fbTypesTree: TreeNode[] | null = null;
+let fbTypesTreeLoading = false;
+let fbTypesNodeExpanded: Map<string, boolean> = new Map(); // Track expanded folders in palette
+
 let pluginSettings: PluginSettings = DEFAULT_PLUGIN_SETTINGS;
 let settingsDraft: PluginSettings = {
   ...DEFAULT_PLUGIN_SETTINGS,
@@ -469,6 +490,202 @@ function openInfoPanel() {
   updateSidepanel();
 }
 
+function openPalettePanel() {
+  leftPanelMode = "palette";
+  fbTypesTreeLoading = true;
+  fbTypesNodeExpanded.clear();
+  
+  // Update left panel header
+  const leftHeader = document.getElementById("left-sidepanel-header");
+  if (leftHeader) {
+    leftHeader.textContent = "Библиотека типов";
+  }
+  
+  updateLeftPanel();
+  
+  // Request all FB types from extension (lazy load)
+  if (vscode) {
+    logger.debug("Requesting all FB types tree from extension");
+    vscode.postMessage({ type: "request-all-fb-types" });
+  } else {
+    fbTypesTreeLoading = false;
+    updateLeftPanel();
+  }
+}
+
+function closePalettePanel() {
+  leftPanelMode = "devices";
+  draggedBlockType = null;
+  
+  // Restore left panel header
+  const leftHeader = document.getElementById("left-sidepanel-header");
+  if (leftHeader) {
+    leftHeader.textContent = "Устройства";
+  }
+  
+  updateDevicePanel();
+}
+
+function renderBlockPalette() {
+  const leftContent = document.getElementById("left-sidepanel-content");
+  if (!leftContent) return;
+
+  // Show loading indicator if tree is being fetched
+  if (fbTypesTreeLoading) {
+    leftContent.innerHTML = `<div style="padding:12px; text-align:center; color:#666; font-size:12px;">Загружаю библиотеку типов...</div>`;
+    return;
+  }
+
+  // Show error or empty state if no tree
+  if (!fbTypesTree || fbTypesTree.length === 0) {
+    leftContent.innerHTML = '<div class="sidepanel-empty" style="padding:12px; text-align:center; color:#666; font-size:12px;">Нет доступных типов блоков</div>';
+    return;
+  }
+
+  // Helper function to generate unique node identifier
+  const getNodePath = (node: TreeNode, parentPath: string = ""): string => {
+    return parentPath ? `${parentPath}/${node.name}` : node.name;
+  };
+
+  // Recursive function to render tree node
+  const renderNode = (node: TreeNode, depth: number = 0, parentPath: string = "", libraryIndex?: number): string => {
+    const nodePath = getNodePath(node, parentPath);
+    const indent = depth * 16;
+    
+    if (node.type === "type") {
+      // Render as draggable item
+      const fbName = node.name || "Unknown";
+      // Icon options: ◻ (outline box) | ◼ (filled box) | 🟦 (blue square) | ⬜ (white square) | ⬛ (black square) | ▪ (small square)
+      const blockIcon = "◻";
+      return `
+        <div class="palette-block-item" draggable="true" data-fb-type="${fbName}" style="
+          padding:4px 6px;
+          margin-left:${indent}px;
+          border:none;
+          background:transparent;
+          cursor:grab;
+          user-select:none;
+          font-size:12px;
+          color:#333;
+          display:flex;
+          align-items:center;
+          gap:6px;
+          border-radius:3px;
+          transition:background-color 0.15s ease;
+        ">
+          <span style="font-size:14px; flex-shrink:0;">${blockIcon}</span>
+          ${fbName}
+        </div>
+      `;
+    } else {
+      // Render as folder
+      const isExpanded = fbTypesNodeExpanded.get(nodePath) ?? false; // Default collapsed
+      const arrowIcon = isExpanded ? "▼" : "▶";
+      const childCount = node.children?.length || 0;
+      
+      // Root level (depth 0) libraries get TypeLibrary name with path in tooltip
+      const displayName = depth === 0 ? `TypeLibrary${libraryIndex}` : node.name;
+      const titleAttr = depth === 0 ? ` title="${node.name}"` : "";
+      
+      // Styles differ based on depth: root level has full styling, nested levels are minimal
+      const folderStyle = depth === 0 ? `
+          padding:8px;
+          background:#f0f0f0;
+          border:1px solid #ddd;
+          border-radius:3px;
+        ` : `
+          padding:4px 0;
+          background:none;
+          border:none;
+        `;
+      
+      let html = `
+        <div class="palette-folder-header" data-node-path="${nodePath}"${titleAttr} style="
+          ${folderStyle}
+          margin-left:${indent}px;
+          cursor:pointer;
+          user-select:none;
+          font-size:12px;
+          font-weight:bold;
+          color:#333;
+          display:flex;
+          align-items:center;
+          gap:6px;
+        ">
+          <span class="folder-arrow" style="display:inline-block; width:12px; text-align:center;">${arrowIcon}</span>
+          <span>📦 ${displayName} (${childCount})</span>
+        </div>
+      `;
+      
+      if (isExpanded && node.children) {
+        for (const child of node.children) {
+          html += renderNode(child, depth + 1, nodePath);
+        }
+      }
+      
+      return html;
+    }
+  };
+
+  // Build tree HTML
+  let html = `<div style="display:flex; flex-direction:column; gap:2px; padding:4px 0;">`;
+  
+  fbTypesTree.forEach((node, libIndex) => {
+    html += renderNode(node, 0, "", libIndex + 1);
+  });
+  
+  html += `<div style="padding:8px 0; border-top:1px solid #ddd; margin-top:8px;">
+    <button id="closePaletteBtn" style="width:100%; padding:6px 8px; border:1px solid #bbb; background:#f1f1f1; border-radius:3px; cursor:pointer; font-size:12px;">Назад к устройствам</button>
+  </div></div>`;
+
+  leftContent.innerHTML = html;
+
+  // Attach folder click handlers for expand/collapse
+  const folderHeaders = leftContent.querySelectorAll(".palette-folder-header");
+  folderHeaders.forEach(header => {
+    header.addEventListener("click", () => {
+      const nodePath = (header as any)["dataset"]["nodePath"];
+      const currentState = fbTypesNodeExpanded.get(nodePath) ?? false; // Default collapsed
+      fbTypesNodeExpanded.set(nodePath, !currentState);
+      renderBlockPalette(); // Re-render to show/hide children
+    });
+  });
+
+  // Attach drag events to palette items
+  const paletteItems = leftContent.querySelectorAll(".palette-block-item");
+  paletteItems.forEach(item => {
+    item.addEventListener("dragstart", (e: any) => {
+      draggedBlockType = e.currentTarget.dataset.fbType;
+      logger.debug(`Drag started: block type ${draggedBlockType}`);
+    });
+    item.addEventListener("dragend", () => {
+      draggedBlockType = null;
+    });
+    
+    // Add hover effect
+    item.addEventListener("mouseenter", () => {
+      (item as HTMLElement).style.backgroundColor = "#e8f4f8";
+    });
+    item.addEventListener("mouseleave", () => {
+      (item as HTMLElement).style.backgroundColor = "transparent";
+    });
+  });
+
+  // Attach cancel button
+  const closeBtn = leftContent.querySelector("#closePaletteBtn") as HTMLButtonElement | null;
+  if (closeBtn) {
+    closeBtn.addEventListener("click", closePalettePanel);
+  }
+}
+
+function updateLeftPanel() {
+  if (leftPanelMode === "palette") {
+    renderBlockPalette();
+  } else {
+    updateDevicePanel();
+  }
+}
+
 /**
  * Update sidepanel with selected block data.
  * Displays block information, ports (inputs/outputs), and parameters.
@@ -643,6 +860,38 @@ if (settingsBtn) {
   logger.warn("settings button not found in DOM");
 }
 
+const addBlockBtn = document.getElementById("addBlockBtn") as HTMLButtonElement | null;
+if (addBlockBtn) {
+  addBlockBtn.addEventListener("click", () => {
+    logger.info("addBlockBtn button clicked");
+    openPalettePanel();
+  });
+} else {
+  logger.warn("addBlockBtn button not found in DOM");
+}
+
+// Setup drag & drop on canvas
+canvas.addEventListener("dragover", (e: DragEvent) => {
+  if (draggedBlockType) {
+    e.preventDefault();
+    canvas.style.opacity = "0.8";
+  }
+});
+
+canvas.addEventListener("dragleave", () => {
+  canvas.style.opacity = "1";
+});
+
+canvas.addEventListener("drop", (e: DragEvent) => {
+  e.preventDefault();
+  canvas.style.opacity = "1";
+  
+  if (!draggedBlockType) return;
+  
+ logger.info(`Dropped block type: ${draggedBlockType}`);
+  // TODO:CreateNode action here
+});
+
 // Register message handler BEFORE anything else
 logger.info("Registering message handler...");
 const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
@@ -743,13 +992,38 @@ const messageHandler = (event: MessageEvent<ExtensionMessage>) => {
     logger.debug("State nodes data", state.nodes);
     logger.info("Loaded connections", state.connections.length);
 
-    // Update device panel
-    updateDevicePanel();
+    // Update left panel (devices or palette)
+    updateLeftPanel();
 
     renderer.render(state);
     logger.info("Rendered");
+  } else if (event.data?.type === "all-fb-types-loaded") {
+    logger.info("Received all FB types tree from extension");
+    fbTypesTree = event.data.fbTypesTree || [];
+    fbTypesTreeLoading = false;
+    
+    logger.debug("FB types tree received", {
+      rootNodes: fbTypesTree.length,
+    });
+    
+    // Re-render palette with received tree
+    if (leftPanelMode === "palette") {
+      renderBlockPalette();
+    }
+  } else if (event.data?.type === "all-fb-types-error") {
+    logger.error("Error loading FB types tree", event.data.payload);
+    fbTypesTree = [];
+    fbTypesTreeLoading = false;
+    
+    // Show error in palette
+    if (leftPanelMode === "palette") {
+      const leftContent = document.getElementById("left-sidepanel-content");
+      if (leftContent) {
+        leftContent.innerHTML = `<div style="padding:12px; color:#d32f2f; font-size:12px;"><strong>Ошибка:</strong> ${event.data.payload || "Не удалось загрузить типы"}</div>`;
+      }
+    }
   } else {
-    logger.debug("Message type not load-diagram", event.data?.type);
+    logger.debug("Message type not recognized", event.data?.type);
   }
 };
 

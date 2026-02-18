@@ -11,4 +11,5 @@ export interface FBPort {
 export interface FBTypeModel {
   name: string;
   ports: FBPort[];
+  sourcePath?: string; // Relative path from library root (e.g., "stdlib/convert")
 }

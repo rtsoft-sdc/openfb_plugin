@@ -27,7 +27,7 @@ export function drawStatsAndLegend(
   // STATS LINE - top left
   // =========================================================================
 
-  const statsText = `Узлы: ${state.nodes.length} | Камера: x=${options.offsetX.toFixed(0)} y=${options.offsetY.toFixed(0)} м=${options.scale.toFixed(2)}`;
+  const statsText = `Узлы: ${state.nodes.length} | Масштаб: ${(options.scale * 100).toFixed(0)}%`;
   ctx.fillStyle = C.STATS_TEXT_COLOR;
   ctx.font = C.STATS_FONT;
   ctx.fillText(

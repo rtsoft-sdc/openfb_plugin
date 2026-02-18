@@ -392,6 +392,29 @@ export function activate(context: vscode.ExtensionContext) {
                 panel.webview.postMessage({ type: "settings:error", payload: "Не удалось выбрать путь" });
               }
               return;
+            } else if (m?.type === "request-all-fb-types") {
+              logger.info("Request for all FB types (library palette)");
+              try {
+                // Use existing searchPaths from diagram loading
+                const newRegistry = new FBTypeRegistry(searchPaths);
+                const tree = newRegistry.scanAllTypes();
+                
+                logger.info("Sending FB types tree", {
+                  rootNodes: tree.length,
+                });
+                
+                panel.webview.postMessage({
+                  type: "all-fb-types-loaded",
+                  fbTypesTree: tree,
+                });
+              } catch (err) {
+                logger.error("Failed to scan all FB types", err);
+                panel.webview.postMessage({
+                  type: "all-fb-types-error",
+                  payload: `Не удалось загрузить библиотеку типов: ${err}`,
+                });
+              }
+              return;
             }
           } catch (err) {
             logger.error("Error handling webview message", err);
@@ -485,6 +508,13 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       border-top: 1px solid #ddd;
       border-bottom: 1px solid #ddd;
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .toolbar-left {
+      position: absolute;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     .toolbar-center {
       position: absolute;
@@ -778,6 +808,9 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
 </head>
 <body>
   <div id="toolbar">
+    <div class="toolbar-left">
+      <button id="addBlockBtn" style="padding:8px 12px; border:1px solid #bbb; background:#28a745; color:#fff; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">+ Добавить FB</button>
+    </div>
     <div class="toolbar-center">
       <button id="generateFbootBtn">Создать FBOOT</button>
       <button id="deployBtn">Деплой</button>
