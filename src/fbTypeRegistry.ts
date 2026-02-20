@@ -310,22 +310,18 @@ export class FBTypeRegistry {
    * Result: TreeNode[] with SearchPaths as root level, then nested folders and types
    */
   public scanAllTypes(): TreeNode[] {
-    this.logger.debug("Scanning ALL FBT files (recursive) for hierarchical tree", this.searchPaths);
     
     const allResults: Array<{ searchPathRoot: string; sourcePath: string; typeName: string; filePath: string }> = [];
     
     // Collect all FBT files from all search paths
     for (const basePath of this.searchPaths) {
       if (!fs.existsSync(basePath)) {
-        this.logger.debug("Search path does not exist", basePath);
         continue;
       }
       
       const results = this.scanDirForAllTypes(basePath, basePath);
       allResults.push(...results);
     }
-    
-    this.logger.debug(`Total FBT files found recursively: ${allResults.length}`);
     
     // Parse each file and collect for tree building
     const typesList: Array<{ searchPathRoot: string; folderPath: string; name: string; sourcePath: string }> = [];
@@ -350,34 +346,9 @@ export class FBTypeRegistry {
       }
     }
     
-    this.logger.debug(`Types collected for tree building: ${typesList.length}`);
-    if (typesList.length > 0) {
-      this.logger.debug("First few types", typesList.slice(0, 3).map(t => ({ root: t.searchPathRoot, folder: t.folderPath, name: t.name })));
-    }
-    
     // Build hierarchical tree (with SearchPath as root level)
     const tree = this.buildTreeFromTypes(typesList);
     
-    // Debug: log tree structure
-    const logTreeStructure = (node: TreeNode, indent: string = ""): string => {
-      const prefix = node.type === "folder" ? "📁" : "📄";
-      const childCount = node.type === "folder" ? ` (${node.children?.length ?? 0} items)` : "";
-      let output = `${indent}${prefix} ${node.name}${childCount}\n`;
-      if (node.children) {
-        for (const child of node.children) {
-          output += logTreeStructure(child, indent + "  ");
-        }
-      }
-      return output;
-    };
-    let treeLog = "=== TREE STRUCTURE ===\n";
-    for (const root of tree) {
-      treeLog += logTreeStructure(root);
-    }
-    treeLog += "=== END TREE ===";
-    this.logger.info(treeLog);
-    
-    this.logger.info(`Scan all types complete: ${allResults.length} files, tree built with ${tree.length} root nodes (SearchPaths)`);
     return tree;
   }
 

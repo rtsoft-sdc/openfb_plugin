@@ -27,3 +27,10 @@ export const PADDING_CONFIG = {
   AUTO_SCROLL_PADDING: 20,  // Distance from edge to maintain when auto-scrolling
   LAYOUT_PADDING: 40,       // Default padding for layout (fits, normalizing coordinates)
 };
+
+// ============ PANEL/CANVAS LAYOUT ============
+export const PANEL_LAYOUT_CONFIG = {
+  LEFT_PANEL_WIDTH: 250,
+  RIGHT_PANEL_WIDTH: 300,
+  TOOLBAR_ID: "toolbar",
+};

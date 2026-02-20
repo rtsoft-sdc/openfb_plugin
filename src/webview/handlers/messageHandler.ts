@@ -1,0 +1,186 @@
+import { FBTypeModel } from "../../domain/fbtModel";
+import { COLORS } from "../../colorScheme";
+import type { PluginSettings } from "../panels/pluginSettings";
+import type { EditorState } from "../editorState";
+import type { TreeNode } from "../panels/leftPanel";
+import type { WebviewLogger } from "../logging";
+
+export interface ExtensionMessage {
+  type: string;
+  payload?: any;
+  fbTypes?: [string, FBTypeModel][];
+  fbTypesTree?: TreeNode[];
+}
+
+interface LeftPanelDeps {
+  handleAllFbTypesLoaded: (tree: TreeNode[]) => void;
+  handleAllFbTypesError: (message?: string) => void;
+}
+
+interface MessageHandlerDeps {
+  logger: WebviewLogger;
+  state: EditorState;
+  leftPanel: LeftPanelDeps;
+  renderer: { render: (state: EditorState) => void };
+  centerDiagramInCanvas: () => void;
+  updateSidepanel: () => void;
+  updateSettingsModal: () => void;
+  closeSettingsModal: () => void;
+  getSettingsDraft: () => PluginSettings;
+  setSettingsDraft: (next: PluginSettings) => void;
+  getIsSettingsLoading: () => boolean;
+  setIsSettingsLoading: (next: boolean) => void;
+  getIsSettingsSaving: () => boolean;
+  setIsSettingsSaving: (next: boolean) => void;
+  setSettingsLoadError: (message?: string) => void;
+  setSettingsDirty: (dirty: boolean) => void;
+  clonePluginSettings: (settings: PluginSettings) => PluginSettings;
+  updateSettingsDirtyState: (dirty: boolean) => void;
+  setSettingsStatus: (text: string, color: string) => void;
+}
+
+function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  if (!event.data.payload) {
+    return;
+  }
+
+  const loadedSettings = event.data.payload as PluginSettings;
+  deps.setSettingsDraft(deps.clonePluginSettings(loadedSettings));
+  deps.setIsSettingsLoading(false);
+  deps.setIsSettingsSaving(false);
+  deps.setSettingsLoadError(undefined);
+  deps.setSettingsDirty(false);
+  deps.setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
+
+  deps.updateSettingsModal();
+}
+
+function handleSettingsPathPicked(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  const selectedPath = typeof event.data.payload === "string" ? event.data.payload.trim() : "";
+  if (!selectedPath) {
+    return;
+  }
+
+  const settingsDraft = deps.getSettingsDraft();
+  if (settingsDraft.fbPaths.includes(selectedPath)) {
+    deps.setSettingsStatus("Путь уже добавлен", COLORS.WARNING_TEXT);
+    deps.updateSettingsModal();
+    return;
+  }
+
+  const nextDraft = deps.clonePluginSettings(settingsDraft);
+  nextDraft.fbPaths.push(selectedPath);
+  deps.setSettingsDraft(nextDraft);
+  deps.updateSettingsDirtyState(true);
+
+  deps.updateSettingsModal();
+}
+
+function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  if (event.data.payload) {
+    const savedSettings = event.data.payload as PluginSettings;
+    deps.setSettingsDraft(deps.clonePluginSettings(savedSettings));
+  }
+
+  deps.setIsSettingsSaving(false);
+  deps.setSettingsDirty(false);
+  deps.setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
+
+  deps.updateSettingsModal();
+  deps.closeSettingsModal();
+}
+
+function handleSettingsError(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  const message = typeof event.data.payload === "string" ? event.data.payload : "Ошибка загрузки настроек";
+
+  if (deps.getIsSettingsLoading()) {
+    deps.setSettingsLoadError(message);
+    deps.setIsSettingsLoading(false);
+  }
+
+  if (deps.getIsSettingsSaving()) {
+    deps.setIsSettingsSaving(false);
+    deps.setSettingsStatus(message, COLORS.ERROR_TEXT);
+  }
+
+  deps.updateSettingsModal();
+}
+
+function handleLoadDiagram(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  deps.logger.info("Processing load-diagram message");
+  const fbTypes = new Map<string, FBTypeModel>(event.data.fbTypes || []);
+  deps.logger.info("FB Types count", fbTypes.size);
+
+  if (!event.data.payload) {
+    deps.logger.error("No payload in load-diagram message");
+    return;
+  }
+
+  deps.logger.debug("Diagram blocks", event.data.payload.subAppNetwork?.blocks);
+  deps.logger.info(
+    "Diagram connections count",
+    event.data.payload.subAppNetwork?.connections?.length || 0
+  );
+  if (event.data.payload.subAppNetwork?.connections && event.data.payload.subAppNetwork.connections.length > 0) {
+    deps.logger.debug("Diagram connections", event.data.payload.subAppNetwork.connections);
+  }
+
+  for (const block of event.data.payload.subAppNetwork.blocks) {
+    deps.logger.debug(`Block: ${block.id} (type=${block.typeShort}) at (${block.x}, ${block.y})`);
+  }
+
+  deps.state.loadFromDiagram(event.data.payload, fbTypes);
+  deps.centerDiagramInCanvas();
+  deps.logger.info("Loaded nodes", deps.state.nodes.length);
+  deps.logger.debug("State nodes data", deps.state.nodes);
+  deps.logger.info("Loaded connections", deps.state.connections.length);
+
+  deps.renderer.render(deps.state);
+  deps.logger.info("Rendered");
+}
+
+function handleAllFbTypesLoaded(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  deps.leftPanel.handleAllFbTypesLoaded(event.data.fbTypesTree || []);
+}
+
+function handleAllFbTypesError(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  deps.leftPanel.handleAllFbTypesError(
+    typeof event.data.payload === "string" ? event.data.payload : undefined
+  );
+}
+
+export function createMessageHandler(deps: MessageHandlerDeps) {
+  return (event: MessageEvent<ExtensionMessage>) => {
+    deps.logger.debug("=== MESSAGE RECEIVED ===");
+    deps.logger.debug("event.data type", typeof event.data);
+    deps.logger.debug("event.data keys", Object.keys(event.data || {}));
+    deps.logger.debug("event.data", event.data);
+
+    switch (event.data?.type) {
+      case "settings:loaded":
+        handleSettingsLoaded(event, deps);
+        return;
+      case "settings:path-picked":
+        handleSettingsPathPicked(event, deps);
+        return;
+      case "settings:saved":
+        handleSettingsSaved(event, deps);
+        return;
+      case "settings:error":
+        handleSettingsError(event, deps);
+        return;
+      case "load-diagram":
+        handleLoadDiagram(event, deps);
+        return;
+      case "all-fb-types-loaded":
+        handleAllFbTypesLoaded(event, deps);
+        return;
+      case "all-fb-types-error":
+        handleAllFbTypesError(event, deps);
+        return;
+      default:
+        deps.logger.debug("Message type not recognized", event.data?.type);
+        return;
+    }
+  };
+}

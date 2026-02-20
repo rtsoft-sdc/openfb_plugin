@@ -1,5 +1,5 @@
 import { PluginSettings } from "./pluginSettings";
-import { COLORS } from "../colorScheme";
+import { COLORS } from "../../colorScheme";
 
 export interface SettingsPanelState {
   draft: PluginSettings;
@@ -14,7 +14,7 @@ export interface SettingsPanelState {
 export interface SettingsPanelCallbacks {
   onDraftChange: (nextDraft: PluginSettings) => void;
   onDirtyChange: (dirty: boolean) => void;
-  onBack: () => void;
+  onCancel: () => void;
   onSave: () => void;
   onAddPath: () => void;
   rerender: () => void;
@@ -103,12 +103,12 @@ export function renderSettingsPanel(
   }
 
   sidepanelContent.innerHTML = `${settingsContentHtml}
-    <div class="sidepanel-section">
-      <button id="settingsSaveBtn" ${panelState.isSaving ? "disabled" : ""} style="width:100%; padding:8px 10px; border:1px solid ${COLORS.SUCCESS_TEXT}; border-radius:4px; background:${panelState.isSaving ? COLORS.BUTTON_DISABLED_BG : COLORS.BUTTON_PRIMARY_BG}; color:${COLORS.BUTTON_TEXT_WHITE}; cursor:${panelState.isSaving ? "default" : "pointer"}; font-weight: 500;">${panelState.isSaving ? "Сохранение..." : "Save"}</button>
-      <div id="settingsStatus" class="sidepanel-label" style="margin-top:8px; color:${panelState.statusColor}; text-align:center;">${escapeHtml(panelState.statusText)}</div>
+    <div class="sidepanel-section" style="display:flex; justify-content:center; gap:12px; margin-top:16px;">
+      <button id="settingsSaveBtn" ${!panelState.dirty || panelState.isSaving ? "disabled" : ""} style="min-width:120px; padding:8px 16px; border:1px solid ${COLORS.SUCCESS_TEXT}; border-radius:4px; background:${!panelState.dirty || panelState.isSaving ? COLORS.BUTTON_DISABLED_BG : COLORS.BUTTON_PRIMARY_BG}; color:${COLORS.BUTTON_TEXT_WHITE}; cursor:${!panelState.dirty || panelState.isSaving ? "not-allowed" : "pointer"}; font-weight: 500; font-size:13px;">${panelState.isSaving ? "Сохранение..." : "Сохранить"}</button>
+      <button id="settingsCancelBtn" ${panelState.isSaving ? "disabled" : ""} style="min-width:120px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:${panelState.isSaving ? "not-allowed" : "pointer"}; font-size:13px;">Отмена</button>
     </div>
     <div class="sidepanel-section">
-      <button id="settingsBackBtn" style="width:100%; padding:8px 10px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:pointer;">← Back to block info</button>
+      <div id="settingsStatus" class="sidepanel-label" style="margin-top:8px; color:${panelState.statusColor}; text-align:center;">${escapeHtml(panelState.statusText)}</div>
     </div>`;
 
   const removeButtons = sidepanelContent.querySelectorAll<HTMLButtonElement>(".settings-remove-path-btn");
@@ -141,6 +141,7 @@ export function renderSettingsPanel(
       nextDraft.deploy.host = hostInput.value;
       callbacks.onDraftChange(nextDraft);
       callbacks.onDirtyChange(true);
+      callbacks.rerender();
     });
   }
 
@@ -151,6 +152,7 @@ export function renderSettingsPanel(
       nextDraft.deploy.port = Number(portInput.value);
       callbacks.onDraftChange(nextDraft);
       callbacks.onDirtyChange(true);
+      callbacks.rerender();
     });
   }
 
@@ -161,6 +163,7 @@ export function renderSettingsPanel(
       nextDraft.deploy.timeoutMs = Number(timeoutInput.value);
       callbacks.onDraftChange(nextDraft);
       callbacks.onDirtyChange(true);
+      callbacks.rerender();
     });
   }
 
@@ -171,20 +174,23 @@ export function renderSettingsPanel(
       nextDraft.uiLanguage = langSelect.value === "en" ? "en" : "ru";
       callbacks.onDraftChange(nextDraft);
       callbacks.onDirtyChange(true);
+      callbacks.rerender();
     });
   }
 
   const saveBtn = sidepanelContent.querySelector<HTMLButtonElement>("#settingsSaveBtn");
   if (saveBtn) {
     saveBtn.addEventListener("click", () => {
+      if (!panelState.dirty || panelState.isSaving) return;
       callbacks.onSave();
     });
   }
 
-  const backBtn = sidepanelContent.querySelector<HTMLButtonElement>("#settingsBackBtn");
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      callbacks.onBack();
+  const cancelBtn = sidepanelContent.querySelector<HTMLButtonElement>("#settingsCancelBtn");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      if (panelState.isSaving) return;
+      callbacks.onCancel();
     });
   }
 }

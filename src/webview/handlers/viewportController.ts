@@ -1,5 +1,5 @@
 import { EditorState } from "../editorState";
-import { CanvasRenderer } from "../canvasRenderer";
+import { CanvasRenderer } from "../rendering/canvasRenderer";
 import { ZOOM_CONFIG } from "../constants";
 
 /**

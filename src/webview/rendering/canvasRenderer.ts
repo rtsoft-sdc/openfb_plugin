@@ -10,20 +10,20 @@
  * - Camera transformations: rendering/camera.ts
  */
 
-import { EditorState } from "./editorState";
-import { getWebviewLogger } from "./logging";
+import { EditorState } from "../editorState";
+import { getWebviewLogger } from "../logging";
 
 // Import rendering modules
 import {
   createCamera,
   applyCamera,
-} from "./rendering/camera";
-import { Camera } from "./rendering/types";
-import { clearCanvas, drawGrid } from "./rendering/grid";
-import { drawConnections } from "./rendering/connectionRenderer";
-import { drawNodes } from "./rendering/nodeRenderer";
-import { drawStatsAndLegend } from "./rendering/legendRenderer";
-import { layoutPorts } from "./rendering/portRenderer";
+} from "./camera";
+import { Camera } from "./types";
+import { clearCanvas, drawGrid } from "./grid";
+import { drawConnections } from "./connectionRenderer";
+import { drawNodes } from "./nodeRenderer";
+import { drawStatsAndLegend } from "./legendRenderer";
+import { layoutPorts } from "./portRenderer";
 
 /**
  * Main canvas renderer class

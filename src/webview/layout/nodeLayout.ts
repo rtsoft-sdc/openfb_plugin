@@ -1,4 +1,4 @@
-import { EditorPort } from "./editorState";
+import { EditorPort } from "../editorState";
 
 /**
  * Node dimension calculation configuration

@@ -37,6 +37,15 @@ function copyAndFixRecursive(srcDir, destDir) {
       // but skip if already has .js or other extension
       content = content.replace(/from ["'](\.[^"']*?)(?<!\.js)["']/g, 'from "$1.js"');
 
+      // Rewrite colorScheme import paths to use ESM module in out/webview
+      const relativePath = path.relative(webviewOutDir, destPath);
+      const inRoot = !relativePath.includes(path.sep);
+      if (inRoot) {
+        content = content.replace(/from ["']\.\.\/colorScheme\.js["']/g, 'from "./colorScheme.js"');
+      } else {
+        content = content.replace(/from ["']\.\.\/\.\.\/colorScheme\.js["']/g, 'from "../colorScheme.js"');
+      }
+
       fs.writeFileSync(destPath, content, 'utf8');
       console.log(`Moved and fixed: ${entry}`);
     }
@@ -53,10 +62,4 @@ if (fs.existsSync(webviewSrcDir)) {
   console.log('Webview source directory not found, skipping post-process');
 }
 
-// Remove duplicate colorScheme.js emitted into out/webview
-const duplicateColorScheme = path.join(webviewOutDir, 'colorScheme.js');
-if (fs.existsSync(duplicateColorScheme)) {
-  fs.rmSync(duplicateColorScheme, { force: true });
-  console.log('Removed duplicate colorScheme.js from out/webview');
-}
 

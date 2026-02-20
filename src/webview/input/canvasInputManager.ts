@@ -1,8 +1,8 @@
-import { EditorState } from "./editorState";
-import { CanvasRenderer } from "./canvasRenderer";
-import { NodeDragHandler } from "./handlers/nodeDragHandler";
-import { ViewportController } from "./handlers/viewportController";
-import { screenToWorld } from "./transformUtils";
+import { EditorState } from "../editorState";
+import { CanvasRenderer } from "../rendering/canvasRenderer";
+import { NodeDragHandler } from "../handlers/nodeDragHandler";
+import { ViewportController } from "../handlers/viewportController";
+import { screenToWorld } from "../layout/transformUtils";
 
 /**
  * Manages canvas input events for the diagram editor

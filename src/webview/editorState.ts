@@ -1,7 +1,7 @@
 import { FBTypeModel, FBPort } from "../domain/fbtModel";
 import { FBKind } from "../domain/FBKind";
 import { getWebviewLogger } from "./logging";
-import { calculateNodeDimensions } from "./nodeLayout";
+import { calculateNodeDimensions } from "./layout/nodeLayout";
 import { editorReducer, createInitialState } from "./store/reducer";
 import type { EditorAction } from "./store/actions";
 import type { EditorStore, EditorStoreState } from "./store/types";

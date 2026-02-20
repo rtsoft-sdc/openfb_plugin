@@ -1,5 +1,5 @@
 import { EditorState, EditorNode } from "../editorState";
-import { CanvasRenderer } from "../canvasRenderer";
+import { CanvasRenderer } from "../rendering/canvasRenderer";
 import { PADDING_CONFIG, PAN_CONFIG } from "../constants";
 
 /**

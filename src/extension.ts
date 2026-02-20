@@ -558,7 +558,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       display: block;
       background: ${EXTENSION_COLORS.PANEL_BG};
       position: absolute;
-      left: 250px;
+      left: 0;
       top: 48px;
       right: 300px;
       bottom: 0;
@@ -575,7 +575,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       border-right: 1px solid ${EXTENSION_COLORS.BORDER_DEFAULT};
       overflow-y: auto;
       z-index: 500;
-      display: flex;
+      display: none;
       flex-direction: column;
     }
     
@@ -735,6 +735,38 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       flex-direction: column;
     }
     
+    #sidepanel-tabs {
+      display: flex;
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_DEFAULT};
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    .sidepanel-tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    
+    .sidepanel-tab:hover {
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_HOVER};
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
+    }
+    
+    .sidepanel-tab.active {
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
+      border-bottom-color: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG};
+      font-weight: 600;
+    }
+    
     #sidepanel-header {
       padding: 12px;
       border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
@@ -743,7 +775,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       font-size: 13px;
       color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       position: sticky;
-      top: 0;
+      top: 38px;
     }
     
     #sidepanel-content {
@@ -805,6 +837,56 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       margin-right: 6px;
       vertical-align: middle;
     }
+    
+    /* Modal overlay */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal-overlay.visible {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: ${EXTENSION_COLORS.PANEL_BG};
+      width: 600px;
+      max-width: 90%;
+      max-height: 80vh;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #settings-modal-header {
+      padding: 12px;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
+      font-weight: 600;
+      font-size: 13px;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    #settings-modal-body {
+      flex: 1;
+      padding: 12px;
+      font-size: 12px;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -822,18 +904,29 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   </div>
   
   <div id="left-sidepanel">
-    <div id="left-sidepanel-header">Устройства</div>
+    <div id="left-sidepanel-header">Библиотека типов</div>
     <div id="left-sidepanel-content">
-      <div class="sidepanel-empty">Нет устройств</div>
+      <div class="sidepanel-empty">Библиотека закрыта</div>
     </div>
   </div>
   
   <canvas id="canvas"></canvas>
   
   <div id="sidepanel">
-    <div id="sidepanel-header">Информация о блоке</div>
+    <div id="sidepanel-tabs">
+      <button id="tab-devices" class="sidepanel-tab active">Устройства</button>
+      <button id="tab-blockinfo" class="sidepanel-tab">Информация о блоке</button>
+    </div>
+    <div id="sidepanel-header">Устройства</div>
     <div id="sidepanel-content">
-      <div class="sidepanel-empty">Выберите блок на диаграмме</div>
+      <div class="sidepanel-empty">Нет устройств</div>
+    </div>
+  </div>
+  
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div id="settings-modal-header"></div>
+      <div id="settings-modal-body"></div>
     </div>
   </div>
   
