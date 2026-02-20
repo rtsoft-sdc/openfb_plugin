@@ -6,6 +6,7 @@
 import * as C from "./constants";
 import { EditorState } from "../editorState";
 import { getWebviewLogger } from "../logging";
+import { computeOrthogonalRoute, drawPolyline } from "./orthogonalRouter";
 
 /**
  * Draw all connections between nodes
@@ -63,9 +64,16 @@ export function drawConnections(
       ctx.setLineDash(C.DATA_CONNECTION_DASH);
     }
 
-    // Draw line from source to target
-    ctx.moveTo(fromPort.x, fromPort.y);
-    ctx.lineTo(toPort.x, toPort.y);
+    // Build obstacle list from all nodes (excluding the two connected nodes)
+    const fromNodeId = c.fromPortId.split(".")[0];
+    const toNodeId = c.toPortId.split(".")[0];
+    const obstacles = state.nodes
+      .filter((n) => n.id !== fromNodeId && n.id !== toNodeId)
+      .map((n) => ({ x: n.x, y: n.y, width: n.width, height: n.height }));
+
+    // Draw orthogonal route from source to target, avoiding obstacles
+    const waypoints = computeOrthogonalRoute(fromPort, toPort, obstacles);
+    drawPolyline(ctx, waypoints, C.ROUTING_CORNER_RADIUS);
     ctx.stroke();
 
     // Reset line dash for next draw

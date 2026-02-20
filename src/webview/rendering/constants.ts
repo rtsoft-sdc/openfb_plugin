@@ -113,6 +113,17 @@ export const DATA_CONNECTION_WIDTH = 2.5;
 /** Data connection is solid (no dash) */
 export const DATA_CONNECTION_DASH: number[] = [];
 
+// --- Orthogonal routing ---
+
+/** Horizontal stub length from port before first bend (px) */
+export const ROUTING_STUB_LENGTH = 20;
+
+/** Padding around node bounding boxes for obstacle avoidance (px) */
+export const ROUTING_PADDING = 15;
+
+/** Radius for rounded corners at bends (0 = sharp corners) */
+export const ROUTING_CORNER_RADIUS = 4;
+
 // ============================================================================
 // GRID RENDERING
 // ============================================================================
