@@ -64,19 +64,16 @@ export class CanvasInputManager {
       // Input layer dispatches interaction actions; state updates are handled by reducer.
       // Try to start drag first (so click-and-drag works)
       if (this.nodeDragHandler.tryStartDrag(e)) {
-        this.renderer.render(this.state);
         return;
       }
 
       // If drag didn't start, select the node
       this.state.dispatch({ type: "SELECT_NODE", nodeId: clickedNode.id });
-      this.renderer.render(this.state);
       return;
     }
 
     // Empty area was clicked - deselect any node and start panning
     this.state.dispatch({ type: "SELECT_NODE", nodeId: undefined });
-    this.renderer.render(this.state);
     this.viewportController.startPanning(e);
   };
 

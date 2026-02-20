@@ -400,13 +400,17 @@ export function activate(context: vscode.ExtensionContext) {
                 const newRegistry = new FBTypeRegistry(searchPaths);
                 const tree = newRegistry.scanAllTypes();
                 
-                logger.info("Sending FB types tree", {
+                // Collect all FBTypeModels from cache (populated by scanAllTypes)
+                const allFbTypes = newRegistry.getAllTypeModels();
+                logger.info("Sending FB types tree and models", {
                   rootNodes: tree.length,
+                  typeModels: allFbTypes.length,
                 });
-                
+
                 panel.webview.postMessage({
                   type: "all-fb-types-loaded",
                   fbTypesTree: tree,
+                  fbTypes: allFbTypes,
                 });
               } catch (err) {
                 logger.error("Failed to scan all FB types", err);

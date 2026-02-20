@@ -47,8 +47,6 @@ export class ViewportController {
 
     this.panStartX = e.clientX;
     this.panStartY = e.clientY;
-
-    this.renderer.render(this.state);
   }
 
   /**
@@ -83,7 +81,5 @@ export class ViewportController {
       centerY: screenY
     });
 
-    // Render updated state
-    this.renderer.render(this.state);
   }
 }

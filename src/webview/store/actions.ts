@@ -19,6 +19,7 @@ export type EditorAction =
   | StartDragAction
   | MoveNodeAction
   | StopDragAction
+  | AddNodeAction
 
   // Viewport operations (pan/zoom)
   | ZoomAction
@@ -73,6 +74,16 @@ export interface MoveNodeAction {
  */
 export interface StopDragAction {
   type: 'STOP_DRAG';
+}
+
+/**
+ * Add a new node (FB block) to the diagram
+ * The node must be fully constructed before dispatching
+ * (ports, dimensions, coordinates already resolved)
+ */
+export interface AddNodeAction {
+  type: 'ADD_NODE';
+  node: EditorNode;
 }
 
 /**

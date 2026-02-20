@@ -78,8 +78,6 @@ export class NodeDragHandler {
     if (node) {
       this.autoScrollCameraToNode(node);
     }
-
-    this.renderer.render(this.state);
   }
 
   /**

@@ -340,6 +340,16 @@ export class FBTypeRegistry {
           name: declaredName,             // e.g., "ADD"
           sourcePath: result.sourcePath,
         });
+
+        // Also populate cache so getTypeModel() works for all scanned types
+        if (!this.cache.has(declaredName)) {
+          this.cache.set(declaredName, {
+            name: declaredName,
+            filePath: result.filePath,
+            fileType: "fbt",
+            sourcePath: result.sourcePath,
+          });
+        }
         
       } catch (err) {
         this.logger.warn(`Failed to parse FBT file ${result.filePath}`, err);
@@ -350,6 +360,21 @@ export class FBTypeRegistry {
     const tree = this.buildTreeFromTypes(typesList);
     
     return tree;
+  }
+
+  /**
+   * Get all type models from cache as a serializable array.
+   * Call after scanAllTypes() to get FBTypeModel for every cached type.
+   */
+  public getAllTypeModels(): [string, FBTypeModel][] {
+    const result: [string, FBTypeModel][] = [];
+    for (const typeName of this.cache.keys()) {
+      const model = this.getTypeModel(typeName);
+      if (model) {
+        result.push([typeName, model]);
+      }
+    }
+    return result;
   }
 
   public get(typeName: string): FBTypeInfo | undefined {

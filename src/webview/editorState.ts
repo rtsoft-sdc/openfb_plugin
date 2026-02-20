@@ -290,14 +290,69 @@ export class EditorState implements EditorStore {
     }));
   }
 
-
-
   public moveNode(id: string, x: number, y: number) {
     this.dispatch({ type: "MOVE_NODE", nodeId: id, x, y });
   }
 
   public selectNode(id?: string) {
     this.dispatch({ type: "SELECT_NODE", nodeId: id });
+  }
+
+  /**
+   * Generate a unique node ID like "E_SWITCH_3" by finding the highest
+   * existing suffix number for this type among all current nodes.
+   */
+  private generateNodeId(blockType: string): string {
+    const prefix = `${blockType}_`;
+    let maxNum = 0;
+    for (const node of this.nodes) {
+      if (node.id.startsWith(prefix)) {
+        const suffix = node.id.slice(prefix.length);
+        const num = parseInt(suffix, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+    return `${prefix}${maxNum + 1}`;
+  }
+
+  /**
+   * Add a new FB block to the diagram by type name and world coordinates.
+   * Builds ports from FBTypeModel, calculates dimensions, generates unique ID,
+   * and dispatches ADD_NODE to the store.
+   */
+  public addNode(blockType: string, worldX: number, worldY: number): void {
+    const fbType = this.fbTypes?.get(blockType);
+    if (!fbType) {
+      this.logger.warn(`Cannot add node: FB type "${blockType}" not found in loaded types`);
+      return;
+    }
+
+    const id = this.generateNodeId(blockType);
+    const ports = this.buildPorts(id, fbType);
+
+    // Use cached dimensions or calculate and cache them
+    let dimensions = this.dimensionCache.get(blockType);
+    if (!dimensions) {
+      dimensions = calculateNodeDimensions(ports);
+      this.dimensionCache.set(blockType, dimensions);
+    }
+
+    this.dispatch({
+      type: "ADD_NODE",
+      node: {
+        id,
+        type: blockType,
+        x: worldX,
+        y: worldY,
+        ports,
+        width: dimensions.width,
+        height: dimensions.height,
+      },
+    });
+
+    this.logger.info(`Added node "${id}" (type=${blockType}) at (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
   }
 }
 

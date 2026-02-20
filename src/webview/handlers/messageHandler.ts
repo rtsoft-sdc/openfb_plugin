@@ -21,7 +21,6 @@ interface MessageHandlerDeps {
   logger: WebviewLogger;
   state: EditorState;
   leftPanel: LeftPanelDeps;
-  renderer: { render: (state: EditorState) => void };
   centerDiagramInCanvas: () => void;
   updateSidepanel: () => void;
   updateSettingsModal: () => void;
@@ -135,12 +134,27 @@ function handleLoadDiagram(event: MessageEvent<ExtensionMessage>, deps: MessageH
   deps.logger.debug("State nodes data", deps.state.nodes);
   deps.logger.info("Loaded connections", deps.state.connections.length);
 
-  deps.renderer.render(deps.state);
-  deps.logger.info("Rendered");
+  deps.logger.info("Diagram loaded, render triggered via subscription");
 }
 
 function handleAllFbTypesLoaded(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
   deps.leftPanel.handleAllFbTypesLoaded(event.data.fbTypesTree || []);
+
+  // Merge all FB type models into editor state so addNode() works for any type
+  if (event.data.fbTypes && event.data.fbTypes.length > 0) {
+    const currentTypes = deps.state.fbTypes ?? new Map<string, FBTypeModel>();
+    const merged = new Map(currentTypes);
+    for (const [name, model] of event.data.fbTypes) {
+      merged.set(name, model);
+    }
+    deps.state.dispatch({ type: "SET_GRAPH_DATA",
+      model: deps.state.model,
+      fbTypes: merged,
+      nodes: deps.state.nodes,
+      connections: deps.state.connections,
+    });
+    deps.logger.info(`Merged ${event.data.fbTypes.length} FB type models into state (total: ${merged.size})`);
+  }
 }
 
 function handleAllFbTypesError(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {

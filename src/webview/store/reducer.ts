@@ -107,6 +107,52 @@ export function editorReducer(
       };
 
     /**
+     * Add a new node to the diagram
+     * Appends the fully constructed node to editor nodes AND to the source model
+     * so that both stay in sync (important for save/export and right panel info)
+     */
+    case "ADD_NODE": {
+      // Build a DiagramBlock entry for the source model
+      const newBlock = {
+        id: action.node.id,
+        typeShort: action.node.type,
+        typeLong: action.node.type,
+        x: action.node.x,
+        y: action.node.y,
+        width: action.node.width,
+        height: action.node.height,
+      };
+
+      // Immutably append to model.subAppNetwork.blocks (if model exists)
+      const currentModel = state.diagram.model;
+      const updatedModel = currentModel
+        ? {
+            ...currentModel,
+            subAppNetwork: {
+              ...currentModel.subAppNetwork,
+              blocks: [...(currentModel.subAppNetwork.blocks || []), newBlock],
+            },
+          }
+        : currentModel;
+
+      return {
+        ...state,
+        diagram: {
+          ...state.diagram,
+          nodes: [...state.diagram.nodes, action.node],
+          model: updatedModel,
+        },
+        ui: {
+          ...state.ui,
+          selection: {
+            nodeId: action.node.id,
+            connectionId: undefined
+          }
+        }
+      };
+    }
+
+    /**
      * Zoom in or out centered on a specific point
      * Updates zoom level and adjusts pan offset so the point under cursor stays in place
      * Clamps zoom to MIN/MAX range
