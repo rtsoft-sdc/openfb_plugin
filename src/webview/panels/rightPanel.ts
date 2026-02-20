@@ -184,7 +184,7 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
 
 
 
-  function buildPortsHtml(nodeId: string, ports: any[], nodeParamMap: Map<string, string>): string {
+  function buildPortsHtml(nodeId: string, ports: any[], nodeParamMap: Map<string, string>, opcMappingSet: Set<string>): string {
     if (ports.length === 0) return "";
 
     let html = "";
@@ -197,6 +197,7 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
       toggleTitle: "Раскрыть/скрыть входы",
       ports: inputPorts,
       nodeParamMap,
+      opcMappingSet,
       showValueWhenTruthyOnly: false,
       portColorMap: (port) =>
         port.kind === "event" ? CANVAS_COLORS.EVENT_PORT_COLOR : CANVAS_COLORS.DATA_PORT_COLOR,
@@ -256,16 +257,20 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     }
 
     const nodeParamMap = new Map<string, string>();
+    const opcMappingSet = new Set<string>();
     const diagramBlock = state.model?.subAppNetwork?.blocks?.find((b: any) => b.id === node.id);
     if (diagramBlock?.parameters) {
       for (const p of diagramBlock.parameters) {
         nodeParamMap.set(p.name, p.value);
+        if (p.attributes?.some((a: any) => a.name === "OpcMapping" && a.value === "true")) {
+          opcMappingSet.add(p.name);
+        }
       }
     }
 
     let html = "";
     html += buildBlockInfoHtml(node);
-    html += buildPortsHtml(selectedNodeId, node.ports || [], nodeParamMap);
+    html += buildPortsHtml(selectedNodeId, node.ports || [], nodeParamMap, opcMappingSet);
 
     sidepanelContent.innerHTML = html;
   }
