@@ -21,6 +21,9 @@ export type EditorAction =
   | StopDragAction
   | AddNodeAction
 
+  // Port hover
+  | HoverPortAction
+
   // Viewport operations (pan/zoom)
   | ZoomAction
   | PanAction;
@@ -84,6 +87,14 @@ export interface StopDragAction {
 export interface AddNodeAction {
   type: 'ADD_NODE';
   node: EditorNode;
+}
+
+/**
+ * Set the currently hovered port (or clear hover)
+ */
+export interface HoverPortAction {
+  type: 'HOVER_PORT';
+  portId?: string;
 }
 
 /**

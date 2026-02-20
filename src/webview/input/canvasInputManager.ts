@@ -3,6 +3,7 @@ import { CanvasRenderer } from "../rendering/canvasRenderer";
 import { NodeDragHandler } from "../handlers/nodeDragHandler";
 import { ViewportController } from "../handlers/viewportController";
 import { screenToWorld } from "../layout/transformUtils";
+import { PORT_HIT_RADIUS } from "../rendering/constants";
 
 /**
  * Manages canvas input events for the diagram editor
@@ -105,6 +106,16 @@ export class CanvasInputManager {
 
   private onCanvasMouseMove = (e: MouseEvent) => {
     this.viewportController.updatePan(e);
+
+    // Port hover detection (skip during drag/pan for performance)
+    if (!this.state.isDragging && !this.viewportController.isPanningActive()) {
+      const worldPos = this.getMousePos(e);
+      const hitPort = this.findPortAtPoint(worldPos.x, worldPos.y);
+      const hitPortId = hitPort?.id;
+      if (hitPortId !== this.state.hoveredPortId) {
+        this.state.dispatch({ type: "HOVER_PORT", portId: hitPortId });
+      }
+    }
   };
 
   private onCanvasMouseUp = () => {
@@ -128,4 +139,22 @@ export class CanvasInputManager {
     // Handle zoom with wheel
     this.viewportController.handleZoom(e.deltaY, screenX, screenY);
   };
+
+  /**
+   * Find the port closest to the given world coordinates within hit radius
+   * @returns The port if found, undefined otherwise
+   */
+  private findPortAtPoint(worldX: number, worldY: number) {
+    const hitR = PORT_HIT_RADIUS;
+    for (const node of this.state.nodes) {
+      for (const port of node.ports) {
+        const dx = worldX - port.x;
+        const dy = worldY - port.y;
+        if (dx * dx + dy * dy <= hitR * hitR) {
+          return port;
+        }
+      }
+    }
+    return undefined;
+  }
 }

@@ -67,20 +67,23 @@ export function layoutPorts(node: any): void {
  * @param ctx - Canvas 2D rendering context
  * @param node - Node with ports to render
  */
-export function drawPorts(ctx: CanvasRenderingContext2D, node: any): void {
+export function drawPorts(ctx: CanvasRenderingContext2D, node: any, hoveredPortId?: string): void {
   for (const p of node.ports) {
+    const isHovered = hoveredPortId === p.id;
     // Determine visual style based on port kind
     const isEvent = p.kind === "event";
     const portColor = isEvent ? C.EVENT_PORT_COLOR : C.DATA_PORT_COLOR;
     const portTypeIcon = isEvent ? "E" : "D";
+    const r = isHovered ? C.PORT_RADIUS * C.PORT_HOVER_SCALE : C.PORT_RADIUS;
+    const nameFont = isHovered ? C.PORT_HOVER_NAME_FONT : C.PORT_NAME_FONT;
 
     if (p.direction === "input") {
       // Input: arrow points to the right
       ctx.fillStyle = portColor;
       ctx.beginPath();
-      ctx.moveTo(p.x + C.PORT_RADIUS, p.y); // right (point)
-      ctx.lineTo(p.x - C.PORT_RADIUS, p.y - C.PORT_RADIUS); // top-left
-      ctx.lineTo(p.x - C.PORT_RADIUS, p.y + C.PORT_RADIUS); // bottom-left
+      ctx.moveTo(p.x + r, p.y); // right (point)
+      ctx.lineTo(p.x - r, p.y - r); // top-left
+      ctx.lineTo(p.x - r, p.y + r); // bottom-left
       ctx.closePath();
       ctx.fill();
 
@@ -89,21 +92,21 @@ export function drawPorts(ctx: CanvasRenderingContext2D, node: any): void {
       ctx.font = C.PORT_TYPE_FONT;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(portTypeIcon, p.x - C.PORT_RADIUS, p.y - 1);
+      ctx.fillText(portTypeIcon, p.x - r, p.y - 1);
 
       // Draw port name label to the right
       ctx.fillStyle = C.PORT_NAME_COLOR;
-      ctx.font = C.PORT_NAME_FONT;
+      ctx.font = nameFont;
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(p.name, p.x + C.PORT_RADIUS + C.PORT_LABEL_OFFSET, p.y);
+      ctx.fillText(p.name, p.x + r + C.PORT_LABEL_OFFSET, p.y);
     } else {
       // Output: arrow points to the right
       ctx.fillStyle = portColor;
       ctx.beginPath();
-      ctx.moveTo(p.x + C.PORT_RADIUS, p.y); // right (point)
-      ctx.lineTo(p.x - C.PORT_RADIUS, p.y - C.PORT_RADIUS); // top-left
-      ctx.lineTo(p.x - C.PORT_RADIUS, p.y + C.PORT_RADIUS); // bottom-left
+      ctx.moveTo(p.x + r, p.y); // right (point)
+      ctx.lineTo(p.x - r, p.y - r); // top-left
+      ctx.lineTo(p.x - r, p.y + r); // bottom-left
       ctx.closePath();
       ctx.fill();
 
@@ -112,14 +115,14 @@ export function drawPorts(ctx: CanvasRenderingContext2D, node: any): void {
       ctx.font = C.PORT_TYPE_FONT;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(portTypeIcon, p.x + C.PORT_RADIUS, p.y - 1);
+      ctx.fillText(portTypeIcon, p.x + r, p.y - 1);
 
       // Draw port name label to the left
       ctx.fillStyle = C.PORT_NAME_COLOR;
-      ctx.font = C.PORT_NAME_FONT;
+      ctx.font = nameFont;
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      ctx.fillText(p.name, p.x - C.PORT_RADIUS - C.PORT_LABEL_OFFSET, p.y);
+      ctx.fillText(p.name, p.x - r - C.PORT_LABEL_OFFSET, p.y);
     }
 
     // Reset text alignment

@@ -70,6 +70,9 @@ export interface EditorStoreState {
     /** Whether a node is currently being dragged */
     isDragging: boolean;
 
+    /** ID of currently hovered port (for visual feedback) */
+    hoveredPortId?: string;
+
     /** Viewport state (zoom level and pan offset) */
     viewport: ViewState;
 

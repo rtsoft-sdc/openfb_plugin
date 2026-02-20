@@ -91,6 +91,17 @@ export const PORT_NAME_COLOR = CANVAS_COLORS.PORT_NAME_COLOR;
 /** Padding from port circle to name label */
 export const PORT_LABEL_OFFSET = 8;
 
+// --- Port hover ---
+
+/** Hit-test radius for port hover/click detection (px, larger than visual) */
+export const PORT_HIT_RADIUS = 10;
+
+/** Port arrow scale factor when hovered */
+export const PORT_HOVER_SCALE = 1.6;
+
+/** Port name font when hovered (bold) */
+export const PORT_HOVER_NAME_FONT = "bold 11px monospace";
+
 // ============================================================================
 // CONNECTION RENDERING
 // ============================================================================

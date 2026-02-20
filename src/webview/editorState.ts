@@ -92,6 +92,7 @@ export class EditorState implements EditorStore {
   nodes: EditorNode[] = [];
   connections: EditorConnection[] = [];
   isDragging = false;
+  hoveredPortId?: string;
   fbTypes?: Map<string, FBTypeModel>;
   model?: any;  // Can have additional properties like parameters
   private logger = getWebviewLogger();
@@ -148,6 +149,7 @@ export class EditorState implements EditorStore {
     this.fbTypes = this.storeState.diagram.fbTypes;
     this.model = this.storeState.diagram.model;
     this.isDragging = this.storeState.ui.isDragging;
+    this.hoveredPortId = this.storeState.ui.hoveredPortId;
     this.selection = { ...this.storeState.ui.selection };
     this.view = { ...this.storeState.ui.viewport };
   }

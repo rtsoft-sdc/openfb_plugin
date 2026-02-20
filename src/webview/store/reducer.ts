@@ -210,6 +210,20 @@ export function editorReducer(
       };
 
     /**
+     * Set hovered port for visual feedback
+     */
+    case "HOVER_PORT":
+      // Skip update if same port is already hovered
+      if (state.ui.hoveredPortId === action.portId) return state;
+      return {
+        ...state,
+        ui: {
+          ...state.ui,
+          hoveredPortId: action.portId
+        }
+      };
+
+    /**
      * Unknown action - return state unchanged
      * TypeScript ensures this should never happen with proper types
      */

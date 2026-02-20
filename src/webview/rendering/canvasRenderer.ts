@@ -101,7 +101,7 @@ export class CanvasRenderer {
     drawConnections(this.ctx, state);
     
     // 6: Draw nodes (layoutPorts will be called again inside drawNode, but that's ok)
-    drawNodes(this.ctx, state.nodes, state.selection.nodeId);
+    drawNodes(this.ctx, state.nodes, state.selection.nodeId, state.hoveredPortId);
 
     this.ctx.restore();
 
