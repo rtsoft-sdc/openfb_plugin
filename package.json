@@ -1,8 +1,10 @@
 {
-  "name": "openfb_plugin",
+  "name": "openfb-plugin",
+  "publisher": "rtsoft",
   "displayName": "openfb plugin",
   "description": "Отображает диаграмму проекта на основе .sys файла, fbt элементов, генерит .fboot файл",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -68,12 +70,14 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && npx tsc -p tsconfig.webview.json && node postprocess-webview.js",
-    "watch": "tsc -watch -p ./"
+    "typecheck": "tsc -p ./ --noEmit && tsc -p tsconfig.webview.json --noEmit",
+    "compile": "npm run typecheck && node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch"
   },
   "devDependencies": {
     "@types/node": "^24.10.12",
     "@types/vscode": "^1.85.0",
+    "esbuild": "^0.25.1",
     "typescript": "^5.3.0"
   },
   "dependencies": {
