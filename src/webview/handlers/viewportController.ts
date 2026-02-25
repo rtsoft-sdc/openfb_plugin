@@ -78,8 +78,13 @@ export class ViewportController {
       type: "ZOOM",
       factor: zoomFactor,
       centerX: screenX,
-      centerY: screenY
+      centerY: screenY,
+      canvasCenterX: this.renderer.canvas.width / 2,
+      canvasCenterY: this.renderer.canvas.height / 2
     });
 
+    // Sync camera with updated state so next pan doesn't jump
+    this.renderer.camera.offsetX = this.state.view.offsetX;
+    this.renderer.camera.offsetY = this.state.view.offsetY;
   }
 }

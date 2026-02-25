@@ -55,6 +55,9 @@ export interface EditorStoreState {
 
     /** Full diagram model from extension (contains mappings, devices, etc) */
     model?: any;
+
+    /** True when the model has unsaved changes */
+    isDirty: boolean;
   };
 
   /**
@@ -72,6 +75,16 @@ export interface EditorStoreState {
 
     /** ID of currently hovered port (for visual feedback) */
     hoveredPortId?: string;
+
+    /** Pending connection being dragged from a port */
+    pendingConnection?: {
+      fromPortId: string;
+      fromPortKind: 'event' | 'data';
+      fromPortDirection: 'input' | 'output';
+      fromPortDataType?: string;
+      mouseX: number;
+      mouseY: number;
+    };
 
     /** Viewport state (zoom level and pan offset) */
     viewport: ViewState;

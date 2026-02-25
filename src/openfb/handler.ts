@@ -290,7 +290,7 @@ export class OpenFBHandler {
    * Automatically adds QUERY if not present in file.
    */
   async deploy(fbootPath: string): Promise<void> {
-    this.logger.info("OpenFBHandler.deploy called", fbootPath);
+    this.logger.debug("OpenFBHandler.deploy called", fbootPath);
 
     if (!fs.existsSync(fbootPath)) {
       throw new Error(`.fboot file not found: ${fbootPath}`);
@@ -318,7 +318,7 @@ export class OpenFBHandler {
    * Commands are sent sequentially in the order provided.
    */
   async deployMultiple(fbootPaths: string[]): Promise<void> {
-    this.logger.info("OpenFBHandler.deployMultiple called", fbootPaths);
+    this.logger.debug("OpenFBHandler.deployMultiple called", fbootPaths);
 
     if (!fbootPaths.length) {
       throw new Error("No .fboot files to deploy");

@@ -42,7 +42,7 @@ export class CanvasRenderer {
    * @param canvas - HTML canvas element to render on
    * @throws Error if canvas 2D context cannot be obtained
    */
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(public readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       this.logger.error("Failed to get 2D context from canvas");
@@ -59,28 +59,19 @@ export class CanvasRenderer {
   /**
    * Main render method - orchestrates the rendering pipeline
    *
-   * Rendering order:
-   * 1. Clear canvas
-   * 2. Draw grid background
-   * 3. Apply camera and zoom transformations
-   * 4. Layout ports (compute port positions)
-   * 5. Draw connections (needs port positions)
-   * 6. Draw nodes (will re-layout but that's ok for now)
-   * 7. Draw overlay (stats and legend)
-   *
    * @param state - Current editor state with nodes and connections
    */
   render(state: EditorState): void {
     this.logger.debug(`Rendering ${state.nodes.length} nodes`);
     this.logger.debug("Canvas size", this.canvas.width, "x", this.canvas.height);
 
-    // 1: Clear canvas completely
+    // Clear canvas completely
     clearCanvas(this.ctx, this.canvas.width, this.canvas.height);
 
-    // 2: Draw grid background
+    // Draw grid background
     drawGrid(this.ctx, this.canvas.width, this.canvas.height);
 
-    // 3: Apply camera and zoom transformations
+    // Apply camera and zoom transformations
     this.ctx.save();
     
     // Apply zoom from editor state
@@ -91,21 +82,21 @@ export class CanvasRenderer {
     // Apply camera transformation for compatibility with existing system
     applyCamera(this.ctx, this.camera);
 
-    // 4: Layout ports BEFORE drawing connections
+    // Layout ports BEFORE drawing connections
     // This ensures port coordinates are computed before connections try to use them
-    for (const node of state.nodes) {
-      layoutPorts(node);
-    }
+    //for (const node of state.nodes) {
+      //layoutPorts(node);
+    //}
 
-    // 5: Draw connections (now port positions are available)
-    drawConnections(this.ctx, state);
+    // Draw connections (now port positions are available)
+    drawConnections(this.ctx, state, state.selection.connectionId);
     
-    // 6: Draw nodes (layoutPorts will be called again inside drawNode, but that's ok)
+    // Draw nodes
     drawNodes(this.ctx, state.nodes, state.selection.nodeId, state.hoveredPortId);
 
     this.ctx.restore();
 
-    // 7: Draw overlay UI (stats and legend) - not affected by zoom
+    // Draw overlay UI (stats and legend) - not affected by zoom
     drawStatsAndLegend(this.ctx, state, this.canvas, {
       offsetX: this.camera.offsetX,
       offsetY: this.camera.offsetY,

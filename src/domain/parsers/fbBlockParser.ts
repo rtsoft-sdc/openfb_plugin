@@ -1,8 +1,9 @@
 import * as fs from "fs";
-import * as path from "path";
 import { XMLParser } from "fast-xml-parser";
-import { SysBlock, SysParameter } from "../sysModel";
+import { SysBlock } from "../sysModel";
 import { detectFBKind, FBKind } from "../FBKind";
+import { parseParameters } from "./parameterParser";
+import { resolveTypeFilePath } from "../fileSearch";
 
 export function parseFBBlock(
   fb: any,
@@ -16,55 +17,12 @@ export function parseFBBlock(
     ? typeLong.split("::").pop() || typeLong
     : typeLong;
 
-  // Parse parameters
-  const parameters: SysParameter[] = [];
-  if (fb.Parameter) {
-    const paramList = Array.isArray(fb.Parameter) ? fb.Parameter : [fb.Parameter];
-    for (const param of paramList) {
-      if (param?.Name !== undefined) {
-        const sysParam: SysParameter = {
-          fbName: fbName,
-          name: param.Name,
-          value: param.Value || "",
-        };
-
-        // Parse parameter attributes
-        if (param.Attribute) {
-          const attrList = Array.isArray(param.Attribute) ? param.Attribute : [param.Attribute];
-          sysParam.attributes = attrList
-            .filter((attr: any) => attr?.Name !== undefined)
-            .map((attr: any) => {
-              return {
-                name: attr.Name,
-                value: attr.Value || "",
-              };
-            });
-        }
-
-        parameters.push(sysParam);
-      }
-    }
-  }
+  const parameters = parseParameters(fbName, fb);
 
   // Detect FB kind by searching for .fbt file
   let fbKind: FBKind | undefined;
   if (typeShort) {
-    const pathsToSearch = [sysDir, ...searchPaths];
-    let foundPath: string | null = null;
-
-    for (const sp of pathsToSearch) {
-      if (!sp) continue;
-      const candidate = path.join(sp, `${typeShort}.fbt`);
-      if (fs.existsSync(candidate)) {
-        foundPath = candidate;
-        break;
-      }
-      const candidateUpper = path.join(sp, `${typeShort.toUpperCase()}.fbt`);
-      if (fs.existsSync(candidateUpper)) {
-        foundPath = candidateUpper;
-        break;
-      }
-    }
+    const foundPath = resolveTypeFilePath(typeShort, "fbt", [sysDir, ...searchPaths]);
 
     if (foundPath) {
       try {

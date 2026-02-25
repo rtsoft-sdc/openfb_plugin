@@ -1,6 +1,8 @@
 import { EditorState } from "../editorState";
 import { COLORS, CANVAS_COLORS } from "../../colorScheme";
-import { buildPortSectionHtml, buildCollapsibleSectionHtml, type PortBuilderOptions } from "./panelUtils";
+import { buildPortSectionHtml, buildCollapsibleSectionHtml} from "./panelUtils";
+import { validateParameterValue } from "../store/parameterValidator";
+import { getWebviewLogger } from "../logging";
 
 export type DiagramTabMode = "devices" | "blockinfo";
 
@@ -199,6 +201,7 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
       nodeParamMap,
       opcMappingSet,
       showValueWhenTruthyOnly: false,
+      editable: true,
       portColorMap: (port) =>
         port.kind === "event" ? CANVAS_COLORS.EVENT_PORT_COLOR : CANVAS_COLORS.DATA_PORT_COLOR,
       textMutedColor: COLORS.TEXT_MUTED,
@@ -273,6 +276,112 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     html += buildPortsHtml(selectedNodeId, node.ports || [], nodeParamMap, opcMappingSet);
 
     sidepanelContent.innerHTML = html;
+
+    // Attach event handlers for editable parameter inputs and OPC checkboxes
+    attachParameterHandlers(sidepanelContent);
+  }
+
+  /**
+   * Attach change/blur handlers for parameter value inputs and OPC checkboxes.
+   * Uses direct DOM queries after innerHTML is set (not event delegation)
+   * to keep focused input state clean.
+   */
+  function attachParameterHandlers(container: HTMLElement): void {
+    const logger = getWebviewLogger();
+
+    // Parameter value inputs
+    const paramInputs = container.querySelectorAll<HTMLInputElement>('.param-value-input');
+    Array.from(paramInputs).forEach((input) => {
+      const nodeId = input.dataset.nodeId;
+      const portName = input.dataset.portName;
+      const portType = input.dataset.portType || undefined;
+      if (!nodeId || !portName) return;
+
+      let lastCommittedValue = input.value;
+
+      input.addEventListener('change', () => {
+        const newValue = input.value.trim();
+        if (newValue === lastCommittedValue) return;
+
+        // Validate before dispatching
+        const validation = validateParameterValue(newValue, portType);
+        if (!validation.valid) {
+          logger.warn(`Parameter validation failed: ${nodeId}.${portName} = "${newValue}" — ${validation.error}`);
+          input.style.borderColor = '#e74c3c';
+          input.title = validation.error || 'Некорректное значение';
+          return;
+        }
+
+        // Clear error styling
+        input.style.borderColor = 'rgba(128,128,128,0.3)';
+        input.title = '';
+        lastCommittedValue = newValue;
+
+        state.dispatch({
+          type: 'UPDATE_PARAMETER',
+          nodeId,
+          paramName: portName,
+          value: newValue
+        });
+      });
+
+      // Also validate on blur (in case user tabs away without pressing Enter)
+      input.addEventListener('blur', () => {
+        const newValue = input.value.trim();
+        if (newValue === lastCommittedValue) return;
+        // Fire the change event programmatically to reuse the same logic
+        input.dispatchEvent(new Event('change'));
+      });
+
+      // Validate on keypress: Enter commits, Escape reverts
+      input.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          input.dispatchEvent(new Event('change'));
+          input.blur();
+        } else if (e.key === 'Escape') {
+          input.value = lastCommittedValue;
+          input.style.borderColor = 'rgba(128,128,128,0.3)';
+          input.title = '';
+          input.blur();
+        }
+      });
+
+      // Live validation hint while typing
+      input.addEventListener('input', () => {
+        const val = input.value.trim();
+        if (val === '') {
+          input.style.borderColor = 'rgba(128,128,128,0.3)';
+          input.title = '';
+          return;
+        }
+        const v = validateParameterValue(val, portType);
+        if (!v.valid) {
+          input.style.borderColor = '#e7a33c';
+          input.title = v.error || '';
+        } else {
+          input.style.borderColor = 'rgba(128,128,128,0.3)';
+          input.title = '';
+        }
+      });
+    });
+
+    // OPC Mapping checkboxes
+    const opcCheckboxes = container.querySelectorAll<HTMLInputElement>('.opc-mapping-checkbox:not([disabled])');
+    Array.from(opcCheckboxes).forEach((cb) => {
+      const nodeId = cb.dataset.nodeId;
+      const portName = cb.dataset.portName;
+      if (!nodeId || !portName) return;
+
+      cb.addEventListener('change', () => {
+        state.dispatch({
+          type: 'TOGGLE_OPC_MAPPING',
+          nodeId,
+          paramName: portName,
+          enabled: cb.checked
+        });
+      });
+    });
   }
   
   function setDiagramTab(tab: DiagramTabMode): void {

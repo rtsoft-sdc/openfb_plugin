@@ -51,6 +51,8 @@ export interface PortBuilderOptions {
   showValueWhenTruthyOnly: boolean;
   portColorMap: (port: any) => string;
   textMutedColor: string;
+  /** When true, render editable <input> for data input values and enabled OPC checkboxes */
+  editable?: boolean;
 }
 
 export function buildPortSectionHtml(options: PortBuilderOptions): string {
@@ -65,6 +67,7 @@ export function buildPortSectionHtml(options: PortBuilderOptions): string {
     showValueWhenTruthyOnly,
     portColorMap,
     textMutedColor,
+    editable = false,
   } = options;
 
   if (ports.length === 0) return "";
@@ -82,7 +85,13 @@ export function buildPortSectionHtml(options: PortBuilderOptions): string {
     contentHtml += '<div class="sidepanel-item">';
     contentHtml += `<span class="sidepanel-label"><span class="port-dot" style="background-color: ${portColor}"></span>${port.name}${portType}</span>`;
 
-    if (showValueWhenTruthyOnly ? !!paramValue : paramValue !== undefined) {
+    // Editable input for data input ports, read-only span for others
+    const isDataInput = port.kind === "data" && port.direction === "input";
+    if (editable && isDataInput) {
+      const val = paramValue ?? "";
+      const portDataType = (port as any).type || "";
+      contentHtml += `<input type="text" class="param-value-input" data-node-id="${nodeId}" data-port-name="${port.name}" data-port-type="${portDataType}" value="${val.replace(/"/g, '&quot;')}" style="font-size: 11px; flex: 1; text-align: center; margin: 0 4px; min-width: 40px; max-width: 100px; padding: 1px 4px; border: 1px solid rgba(128,128,128,0.3); border-radius: 3px; background: rgba(255,255,255,0.05); color: inherit;" />`;
+    } else if (showValueWhenTruthyOnly ? !!paramValue : paramValue !== undefined) {
       const displayValue = paramValue ? `= ${paramValue}` : "";
       if (displayValue) {
         contentHtml += `<span class="sidepanel-value" style="font-size: 11px; flex: 1; text-align: center;">${displayValue}</span>`;
@@ -90,9 +99,10 @@ export function buildPortSectionHtml(options: PortBuilderOptions): string {
     }
 
     // OPC Mapping checkbox for data input ports (always at right edge)
-    if (opcMappingSet && port.kind === "data" && port.direction === "input") {
+    if (opcMappingSet && isDataInput) {
       const checked = opcMappingSet.has(port.name) ? "checked" : "";
-      contentHtml += `<label class="opc-mapping-label" title="OPC UA Mapping" style="margin-left: auto; white-space: nowrap;"><input type="checkbox" class="opc-mapping-checkbox" data-node-id="${nodeId}" data-port-name="${port.name}" ${checked} disabled /> OPC</label>`;
+      const disabledAttr = editable ? "" : "disabled";
+      contentHtml += `<label class="opc-mapping-label" title="OPC UA Mapping" style="margin-left: auto; white-space: nowrap;"><input type="checkbox" class="opc-mapping-checkbox" data-node-id="${nodeId}" data-port-name="${port.name}" ${checked} ${disabledAttr} /> OPC</label>`;
     }
 
     contentHtml += "</div>";

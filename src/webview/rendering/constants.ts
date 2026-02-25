@@ -174,16 +174,16 @@ export const LEGEND_TEXT_COLOR = CANVAS_COLORS.LEGEND_TEXT_COLOR;
 export const LEGEND_ITEM_FONT = "10px monospace";
 
 /** Maximum width of legend box in pixels */
-export const LEGEND_MAX_WIDTH = 240;
+export const LEGEND_MAX_WIDTH = 120;
 
 /** Padding inside legend box */
 export const LEGEND_PADDING = 8;
 
 /** Line height for legend items */
-export const LEGEND_LINE_HEIGHT = 14;
+export const LEGEND_LINE_HEIGHT = 10;
 
 /** Legend title height in pixels */
-export const LEGEND_TITLE_HEIGHT = 18;
+export const LEGEND_TITLE_HEIGHT = 22;
 
 /** Number of content lines in legend */
 export const LEGEND_CONTENT_LINES = 4;

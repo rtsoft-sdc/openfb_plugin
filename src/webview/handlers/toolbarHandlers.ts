@@ -9,15 +9,16 @@ interface ToolbarHandlersDeps {
   vscode?: HostApi;
   openSettingsPanel: () => void;
   openPalettePanel: () => void;
+  getSaveData: () => { model: any; nodes: any[]; normParams: any } | undefined;
 }
 
 export function setupToolbarHandlers(deps: ToolbarHandlersDeps): void {
-  const { logger, vscode, openSettingsPanel, openPalettePanel } = deps;
+  const { logger, vscode, openSettingsPanel, openPalettePanel, getSaveData } = deps;
 
   const deployBtn = document.getElementById("deployBtn") as HTMLButtonElement | null;
   if (deployBtn) {
     deployBtn.addEventListener("click", () => {
-      logger.info("Deploy button clicked");
+      logger.debug("Deploy button clicked");
       try {
         if (vscode) {
           vscode.postMessage({ type: "deploy" });
@@ -35,7 +36,7 @@ export function setupToolbarHandlers(deps: ToolbarHandlersDeps): void {
   const generateFbootBtn = document.getElementById("generateFbootBtn") as HTMLButtonElement | null;
   if (generateFbootBtn) {
     generateFbootBtn.addEventListener("click", () => {
-      logger.info("generateFbootBtn button clicked");
+      logger.debug("generateFbootBtn button clicked");
       try {
         if (vscode) {
           vscode.postMessage({ type: "generateFboot" });
@@ -53,7 +54,7 @@ export function setupToolbarHandlers(deps: ToolbarHandlersDeps): void {
   const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-      logger.info("settingsBtn button clicked");
+      logger.debug("settingsBtn button clicked");
       openSettingsPanel();
     });
   } else {
@@ -63,10 +64,38 @@ export function setupToolbarHandlers(deps: ToolbarHandlersDeps): void {
   const addBlockBtn = document.getElementById("addBlockBtn") as HTMLButtonElement | null;
   if (addBlockBtn) {
     addBlockBtn.addEventListener("click", () => {
-      logger.info("addBlockBtn button clicked");
+      logger.debug("addBlockBtn button clicked");
       openPalettePanel();
     });
   } else {
     logger.warn("addBlockBtn button not found in DOM");
+  }
+
+  const saveAsBtn = document.getElementById("saveAsBtn") as HTMLButtonElement | null;
+  if (saveAsBtn) {
+    saveAsBtn.addEventListener("click", () => {
+      logger.debug("Save As button clicked");
+      try {
+        if (vscode) {
+          const saveData = getSaveData();
+          if (!saveData) {
+            logger.warn("No model available for saving");
+            return;
+          }
+          vscode.postMessage({
+            type: "save-sys",
+            model: saveData.model,
+            nodes: saveData.nodes,
+            normParams: saveData.normParams,
+          });
+        } else {
+          logger.warn("vscode.postMessage not available for save");
+        }
+      } catch (err) {
+        logger.error("Failed to post save-sys message", err);
+      }
+    });
+  } else {
+    logger.warn("saveAsBtn button not found in DOM");
   }
 }

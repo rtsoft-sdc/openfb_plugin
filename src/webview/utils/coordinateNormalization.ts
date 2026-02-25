@@ -18,6 +18,22 @@ export interface NormalizedCoordinates {
 }
 
 /**
+ * Parameters used during normalization — needed for reverse transform on save.
+ */
+export interface NormalizationParams {
+  minX: number;
+  minY: number;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+export interface NormalizeResult {
+  coords: Map<string, NormalizedCoordinates>;
+  params: NormalizationParams;
+}
+
+/**
  * Normalize coordinates of blocks to fit within target dimensions
  * Preserves aspect ratio and centers the diagram
  * 
@@ -26,11 +42,12 @@ export interface NormalizedCoordinates {
  */
 export function normalizeCoordinates(
   blocks: Block[]
-): Map<string, NormalizedCoordinates> {
-  const result = new Map<string, NormalizedCoordinates>();
+): NormalizeResult {
+  const coords = new Map<string, NormalizedCoordinates>();
+  const defaultParams: NormalizationParams = { minX: 0, minY: 0, scale: 1, offsetX: 0, offsetY: 0 };
   
   if (blocks.length === 0) {
-    return result;
+    return { coords, params: defaultParams };
   }
 
   // 1. Find bounding box of all blocks
@@ -73,8 +90,22 @@ export function normalizeCoordinates(
     const normalizedX = (block.x - minX) * scale + offsetX;
     const normalizedY = (block.y - minY) * scale + offsetY;
     
-    result.set(key, { x: normalizedX, y: normalizedY });
+    coords.set(key, { x: normalizedX, y: normalizedY });
   }
 
-  return result;
+  return { coords, params: { minX, minY, scale, offsetX, offsetY } };
+}
+
+/**
+ * Reverse-transform normalized screen coordinates back to original XML scale.
+ */
+export function denormalizeCoordinates(
+  x: number,
+  y: number,
+  params: NormalizationParams,
+): { x: number; y: number } {
+  return {
+    x: Math.round((x - params.offsetX) / params.scale + params.minX),
+    y: Math.round((y - params.offsetY) / params.scale + params.minY),
+  };
 }

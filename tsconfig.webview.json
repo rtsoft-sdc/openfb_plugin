@@ -12,5 +12,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src/webview/**/*", "src/colorScheme.ts"]
+  "include": ["src/webview/**/*", "src/colorScheme.ts", "src/shared/**/*.ts"]
 }

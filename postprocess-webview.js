@@ -42,8 +42,10 @@ function copyAndFixRecursive(srcDir, destDir) {
       const inRoot = !relativePath.includes(path.sep);
       if (inRoot) {
         content = content.replace(/from ["']\.\.\/colorScheme\.js["']/g, 'from "./colorScheme.js"');
+        content = content.replace(/from ["']\.\.\/shared\//g, 'from "./shared/');
       } else {
         content = content.replace(/from ["']\.\.\/\.\.\/colorScheme\.js["']/g, 'from "../colorScheme.js"');
+        content = content.replace(/from ["']\.\.\/\.\.\/shared\//g, 'from "../shared/');
       }
 
       fs.writeFileSync(destPath, content, 'utf8');

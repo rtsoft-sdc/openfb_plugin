@@ -1,6 +1,6 @@
 import { FBTypeModel } from "../../domain/fbtModel";
 import { COLORS } from "../../colorScheme";
-import type { PluginSettings } from "../panels/pluginSettings";
+import type { PluginSettings } from "../../shared/pluginSettings";
 import type { EditorState } from "../editorState";
 import type { TreeNode } from "../panels/leftPanel";
 import type { WebviewLogger } from "../logging";
@@ -106,7 +106,7 @@ function handleSettingsError(event: MessageEvent<ExtensionMessage>, deps: Messag
 }
 
 function handleLoadDiagram(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
-  deps.logger.info("Processing load-diagram message");
+  deps.logger.debug("Processing load-diagram message");
   const fbTypes = new Map<string, FBTypeModel>(event.data.fbTypes || []);
   deps.logger.info("FB Types count", fbTypes.size);
 
@@ -130,11 +130,11 @@ function handleLoadDiagram(event: MessageEvent<ExtensionMessage>, deps: MessageH
 
   deps.state.loadFromDiagram(event.data.payload, fbTypes);
   deps.centerDiagramInCanvas();
-  deps.logger.info("Loaded nodes", deps.state.nodes.length);
+  deps.logger.debug("Loaded nodes", deps.state.nodes.length);
   deps.logger.debug("State nodes data", deps.state.nodes);
-  deps.logger.info("Loaded connections", deps.state.connections.length);
+  deps.logger.debug("Loaded connections", deps.state.connections.length);
 
-  deps.logger.info("Diagram loaded, render triggered via subscription");
+  deps.logger.debug("Diagram loaded, render triggered via subscription");
 }
 
 function handleAllFbTypesLoaded(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
@@ -161,6 +161,16 @@ function handleAllFbTypesError(event: MessageEvent<ExtensionMessage>, deps: Mess
   deps.leftPanel.handleAllFbTypesError(
     typeof event.data.payload === "string" ? event.data.payload : undefined
   );
+}
+
+function handleSaveSysResult(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  if (event.data.payload?.success) {
+    deps.logger.info("File saved successfully:", event.data.payload.filePath);
+    deps.state.dispatch({ type: "RESET_DIRTY" });
+  } else {
+    const error = event.data.payload?.error || "Неизвестная ошибка сохранения";
+    deps.logger.error("Save failed:", error);
+  }
 }
 
 export function createMessageHandler(deps: MessageHandlerDeps) {
@@ -191,6 +201,9 @@ export function createMessageHandler(deps: MessageHandlerDeps) {
         return;
       case "all-fb-types-error":
         handleAllFbTypesError(event, deps);
+        return;
+      case "save-sys-result":
+        handleSaveSysResult(event, deps);
         return;
       default:
         deps.logger.debug("Message type not recognized", event.data?.type);

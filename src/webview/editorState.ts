@@ -91,11 +91,24 @@ export interface ViewState {
 export class EditorState implements EditorStore {
   nodes: EditorNode[] = [];
   connections: EditorConnection[] = [];
+  isDirty = false;
   isDragging = false;
   hoveredPortId?: string;
+  pendingConnection?: {
+    fromPortId: string;
+    fromPortKind: 'event' | 'data';
+    fromPortDirection: 'input' | 'output';
+    fromPortDataType?: string;
+    mouseX: number;
+    mouseY: number;
+  };
   fbTypes?: Map<string, FBTypeModel>;
-  model?: any;  // Can have additional properties like parameters
+  model?: any;  
   private logger = getWebviewLogger();
+  private postMessageFn?: (msg: unknown) => void;
+
+  // Normalization parameters for reverse transformation on save
+  private normParams?: { minX: number; minY: number; scale: number; offsetX: number; offsetY: number };
 
   // Cache node dimensions by FB type to avoid recalculation
   private dimensionCache: Map<string, { width: number; height: number }> = new Map();
@@ -116,6 +129,20 @@ export class EditorState implements EditorStore {
 
   constructor() {
     this.syncPublicStateFromStore();
+  }
+
+  /**
+   * Set postMessage callback for communicating dirty state to extension host.
+   */
+  public setPostMessage(fn: (msg: unknown) => void): void {
+    this.postMessageFn = fn;
+  }
+
+  /**
+   * Get stored normalization parameters (for reverse transform on save).
+   */
+  public getNormParams(): { minX: number; minY: number; scale: number; offsetX: number; offsetY: number } | undefined {
+    return this.normParams;
   }
 
   public getState(): EditorStoreState {
@@ -144,14 +171,22 @@ export class EditorState implements EditorStore {
   }
 
   private syncPublicStateFromStore(): void {
+    const prevDirty = this.isDirty;
     this.nodes = this.storeState.diagram.nodes;
     this.connections = this.storeState.diagram.connections;
+    this.isDirty = this.storeState.diagram.isDirty;
     this.fbTypes = this.storeState.diagram.fbTypes;
     this.model = this.storeState.diagram.model;
     this.isDragging = this.storeState.ui.isDragging;
     this.hoveredPortId = this.storeState.ui.hoveredPortId;
+    this.pendingConnection = this.storeState.ui.pendingConnection;
     this.selection = { ...this.storeState.ui.selection };
     this.view = { ...this.storeState.ui.viewport };
+
+    // Notify extension host when dirty state changes
+    if (this.isDirty !== prevDirty && this.postMessageFn) {
+      this.postMessageFn({ type: "dirty-state-changed", isDirty: this.isDirty });
+    }
   }
 
   public loadFromDiagram(
@@ -212,9 +247,11 @@ export class EditorState implements EditorStore {
     // Normalize coordinates to fit diagram in standard viewport
     // This scales down large diagrams (4000+ units) to readable size
     this.logger.info("Normalizing coordinates for", rawNodes.length, "nodes");
-    const coordinateMap = normalizeCoordinates(
+    const { coords: coordinateMap, params: normParams } = normalizeCoordinates(
       rawNodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
     );
+    this.normParams = normParams;
+    this.logger.debug("Normalization params:", JSON.stringify(normParams));
 
     // Apply normalized coordinates to nodes
     let normalizedCount = 0;
@@ -250,18 +287,7 @@ export class EditorState implements EditorStore {
     });
 
     this.logger.info("Total nodes created", this.nodes.length);
-
-    // Load connections
-    const diagramConnections = diagram.subAppNetwork.connections || [];
-    this.logger.debug("Input diagram connections count", diagramConnections.length);
-    if (diagramConnections.length > 0) {
-      this.logger.debug("Input diagram connections", diagramConnections);
-    }
-
     this.logger.info("Total connections created", this.connections.length);
-    if (this.connections.length > 0) {
-      this.logger.debug("All EditorConnections", this.connections);
-    }
   }
 
   private buildPorts(

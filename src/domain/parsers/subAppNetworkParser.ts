@@ -1,80 +1,17 @@
 import * as fs from "fs";
-import * as path from "path";
 import { XMLParser } from "fast-xml-parser";
-import { SysSubAppNetwork, SysBlock, SysSubApp, SysParameter, SubAppInterfaceParam } from "../sysModel";
+import { SysSubAppNetwork, SysBlock, SysSubApp, SubAppInterfaceParam } from "../sysModel";
 import { parseFBBlock } from "./fbBlockParser";
 import { parseConnections } from "./connectionsParser";
-
-function parseParameters(
-  ownerName: string,
-  element: any,
-): SysParameter[] {
-  const parameters: SysParameter[] = [];
-  if (!element?.Parameter) return parameters;
-
-  const paramList = Array.isArray(element.Parameter) ? element.Parameter : [element.Parameter];
-  for (const param of paramList) {
-    if (param?.Name === undefined) continue;
-    const sysParam: SysParameter = {
-      fbName: ownerName,
-      name: param.Name,
-      value: param.Value || "",
-    };
-
-    if (param.Attribute) {
-      const attrList = Array.isArray(param.Attribute) ? param.Attribute : [param.Attribute];
-      sysParam.attributes = attrList
-        .filter((attr: any) => attr?.Name !== undefined)
-        .map((attr: any) => ({
-          name: attr.Name,
-          value: attr.Value || "",
-        }));
-    }
-
-    parameters.push(sysParam);
-  }
-
-  return parameters;
-}
-
-function findFileRecursive(dir: string, fileName: string): string | undefined {
-  try {
-    const filePath = path.join(dir, fileName);
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      return filePath;
-    }
-
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const subDirPath = path.join(dir, entry.name);
-        const found = findFileRecursive(subDirPath, fileName);
-        if (found) return found;
-      }
-    }
-  } catch (err) {
-    // Ignore directories we cannot access
-  }
-
-  return undefined;
-}
+import { parseParameters } from "./parameterParser";
+import { resolveTypeFilePath } from "../fileSearch";
 
 function resolveSubAppTypePath(
   typeShort: string,
   sysDir: string,
   searchPaths: string[],
 ): string | undefined {
-  const pathsToSearch = [sysDir, ...searchPaths];
-  for (const sp of pathsToSearch) {
-    if (!sp) continue;
-    if (!fs.existsSync(sp)) continue;
-    const fileName = `${typeShort}.sub`;
-    const fileNameUpper = `${typeShort.toUpperCase()}.sub`;
-    const found = findFileRecursive(sp, fileName) || findFileRecursive(sp, fileNameUpper);
-    if (found) return found;
-  }
-
-  return undefined;
+  return resolveTypeFilePath(typeShort, "sub", [sysDir, ...searchPaths]);
 }
 
 function parseSubAppInterfaceList(node: any): SubAppInterfaceParam[] | undefined {

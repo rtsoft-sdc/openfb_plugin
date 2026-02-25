@@ -7,7 +7,8 @@ import { loadFbt } from "./domain/fbtParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
 import { FBootGenerator } from "./generators/fboot/fbootGenerator";
-import { DEFAULT_PLUGIN_SETTINGS, PluginSettings, UiLanguage } from "./openfb/pluginSettings";
+import { patchSysFile } from "./domain/sysPatcher";
+import { DEFAULT_PLUGIN_SETTINGS, PluginSettings, UiLanguage } from "./shared/pluginSettings";
 import { EXTENSION_COLORS } from "./colorScheme";
 
 // Store subscriptions for cleanup on deactivation
@@ -129,9 +130,10 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      const basePanelTitle = path.parse(uri.fsPath).name;
       const panel = vscode.window.createWebviewPanel(
         "openfbEditor",
-        "OpenFB Editor",
+        basePanelTitle,
         vscode.ViewColumn.Beside,
         {
           enableScripts: true,
@@ -275,7 +277,7 @@ export function activate(context: vscode.ExtensionContext) {
               const testJson = JSON.stringify(messageData);
               logger.debug("Message serializable (on ready)", testJson.length, "bytes");
               panel.webview.postMessage(messageData);
-              logger.info("Message sent to webview on ready");
+              logger.debug("Message sent to webview on ready");
               
               // Clear fallback timeout if message was received
               if (timeoutHandle) {
@@ -340,6 +342,72 @@ export function activate(context: vscode.ExtensionContext) {
                   vscode.window.showErrorMessage(errorMsg);
                 });
               return; 
+            } else if (m?.type === "save-sys") {
+              try {
+                const updatedModel = m.model;
+                if (!updatedModel) {
+                  logger.warn("save-sys: no model in message");
+                  panel.webview.postMessage({ type: "save-sys-result", payload: { success: false, error: "Нет данных модели" } });
+                  return;
+                }
+
+                const nodes: Array<{ id: string; x: number; y: number }> = m.nodes || [];
+                const normParams = m.normParams;
+
+                // --- Ensure all blocks have a mapping entry ---
+                const appName = updatedModel.applicationName || "App";
+                if (updatedModel.subAppNetwork?.blocks && updatedModel.devices?.length > 0) {
+                  const mappings = updatedModel.mappings || [];
+                  const mappedInstances = new Set(mappings.map((mp: any) => mp.fbInstance));
+                  const defaultDevice = updatedModel.devices[0].name || "FORTE_PC";
+                  const defaultResource = updatedModel.devices[0].resources?.[0]?.name || "EMB_RES";
+
+                  for (const block of updatedModel.subAppNetwork.blocks) {
+                    const qualifiedName = `${appName}.${block.id}`;
+                    if (!mappedInstances.has(qualifiedName)) {
+                      mappings.push({
+                        fbInstance: qualifiedName,
+                        device: defaultDevice,
+                        resource: defaultResource,
+                      });
+                      logger.info(`Auto-mapped new block "${qualifiedName}" -> ${defaultDevice}.${defaultResource}`);
+                    }
+                  }
+                  updatedModel.mappings = mappings;
+                }
+
+                // Patch the original XML file preserving all untracked attributes
+                const xml = patchSysFile(uri.fsPath, {
+                  model: updatedModel,
+                  nodes,
+                  normParams,
+                });
+
+                const defaultUri = vscode.Uri.file(
+                  uri.fsPath.replace(/\.sys$/i, "_new.sys")
+                );
+
+                const saveUri = await vscode.window.showSaveDialog({
+                  defaultUri,
+                  filters: { "IEC 61499 System": ["sys"] },
+                  title: "Сохранить SYS файл как",
+                });
+
+                if (!saveUri) {
+                  logger.info("Save cancelled by user");
+                  return;
+                }
+
+                fs.writeFileSync(saveUri.fsPath, xml, "utf8");
+                logger.info("SYS file saved to", saveUri.fsPath);
+                vscode.window.showInformationMessage(`Файл сохранён: ${saveUri.fsPath}`);
+                panel.webview.postMessage({ type: "save-sys-result", payload: { success: true, filePath: saveUri.fsPath } });
+              } catch (err) {
+                logger.error("Failed to save SYS file", err);
+                vscode.window.showErrorMessage(`Не удалось сохранить файл: ${err}`);
+                panel.webview.postMessage({ type: "save-sys-result", payload: { success: false, error: String(err) } });
+              }
+              return;
             } else if (m?.type === "settings:load") {
               try {
                 const settings = readSettingsFromVsCodeConfig();
@@ -418,6 +486,24 @@ export function activate(context: vscode.ExtensionContext) {
                   type: "all-fb-types-error",
                   payload: `Не удалось загрузить библиотеку типов: ${err}`,
                 });
+              }
+              return;
+            } else if (m?.type === "dirty-state-changed") {
+              const isDirty = !!m.isDirty;
+              panel.title = isDirty ? `${basePanelTitle} (изм)` : basePanelTitle;
+              return;
+            } else if (m?.type === "webview-log") {
+              // Forward webview logs to the extension OutputChannel
+              const level = m.level as string;
+              const logMsg = m.message as string;
+              const args = m.args as string[] | undefined;
+              const full = args?.length ? `[Webview] ${logMsg} ${args.join(" ")}` : `[Webview] ${logMsg}`;
+              switch (level) {
+                case "debug": logger.debug(full); break;
+                case "info":  logger.info(full);  break;
+                case "warn":  logger.warn(full);  break;
+                case "error": logger.error(full);  break;
+                default:      logger.info(full);  break;
               }
               return;
             }
@@ -533,6 +619,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       margin-left: auto;
       display: flex;
       align-items: center;
+      gap: 12px;
     }
     #toolbar button {
       padding: 8px 12px;
@@ -544,7 +631,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       font-family: Roboto, sans-serif;
     }
     #toolbar button:hover { background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_HOVER}; }
-    #toolbar #settingsBtn {
+    #toolbar #settingsBtn, #toolbar #saveAsBtn {
       background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_BG};
       color: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_TEXT};
       border: 1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_BORDER};
@@ -553,7 +640,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       gap: 6px;
       font-weight: 500;
     }
-    #toolbar #settingsBtn:hover {
+    #toolbar #settingsBtn:hover, #toolbar #saveAsBtn:hover {
       background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_HOVER};
     }
     
@@ -903,6 +990,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       <button id="deployBtn">Деплой</button>
     </div>
     <div class="toolbar-right">
+      <button id="saveAsBtn">Сохранить как</button>
       <button id="settingsBtn" title="Открыть настройки">⚙ Настройки</button>
     </div>
   </div>

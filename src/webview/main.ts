@@ -2,16 +2,14 @@ import { EditorState } from "./editorState";
 import { CanvasRenderer } from "./rendering/canvasRenderer";
 import { CanvasInputManager } from "./input/canvasInputManager";
 import { initializeWebviewLogger } from "./logging";
-import { DEFAULT_PLUGIN_SETTINGS, PluginSettings } from "./panels/pluginSettings";
-import { COLORS } from "../colorScheme";
 import { createLeftPanelController } from "./panels/leftPanel";
 import { createRightPanelController } from "./panels/rightPanel";
-import { createSettingsModalController } from "./panels/settingsModal";
 import { createMessageHandler } from "./handlers/messageHandler";
 import { setupToolbarHandlers } from "./handlers/toolbarHandlers";
 import { setupCanvasDnd } from "./handlers/canvasDnd";
 import { createCanvasLayout } from "./layout/canvasLayout";
 import { screenToWorld } from "./layout/transformUtils";
+import { createSettingsDialogController } from "./handlers/settingsDialogController";
 
 /**
  * VS Code Webview API for communication with the extension host
@@ -28,7 +26,9 @@ logger.info("main.ts starting...");
 let vscode: VsCodeApi | undefined;
 try {
   vscode = acquireVsCodeApi();
-  logger.info("acquireVsCodeApi success");
+  logger.debug("acquireVsCodeApi success");
+  // Forward webview logs to extension OutputChannel
+  logger.setPostMessage((msg) => vscode!.postMessage(msg));
 } catch (error) {
   logger.error("acquireVsCodeApi failed", error);
 }
@@ -37,10 +37,13 @@ const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 if (!canvas) {
   logger.error("Canvas not found!");
 } else {
-  logger.info("Canvas found, initializing...");
+  logger.debug("Canvas found, initializing...");
 }
 
 const state = new EditorState();
+if (vscode) {
+  state.setPostMessage((msg) => vscode!.postMessage(msg));
+}
 const renderer = new CanvasRenderer(canvas);
 new CanvasInputManager(canvas, state, renderer);
 
@@ -57,109 +60,7 @@ const leftPanel = createLeftPanelController({
   requestAllFbTypes,
 });
 
-let settingsDraft: PluginSettings = {
-  ...DEFAULT_PLUGIN_SETTINGS,
-  fbPaths: [...DEFAULT_PLUGIN_SETTINGS.fbPaths],
-  deploy: { ...DEFAULT_PLUGIN_SETTINGS.deploy },
-};
-let isSettingsLoading = false;
-let settingsLoadError: string | undefined;
-let settingsDirty = false;
-let isSettingsSaving = false;
-let settingsStatusText = "Сохранено";
-let settingsStatusColor: string = COLORS.SUCCESS_TEXT;
 let updateSidepanel = () => {};
-
-function clonePluginSettings(settings: PluginSettings): PluginSettings {
-  return {
-    ...settings,
-    fbPaths: [...settings.fbPaths],
-    deploy: { ...settings.deploy },
-  };
-}
-
-function updateSettingsDirtyState(dirty: boolean) {
-  settingsDirty = dirty;
-  if (dirty) {
-    settingsStatusText = "Есть несохранённые изменения";
-    settingsStatusColor = COLORS.WARNING_TEXT;
-  }
-}
-
-function setSettingsStatus(text: string, color: string): void {
-  settingsStatusText = text;
-  settingsStatusColor = color;
-}
-
-function normalizeAndValidateSettingsDraft(draft: PluginSettings): { ok: true; settings: PluginSettings } | { ok: false; error: string } {
-  const host = draft.deploy.host.trim();
-  if (!host) {
-    return { ok: false, error: "Host не должен быть пустым" };
-  }
-
-  const port = Math.trunc(draft.deploy.port);
-  if (!Number.isFinite(port) || port < 1 || port > 65535) {
-    return { ok: false, error: "Port должен быть от 1 до 65535" };
-  }
-
-  const timeoutMs = Math.trunc(draft.deploy.timeoutMs);
-  if (!Number.isFinite(timeoutMs) || timeoutMs < 1000) {
-    return { ok: false, error: "Timeout должен быть не меньше 1000 мс" };
-  }
-
-  const uniquePaths = new Set<string>();
-  const fbPaths: string[] = [];
-  for (const pathValue of draft.fbPaths) {
-    const normalizedPath = pathValue.trim();
-    if (!normalizedPath || uniquePaths.has(normalizedPath)) {
-      continue;
-    }
-    uniquePaths.add(normalizedPath);
-    fbPaths.push(normalizedPath);
-  }
-
-  return {
-    ok: true,
-    settings: {
-      fbPaths,
-      deploy: {
-        host,
-        port,
-        timeoutMs,
-      },
-      uiLanguage: draft.uiLanguage === "en" ? "en" : "ru",
-    },
-  };
-}
-
-function saveSettingsDraft(): void {
-  if (!vscode || isSettingsSaving) {
-    return;
-  }
-
-  const validation = normalizeAndValidateSettingsDraft(settingsDraft);
-  if (!validation.ok) {
-    setSettingsStatus(validation.error, COLORS.ERROR_TEXT);
-    updateSidepanel();
-    return;
-  }
-
-  settingsDraft = clonePluginSettings(validation.settings);
-  isSettingsSaving = true;
-  setSettingsStatus("Сохранение...", COLORS.STATUS_SAVING);
-  updateSidepanel();
-  vscode.postMessage({ type: "settings:save", payload: validation.settings });
-}
-
-function requestSettingsPathPick(): void {
-  if (!vscode) {
-    setSettingsStatus("Host API недоступен", COLORS.ERROR_TEXT);
-    updateSidepanel();
-    return;
-  }
-
-  vscode.postMessage({ type: "settings:pick-path" });
-}
 
 /**
  * Global event delegation handler for toggle buttons.
@@ -183,38 +84,8 @@ function setupToggleButtonDelegation() {
   });
 }
 
-function openSettingsModal() {
-  isSettingsLoading = true;
-  isSettingsSaving = false;
-  settingsLoadError = undefined;
-  if (!settingsDirty) {
-    setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
-  }
-  if (vscode) {
-    vscode.postMessage({ type: "settings:load" });
-  } else {
-    isSettingsLoading = false;
-    settingsLoadError = "Host API недоступен";
-  }
-  settingsModal.openModal();
-}
-
-const settingsModal = createSettingsModalController({
-  getSettingsPanelState: () => ({
-    draft: settingsDraft,
-    isLoading: isSettingsLoading,
-    loadError: settingsLoadError,
-    dirty: settingsDirty,
-    isSaving: isSettingsSaving,
-    statusText: settingsStatusText,
-    statusColor: settingsStatusColor,
-  }),
-  onDraftChange: (nextDraft) => {
-    settingsDraft = nextDraft;
-  },
-  onDirtyChange: updateSettingsDirtyState,
-  onSave: saveSettingsDraft,
-  onAddPath: requestSettingsPathPick,
+const settingsDialog = createSettingsDialogController({
+  vscode,
 });
 
 const rightPanel = createRightPanelController({
@@ -222,8 +93,9 @@ const rightPanel = createRightPanelController({
 });
 
 updateSidepanel = rightPanel.updateSidepanel;
+settingsDialog.setUpdateSidepanel(updateSidepanel);
 
-// UI reacts to store updates via subscription (instead of monkey-patching state methods).
+// UI reacts to store updates via subscription
 state.subscribe((newState) => {
   // Re-render canvas on every state change (single source of render triggers)
   renderer.render(state);
@@ -269,8 +141,17 @@ canvasLayout.resize();
 setupToolbarHandlers({
   logger,
   vscode,
-  openSettingsPanel: openSettingsModal,
+  openSettingsPanel: settingsDialog.openSettingsModal,
   openPalettePanel: () => leftPanel.openPalettePanel(),
+  getSaveData: () => {
+    const model = state.model;
+    if (!model) return undefined;
+    return {
+      model,
+      nodes: state.nodes.map(n => ({ id: n.id, x: n.x, y: n.y })),
+      normParams: state.getNormParams(),
+    };
+  },
 });
 
 setupCanvasDnd({
@@ -289,45 +170,35 @@ setupCanvasDnd({
 });
 
 // Register message handler BEFORE anything else
-logger.info("Registering message handler...");
+logger.debug("Registering message handler...");
 const messageHandler = createMessageHandler({
   logger,
   state,
   leftPanel,
   centerDiagramInCanvas: canvasLayout.centerDiagramInCanvas,
   updateSidepanel,
-  updateSettingsModal: () => settingsModal.updateModal(),
-  closeSettingsModal: () => settingsModal.closeModal(),
-  getSettingsDraft: () => settingsDraft,
-  setSettingsDraft: (next) => {
-    settingsDraft = next;
-  },
-  getIsSettingsLoading: () => isSettingsLoading,
-  setIsSettingsLoading: (next) => {
-    isSettingsLoading = next;
-  },
-  getIsSettingsSaving: () => isSettingsSaving,
-  setIsSettingsSaving: (next) => {
-    isSettingsSaving = next;
-  },
-  setSettingsLoadError: (message) => {
-    settingsLoadError = message;
-  },
-  setSettingsDirty: (dirty) => {
-    settingsDirty = dirty;
-  },
-  clonePluginSettings,
-  updateSettingsDirtyState,
-  setSettingsStatus,
+  updateSettingsModal: settingsDialog.updateSettingsModal,
+  closeSettingsModal: settingsDialog.closeSettingsModal,
+  getSettingsDraft: settingsDialog.getSettingsDraft,
+  setSettingsDraft: settingsDialog.setSettingsDraft,
+  getIsSettingsLoading: settingsDialog.getIsSettingsLoading,
+  setIsSettingsLoading: settingsDialog.setIsSettingsLoading,
+  getIsSettingsSaving: settingsDialog.getIsSettingsSaving,
+  setIsSettingsSaving: settingsDialog.setIsSettingsSaving,
+  setSettingsLoadError: settingsDialog.setSettingsLoadError,
+  setSettingsDirty: settingsDialog.setSettingsDirty,
+  clonePluginSettings: settingsDialog.clonePluginSettings,
+  updateSettingsDirtyState: settingsDialog.updateSettingsDirtyState,
+  setSettingsStatus: settingsDialog.setSettingsStatus,
 });
 
 window.addEventListener("message", messageHandler);
-logger.info("Message handler registered");
+logger.debug("Message handler registered");
 
 // Send ready handshake to extension host
 try {
   if (vscode) {
-    logger.info("Posting ready to extension host");
+    logger.debug("Posting ready to extension host");
     vscode.postMessage({ type: "ready" });
   } else {
     logger.debug("vscode.postMessage not available yet");
@@ -342,4 +213,4 @@ window.onerror = (msg, url, lineNo, columnNo, error) => {
   return false;
 };
 
-logger.info("Webview script loaded");
+logger.debug("Webview script loaded");

@@ -15,10 +15,12 @@ import { computeOrthogonalRoute, drawPolyline } from "./orthogonalRouter";
  *
  * @param ctx - Canvas 2D rendering context
  * @param state - Editor state containing connections and nodes
+ * @param selectedConnectionId - ID of selected connection, if any
  */
 export function drawConnections(
   ctx: CanvasRenderingContext2D,
-  state: EditorState
+  state: EditorState,
+  selectedConnectionId?: string
 ): void {
   const logger = getWebviewLogger();
   
@@ -39,7 +41,7 @@ export function drawConnections(
 
     // Skip if ports not found (disconnected reference)
     if (!fromPort || !toPort) {
-      logger.debug(`Connection ${c.id}: port not found (fromPort=${!!fromPort}, toPort=${!!toPort})`);
+      logger.warn(`Connection ${c.id}: port not found (fromPort=${!!fromPort} [${c.fromPortId}], toPort=${!!toPort} [${c.toPortId}])`);
       skippedCount++;
       continue;
     }
@@ -76,9 +78,53 @@ export function drawConnections(
     drawPolyline(ctx, waypoints, C.ROUTING_CORNER_RADIUS);
     ctx.stroke();
 
+    // Draw selection highlight if this connection is selected
+    if (selectedConnectionId === c.id) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = C.SELECTION_STROKE_COLOR;
+      ctx.lineWidth = (isEventConnection ? C.EVENT_CONNECTION_WIDTH : C.DATA_CONNECTION_WIDTH) + 4;
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.6;
+      drawPolyline(ctx, waypoints, C.ROUTING_CORNER_RADIUS);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // Reset line dash for next draw
     ctx.setLineDash([]);
   }
   
   logger.debug(`Connections rendered: ${drawnCount} drawn, ${skippedCount} skipped`);
+
+  // Draw pending (rubber-band) connection if user is dragging from a port
+  const pending = state.pendingConnection;
+  if (pending) {
+    // Find source port position
+    const fromPort = state.nodes
+      .flatMap((n) => n.ports)
+      .find((p) => p.id === pending.fromPortId);
+    
+    if (fromPort) {
+      const isEvent = pending.fromPortKind === 'event';
+
+      ctx.beginPath();
+      ctx.strokeStyle = isEvent
+        ? C.EVENT_CONNECTION_COLOR
+        : C.DATA_CONNECTION_COLOR;
+      ctx.lineWidth = isEvent
+        ? C.EVENT_CONNECTION_WIDTH
+        : C.DATA_CONNECTION_WIDTH;
+      ctx.setLineDash([4, 4]);  // Always dashed for pending line
+      ctx.globalAlpha = 0.6;
+
+      // Simple direct line for rubber-band (no routing needed)
+      ctx.moveTo(fromPort.x, fromPort.y);
+      ctx.lineTo(pending.mouseX, pending.mouseY);
+      ctx.stroke();
+
+      ctx.globalAlpha = 1.0;
+      ctx.setLineDash([]);
+    }
+  }
 }

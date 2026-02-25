@@ -4,11 +4,34 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export class WebviewLogger {
   private logLevel: LogLevel = "info";
+  private postMessageFn?: (message: unknown) => void;
 
   constructor(private name: string) {}
 
   setLogLevel(level: LogLevel) {
     this.logLevel = level;
+  }
+
+  /**
+   * Set a postMessage callback to forward logs to the extension host OutputChannel.
+   */
+  setPostMessage(fn: (message: unknown) => void) {
+    this.postMessageFn = fn;
+  }
+
+  private forwardToExtension(level: LogLevel, message: string, args?: any[]) {
+    if (!this.postMessageFn) return;
+    try {
+      this.postMessageFn({
+        type: "webview-log",
+        level,
+        message,
+        args: args?.map(a => {
+          try { return typeof a === 'string' ? a : JSON.stringify(a); }
+          catch { return String(a); }
+        })
+      });
+    } catch { /* ignore postMessage errors */ }
   }
 
   private getTimestamp(): string {
@@ -44,6 +67,7 @@ export class WebviewLogger {
     const [style1, style2] = this.getColorStyle("debug");
     const msg = this.formatMessage("debug", message);
     console.log(msg, style1, style2, ...args);
+    this.forwardToExtension("debug", message, args);
   }
 
   info(message: string, ...args: any[]) {
@@ -51,6 +75,7 @@ export class WebviewLogger {
     const [style1, style2] = this.getColorStyle("info");
     const msg = this.formatMessage("info", message);
     console.log(msg, style1, style2, ...args);
+    this.forwardToExtension("info", message, args);
   }
 
   warn(message: string, ...args: any[]) {
@@ -58,6 +83,7 @@ export class WebviewLogger {
     const [style1, style2] = this.getColorStyle("warn");
     const msg = this.formatMessage("warn", message);
     console.warn(msg, style1, style2, ...args);
+    this.forwardToExtension("warn", message, args);
   }
 
   error(message: string, error?: Error | any) {
@@ -66,8 +92,10 @@ export class WebviewLogger {
     const msg = this.formatMessage("error", message);
     if (error instanceof Error) {
       console.error(msg, style1, style2, error.message, error.stack);
+      this.forwardToExtension("error", message, [error.message, error.stack]);
     } else {
       console.error(msg, style1, style2, error);
+      this.forwardToExtension("error", message, error !== undefined ? [error] : undefined);
     }
   }
 }
