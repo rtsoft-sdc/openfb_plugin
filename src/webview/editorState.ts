@@ -1,8 +1,12 @@
 import { FBTypeModel, FBPort } from "../domain/fbtModel";
 import { FBKind } from "../domain/FBKind";
 import { getWebviewLogger } from "./logging";
-import { ZOOM_CONFIG, PADDING_CONFIG, DIAGRAM_CONFIG } from "./constants";
-import { calculateNodeDimensions } from "./nodeLayout";
+import { calculateNodeDimensions } from "./layout/nodeLayout";
+import { editorReducer, createInitialState } from "./store/reducer";
+import type { EditorAction } from "./store/actions";
+import type { EditorStore, EditorStoreState } from "./store/types";
+import { logEditorAction } from "./store/middleware";
+import { normalizeCoordinates } from "./utils/coordinateNormalization";
 
 /**
  * Represents a block (FB instance) in the diagram
@@ -79,23 +83,32 @@ export interface EditorConnection {
 }
 
 export interface ViewState {
-  zoom: number;        // 1.0 = 100%, min 0.1, max 5.0
-  offsetX: number;     // Pan offset X (used in fitToView for centering)
-  offsetY: number;     // Pan offset Y (used in fitToView for centering)
-  minZoom: number;
-  maxZoom: number;
+  zoom: number;        // 1.0 = 100%
+  offsetX: number;     // Pan offset X
+  offsetY: number;     // Pan offset Y
 }
 
-export class EditorState {
+export class EditorState implements EditorStore {
   nodes: EditorNode[] = [];
   connections: EditorConnection[] = [];
+  isDirty = false;
   isDragging = false;
+  hoveredPortId?: string;
+  pendingConnection?: {
+    fromPortId: string;
+    fromPortKind: 'event' | 'data';
+    fromPortDirection: 'input' | 'output';
+    fromPortDataType?: string;
+    mouseX: number;
+    mouseY: number;
+  };
   fbTypes?: Map<string, FBTypeModel>;
-  model?: any;  // Can have additional properties like parameters
+  model?: any;  
   private logger = getWebviewLogger();
+  private postMessageFn?: (msg: unknown) => void;
 
-  // Cached diagram bounds to avoid recalculation
-  private cachedBounds: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
+  // Normalization parameters for reverse transformation on save
+  private normParams?: { minX: number; minY: number; scale: number; offsetX: number; offsetY: number };
 
   // Cache node dimensions by FB type to avoid recalculation
   private dimensionCache: Map<string, { width: number; height: number }> = new Map();
@@ -103,9 +116,7 @@ export class EditorState {
   view: ViewState = {
     zoom: 1.0,
     offsetX: 0,
-    offsetY: 0,
-    minZoom: ZOOM_CONFIG.MIN,
-    maxZoom: ZOOM_CONFIG.MAX
+    offsetY: 0
   };
 
   selection: {
@@ -113,22 +124,80 @@ export class EditorState {
     connectionId?: string;
   } = {};
 
+  private storeState: EditorStoreState = createInitialState();
+  private listeners = new Set<(state: EditorStoreState) => void>();
+
+  constructor() {
+    this.syncPublicStateFromStore();
+  }
+
+  /**
+   * Set postMessage callback for communicating dirty state to extension host.
+   */
+  public setPostMessage(fn: (msg: unknown) => void): void {
+    this.postMessageFn = fn;
+  }
+
+  /**
+   * Get stored normalization parameters (for reverse transform on save).
+   */
+  public getNormParams(): { minX: number; minY: number; scale: number; offsetX: number; offsetY: number } | undefined {
+    return this.normParams;
+  }
+
+  public getState(): EditorStoreState {
+    return this.storeState;
+  }
+
+  public subscribe(listener: (state: EditorStoreState) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  public dispatch(action: EditorAction): void {
+    // Central state pipeline: dispatch -> reducer -> sync public fields -> notify subscribers
+    logEditorAction(action);
+    this.storeState = editorReducer(this.storeState, action);
+    this.syncPublicStateFromStore();
+    this.notifyListeners();
+  }
+
+  private notifyListeners(): void {
+    for (const listener of this.listeners) {
+      listener(this.storeState);
+    }
+  }
+
+  private syncPublicStateFromStore(): void {
+    const prevDirty = this.isDirty;
+    this.nodes = this.storeState.diagram.nodes;
+    this.connections = this.storeState.diagram.connections;
+    this.isDirty = this.storeState.diagram.isDirty;
+    this.fbTypes = this.storeState.diagram.fbTypes;
+    this.model = this.storeState.diagram.model;
+    this.isDragging = this.storeState.ui.isDragging;
+    this.hoveredPortId = this.storeState.ui.hoveredPortId;
+    this.pendingConnection = this.storeState.ui.pendingConnection;
+    this.selection = { ...this.storeState.ui.selection };
+    this.view = { ...this.storeState.ui.viewport };
+
+    // Notify extension host when dirty state changes
+    if (this.isDirty !== prevDirty && this.postMessageFn) {
+      this.postMessageFn({ type: "dirty-state-changed", isDirty: this.isDirty });
+    }
+  }
+
   public loadFromDiagram(
     diagram: DiagramModel,
     fbTypes: Map<string, FBTypeModel>
   ) {
-    // Store for later access (e.g., in sidepanel)
-    this.fbTypes = fbTypes;
-    this.model = diagram;
-    
+    // Build editor-friendly graph structures, then commit with a single atomic action.
     // Clear caches when loading new diagram
-    this.cachedBounds = null;
     this.dimensionCache.clear();
 
-    // First pass: create nodes and cache dimensions by type, find bounds
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-
+    // First pass: create nodes and cache dimensions by type
     const diagramBlocks: DiagramBlock[] = [
       ...(diagram.subAppNetwork.blocks || []),
       ...((diagram.subAppNetwork as any).subApps || []),
@@ -149,11 +218,6 @@ export class EditorState {
         this.dimensionCache.set(b.typeShort, dimensions);
       }
       const { width, height } = dimensions;
-      
-      minX = Math.min(minX, b.x);
-      maxX = Math.max(maxX, b.x + width);
-      minY = Math.min(minY, b.y);
-      maxY = Math.max(maxY, b.y + height);
       
       // Find device color if this block is mapped to a device
       let deviceColor: string | undefined;
@@ -180,48 +244,57 @@ export class EditorState {
       };
     });
 
-    // Normalize and scale coordinates
-    this.nodes = this.normalizeAndScaleCoordinates(rawNodes, minX, maxX, minY, maxY);
+    // Normalize coordinates to fit diagram in standard viewport
+    // This scales down large diagrams (4000+ units) to readable size
+    this.logger.info("Normalizing coordinates for", rawNodes.length, "nodes");
+    const { coords: coordinateMap, params: normParams } = normalizeCoordinates(
+      rawNodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
+    );
+    this.normParams = normParams;
+    this.logger.debug("Normalization params:", JSON.stringify(normParams));
 
-    // Store normalized bounds for later use (optimization #2)
-    this.cachedBounds = {
-      minX: Math.min(...this.nodes.map(n => n.x)),
-      maxX: Math.max(...this.nodes.map(n => n.x + n.width)),
-      minY: Math.min(...this.nodes.map(n => n.y)),
-      maxY: Math.max(...this.nodes.map(n => n.y + n.height))
-    };
-
-    this.logger.info("Total nodes created", this.nodes.length);
-
-    // Load connections
-    const diagramConnections = diagram.subAppNetwork.connections || [];
-    this.logger.debug("Input diagram connections count", diagramConnections.length);
-    if (diagramConnections.length > 0) {
-      this.logger.debug("Input diagram connections", diagramConnections);
+    // Apply normalized coordinates to nodes
+    let normalizedCount = 0;
+    for (const node of rawNodes) {
+      const key = `${node.x},${node.y}`;
+      const normalized = coordinateMap.get(key);
+      if (normalized) {
+        this.logger.debug(`Node ${node.id}: (${node.x}, ${node.y}) → (${normalized.x.toFixed(1)}, ${normalized.y.toFixed(1)})`);
+        node.x = normalized.x;
+        node.y = normalized.y;
+        normalizedCount++;
+      }
     }
+    this.logger.info("Normalized", normalizedCount, "node coordinates");
 
-    this.connections = diagramConnections.map((c: DiagramConnection) => {
+    const mappedConnections = (diagram.subAppNetwork.connections || []).map((c: DiagramConnection) => {
       const editorConn = {
         id: `${c.fromBlock}.${c.fromPort}->${c.toBlock}.${c.toPort}`,
         fromPortId: `${c.fromBlock}.${c.fromPort}`,
         toPortId: `${c.toBlock}.${c.toPort}`,
-        type: c.type  // Preserve connection type from diagram
+        type: c.type
       };
       this.logger.debug(`Created EditorConnection: ${editorConn.id} (type=${editorConn.type})`);
       return editorConn;
     });
 
+    this.dispatch({
+      type: "SET_GRAPH_DATA",
+      model: diagram,
+      fbTypes,
+      nodes: rawNodes,
+      connections: mappedConnections
+    });
+
+    this.logger.info("Total nodes created", this.nodes.length);
     this.logger.info("Total connections created", this.connections.length);
-    if (this.connections.length > 0) {
-      this.logger.debug("All EditorConnections", this.connections);
-    }
   }
 
   private buildPorts(
     nodeId: string,
     fbType: FBTypeModel
   ): EditorPort[] {
-    return fbType.ports.map((p, index) => ({
+    return fbType.ports.map((p) => ({
       ...p,
       id: `${nodeId}.${p.name}`,
       nodeId,
@@ -245,154 +318,69 @@ export class EditorState {
     }));
   }
 
-  /**
-   * Normalize and scale node coordinates based on diagram bounds
-   * Applies scaling if diagram is very large (>SIZE_THRESHOLD units)
-   * and shifts all coordinates so minimum is at padding distance
-   */
-  private normalizeAndScaleCoordinates(
-    rawNodes: EditorNode[],
-    minX: number,
-    maxX: number,
-    minY: number,
-    maxY: number
-  ): EditorNode[] {
-    const diagramWidth = maxX - minX;
-    const diagramHeight = maxY - minY;
-    const maxDiagramSize = Math.max(diagramWidth, diagramHeight);
-    
-    // If diagram is very large, scale it down
-    // This handles cases where coordinates are in units of 1 but span thousands
-    let scale = 1;
-    if (maxDiagramSize > DIAGRAM_CONFIG.SIZE_THRESHOLD) {
-      scale = DIAGRAM_CONFIG.NORMALIZED_SIZE / maxDiagramSize;
-    }
-
-    // Normalize coordinates: shift so minimum is at padding distance, and apply scaling
-    const padding = PADDING_CONFIG.LAYOUT_PADDING;
-    const offsetX = (minX * scale) - padding;
-    const offsetY = (minY * scale) - padding;
-
-    return rawNodes.map((node: EditorNode) => ({
-      ...node,
-      x: (node.x * scale) - offsetX,
-      y: (node.y * scale) - offsetY
-      // Keep width and height unchanged - don't scale element sizes
-    }));
-  }
-
-  private calculateBoundingBox(nodes: EditorNode[]): { minX: number; maxX: number; minY: number; maxY: number } {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    
-    for (const node of nodes) {
-      minX = Math.min(minX, node.x);
-      maxX = Math.max(maxX, node.x + node.width);
-      minY = Math.min(minY, node.y);
-      maxY = Math.max(maxY, node.y + node.height);
-    }
-    
-    return { minX, maxX, minY, maxY };
-  }
-
   public moveNode(id: string, x: number, y: number) {
-    const node = this.nodes.find(n => n.id === id);
-    if (!node) return;
-
-    node.x = x;
-    node.y = y;
+    this.dispatch({ type: "MOVE_NODE", nodeId: id, x, y });
   }
 
   public selectNode(id?: string) {
-    this.selection.nodeId = id;
+    this.dispatch({ type: "SELECT_NODE", nodeId: id });
   }
 
   /**
-   * Calculate and set zoom level to fit all nodes in view with padding
-   * All nodes should be completely visible
+   * Generate a unique node ID like "E_SWITCH_3" by finding the highest
+   * existing suffix number for this type among all current nodes.
    */
-  public fitToView(canvasWidth: number, canvasHeight: number, toolbarHeight: number = 0) {
-    if (this.nodes.length === 0) {
-      this.view.zoom = 1.0;
+  private generateNodeId(blockType: string): string {
+    const prefix = `${blockType}_`;
+    let maxNum = 0;
+    for (const node of this.nodes) {
+      if (node.id.startsWith(prefix)) {
+        const suffix = node.id.slice(prefix.length);
+        const num = parseInt(suffix, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+    return `${prefix}${maxNum + 1}`;
+  }
+
+  /**
+   * Add a new FB block to the diagram by type name and world coordinates.
+   * Builds ports from FBTypeModel, calculates dimensions, generates unique ID,
+   * and dispatches ADD_NODE to the store.
+   */
+  public addNode(blockType: string, worldX: number, worldY: number): void {
+    const fbType = this.fbTypes?.get(blockType);
+    if (!fbType) {
+      this.logger.warn(`Cannot add node: FB type "${blockType}" not found in loaded types`);
       return;
     }
 
-    // Use cached bounds from loadFromDiagram instead of recalculating (optimization #2)
-    let bounds = this.cachedBounds;
-    if (!bounds) {
-      // Fallback if bounds weren't cached (shouldn't happen in normal flow)
-      bounds = this.calculateBoundingBox(this.nodes);
-    }
-    const { minX, maxX, minY, maxY } = bounds;
+    const id = this.generateNodeId(blockType);
+    const ports = this.buildPorts(id, fbType);
 
-    const realDiagramWidth = maxX - minX;
-    const realDiagramHeight = maxY - minY;
-    
-    const padding = PADDING_CONFIG.LAYOUT_PADDING;
-
-    const availableWidth = canvasWidth - 2 * padding;
-    const availableHeight = canvasHeight - toolbarHeight - 2 * padding;
-
-    if (availableWidth <= 0 || availableHeight <= 0) {
-      this.view.zoom = 1.0;
-      return;
+    // Use cached dimensions or calculate and cache them
+    let dimensions = this.dimensionCache.get(blockType);
+    if (!dimensions) {
+      dimensions = calculateNodeDimensions(ports);
+      this.dimensionCache.set(blockType, dimensions);
     }
 
-    // Guard against degenerate diagrams (zero or very small dimensions)
-    if (realDiagramWidth <= 0 || realDiagramHeight <= 0) {
-      this.view.zoom = 1.0;
-      this.view.offsetX = (canvasWidth - 100) / 2; // Default size 100x100
-      this.view.offsetY = (canvasHeight - 100) / 2;
-      this.logger.warn("Diagram has zero or negative dimensions, using fallback zoom");
-      return;
-    }
-
-    // Check if diagram fits on screen at zoom 1.0
-    const fitsAtZoom1 = (realDiagramWidth <= availableWidth && realDiagramHeight <= availableHeight);
-
-    // Calculate zoom to fit diagram in available space
-    const zoomX = availableWidth / realDiagramWidth;
-    const zoomY = availableHeight / realDiagramHeight;
-    // Use a tighter margin when there are multiple elements that do NOT fit
-    const useMargin = (!fitsAtZoom1 && this.nodes.length > 1) ? ZOOM_CONFIG.MULTI_FIT_MARGIN : ZOOM_CONFIG.FIT_ZOOM_MARGIN;
-    let fitZoom = Math.min(zoomX, zoomY) * useMargin;
-
-    // If diagram fits at zoom 1.0, cap zoom so elements are not drawn huge
-    if (fitsAtZoom1) {
-      fitZoom = Math.min(fitZoom, ZOOM_CONFIG.FITS_MAX_ZOOM);
-    }
-
-    // Ensure nodes don't become too small visually: compute minimum zoom that keeps largest node readable
-    let minZoomForNodeSize = this.view.minZoom;
-    if (this.nodes.length > 0) {
-      const maxNodeWidth = Math.max(...this.nodes.map(n => n.width));
-      const maxNodeHeight = Math.max(...this.nodes.map(n => n.height));
-      const minWidthZoom = ZOOM_CONFIG.NODE_MIN_RENDERED_WIDTH / Math.max(1, maxNodeWidth);
-      const minHeightZoom = ZOOM_CONFIG.NODE_MIN_RENDERED_HEIGHT / Math.max(1, maxNodeHeight);
-      minZoomForNodeSize = Math.max(minWidthZoom, minHeightZoom, minZoomForNodeSize);
-    }
-
-    // Clamp to zoom limits, but also respect minZoomForNodeSize
-    this.view.zoom = Math.max(this.view.minZoom, Math.max(minZoomForNodeSize, Math.min(this.view.maxZoom, fitZoom)));
-
-    // Center diagram
-    const scaledWidth = realDiagramWidth * this.view.zoom;
-    const scaledHeight = realDiagramHeight * this.view.zoom;
-    this.view.offsetX = (canvasWidth - scaledWidth) / 2 - minX * this.view.zoom;
-    this.view.offsetY = (canvasHeight - scaledHeight) / 2 - minY * this.view.zoom;
-
-    this.logger.debug("Fitted to view", {
-      zoom: this.view.zoom,
-      diagramSize: `${realDiagramWidth}x${realDiagramHeight}`,
-      fitsAtZoom1,
-      offset: `(${this.view.offsetX}, ${this.view.offsetY})`
+    this.dispatch({
+      type: "ADD_NODE",
+      node: {
+        id,
+        type: blockType,
+        x: worldX,
+        y: worldY,
+        ports,
+        width: dimensions.width,
+        height: dimensions.height,
+      },
     });
-  }
 
-  /**
-   * Update zoom level with clamping
-   */
-  public updateZoom(newZoom: number) {
-    this.view.zoom = Math.max(this.view.minZoom, Math.min(this.view.maxZoom, newZoom));
+    this.logger.info(`Added node "${id}" (type=${blockType}) at (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
   }
 }
 

@@ -1,3 +1,5 @@
+import { CANVAS_COLORS } from "../../colorScheme";
+
 /**
  * Canvas rendering constants
  * All magic numbers, colors, and sizes are defined here for easy configuration
@@ -17,10 +19,10 @@ export const NODE_HEIGHT = 80;
 export const NODE_BORDER_RADIUS = 8;
 
 /** Node background fill color */
-export const NODE_BACKGROUND_COLOR = "#ffffff";
+export const NODE_BACKGROUND_COLOR = CANVAS_COLORS.NODE_BACKGROUND_COLOR;
 
 /** Node border stroke color */
-export const NODE_BORDER_COLOR = "#2c2c2c";
+export const NODE_BORDER_COLOR = CANVAS_COLORS.NODE_BORDER_COLOR;
 
 /** Node border width in pixels */
 export const NODE_BORDER_WIDTH = 1;
@@ -32,7 +34,7 @@ export const SUBAPP_BORDER_WIDTH = 2;
 export const SUBAPP_BORDER_DASH = [4, 3];
 
 /** Node shadow color (semi-transparent black) */
-export const NODE_SHADOW_COLOR = "rgba(0,0,0,0.2)";
+export const NODE_SHADOW_COLOR = CANVAS_COLORS.NODE_SHADOW_COLOR;
 
 /** Node shadow blur radius in pixels */
 export const NODE_SHADOW_BLUR = 3;
@@ -47,7 +49,7 @@ export const NODE_SHADOW_OFFSET_Y = 2;
 export const NODE_LABEL_FONT = "bold 15px monospace";
 
 /** Node label text color */
-export const NODE_LABEL_COLOR = "#1a1a1a";
+export const NODE_LABEL_COLOR = CANVAS_COLORS.NODE_LABEL_COLOR;
 
 /** Padding above node for label placement */
 export const NODE_LABEL_PADDING = 6;
@@ -69,32 +71,43 @@ export const PORT_LAYOUT_START_Y = 12;
 export const PORT_ZONE_GAP = 8;
 
 /** Event port color (bright green) */
-export const EVENT_PORT_COLOR = "#22DD22";
+export const EVENT_PORT_COLOR = CANVAS_COLORS.EVENT_PORT_COLOR;
 
 /** Data port color (bright blue) */
-export const DATA_PORT_COLOR = "#2255FF";
+export const DATA_PORT_COLOR = CANVAS_COLORS.DATA_PORT_COLOR;
 
 /** Port type indicator (E/D label) font */
 export const PORT_TYPE_FONT = "bold 9px monospace";
 
 /** Port type indicator text color */
-export const PORT_TYPE_COLOR = "#fff";
+export const PORT_TYPE_COLOR = CANVAS_COLORS.PORT_TYPE_COLOR;
 
 /** Port name label font */
 export const PORT_NAME_FONT = "11px monospace";
 
 /** Port name label text color */
-export const PORT_NAME_COLOR = "#222";
+export const PORT_NAME_COLOR = CANVAS_COLORS.PORT_NAME_COLOR;
 
 /** Padding from port circle to name label */
 export const PORT_LABEL_OFFSET = 8;
+
+// --- Port hover ---
+
+/** Hit-test radius for port hover/click detection (px, larger than visual) */
+export const PORT_HIT_RADIUS = 10;
+
+/** Port arrow scale factor when hovered */
+export const PORT_HOVER_SCALE = 1.6;
+
+/** Port name font when hovered (bold) */
+export const PORT_HOVER_NAME_FONT = "bold 11px monospace";
 
 // ============================================================================
 // CONNECTION RENDERING
 // ============================================================================
 
 /** Event connection line color (matches event ports) */
-export const EVENT_CONNECTION_COLOR = "#22DD22";
+export const EVENT_CONNECTION_COLOR = CANVAS_COLORS.EVENT_CONNECTION_COLOR;
 
 /** Event connection line width in pixels */
 export const EVENT_CONNECTION_WIDTH = 2;
@@ -103,13 +116,24 @@ export const EVENT_CONNECTION_WIDTH = 2;
 export const EVENT_CONNECTION_DASH = [5, 3];
 
 /** Data connection line color (matches data ports) */
-export const DATA_CONNECTION_COLOR = "#2255FF";
+export const DATA_CONNECTION_COLOR = CANVAS_COLORS.DATA_CONNECTION_COLOR;
 
 /** Data connection line width in pixels */
 export const DATA_CONNECTION_WIDTH = 2.5;
 
 /** Data connection is solid (no dash) */
 export const DATA_CONNECTION_DASH: number[] = [];
+
+// --- Orthogonal routing ---
+
+/** Horizontal stub length from port before first bend (px) */
+export const ROUTING_STUB_LENGTH = 20;
+
+/** Padding around node bounding boxes for obstacle avoidance (px) */
+export const ROUTING_PADDING = 15;
+
+/** Radius for rounded corners at bends (0 = sharp corners) */
+export const ROUTING_CORNER_RADIUS = 4;
 
 // ============================================================================
 // GRID RENDERING
@@ -119,7 +143,7 @@ export const DATA_CONNECTION_DASH: number[] = [];
 export const GRID_SIZE = 20;
 
 /** Grid line stroke color */
-export const GRID_COLOR = "#d4d2d2";
+export const GRID_COLOR = CANVAS_COLORS.GRID_COLOR;
 
 /** Grid line width in pixels */
 export const GRID_LINE_WIDTH = 0.4;
@@ -128,24 +152,14 @@ export const GRID_LINE_WIDTH = 0.4;
 export const GRID_DASH = [3, 3];
 
 // ============================================================================
-// CAMERA / VIEWPORT
-// ============================================================================
-
-/** Padding around nodes when fitting camera to view */
-export const CAMERA_FIT_PADDING = 40;
-
-/** Maximum zoom level (don't zoom in, only fit to view) */
-export const CAMERA_MAX_ZOOM = 1;
-
-// ============================================================================
 // LEGEND AND STATS
 // ============================================================================
 
 /** Legend box background color (semi-transparent white) */
-export const LEGEND_BACKGROUND_COLOR = "rgba(255, 255, 255, 0.95)";
+export const LEGEND_BACKGROUND_COLOR = CANVAS_COLORS.LEGEND_BACKGROUND_COLOR;
 
 /** Legend box border color */
-export const LEGEND_BORDER_COLOR = "#999";
+export const LEGEND_BORDER_COLOR = CANVAS_COLORS.LEGEND_BORDER_COLOR;
 
 /** Legend box border width in pixels */
 export const LEGEND_BORDER_WIDTH = 1;
@@ -154,22 +168,22 @@ export const LEGEND_BORDER_WIDTH = 1;
 export const LEGEND_TITLE_FONT = "bold 12px monospace";
 
 /** Legend text color */
-export const LEGEND_TEXT_COLOR = "#333";
+export const LEGEND_TEXT_COLOR = CANVAS_COLORS.LEGEND_TEXT_COLOR;
 
 /** Legend item font */
 export const LEGEND_ITEM_FONT = "10px monospace";
 
 /** Maximum width of legend box in pixels */
-export const LEGEND_MAX_WIDTH = 240;
+export const LEGEND_MAX_WIDTH = 120;
 
 /** Padding inside legend box */
 export const LEGEND_PADDING = 8;
 
 /** Line height for legend items */
-export const LEGEND_LINE_HEIGHT = 14;
+export const LEGEND_LINE_HEIGHT = 10;
 
 /** Legend title height in pixels */
-export const LEGEND_TITLE_HEIGHT = 18;
+export const LEGEND_TITLE_HEIGHT = 22;
 
 /** Number of content lines in legend */
 export const LEGEND_CONTENT_LINES = 4;
@@ -181,7 +195,7 @@ export const STATS_PADDING = 10;
 export const STATS_FONT = "12px monospace";
 
 /** Stats text color */
-export const STATS_TEXT_COLOR = "#333";
+export const STATS_TEXT_COLOR = CANVAS_COLORS.STATS_TEXT_COLOR;
 
 /** Line height for stats text */
 export const STATS_LINE_HEIGHT = 16;
@@ -203,7 +217,10 @@ export const EMPTY_NODES_MESSAGE = "No nodes loaded";
 export const EMPTY_NODES_FONT = "14px monospace";
 
 /** Empty nodes message color */
-export const EMPTY_NODES_COLOR = "#aaa";
+export const EMPTY_NODES_COLOR = CANVAS_COLORS.EMPTY_NODES_COLOR;
+
+/** Selection outline stroke color */
+export const SELECTION_STROKE_COLOR = CANVAS_COLORS.SELECTION_STROKE_COLOR;
 
 /** Empty nodes message X position */
 export const EMPTY_NODES_X = 20;

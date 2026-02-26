@@ -7,9 +7,107 @@ import { loadFbt } from "./domain/fbtParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
 import { initializeLogger, getLogger } from "./logging";
 import { FBootGenerator } from "./generators/fboot/fbootGenerator";
+import { patchSysFile } from "./domain/sysPatcher";
+import { DEFAULT_PLUGIN_SETTINGS, PluginSettings, UiLanguage } from "./shared/pluginSettings";
+import { EXTENSION_COLORS } from "./colorScheme";
 
 // Store subscriptions for cleanup on deactivation
 const extensionSubscriptions: vscode.Disposable[] = [];
+
+function isUiLanguage(value: unknown): value is UiLanguage {
+  return value === "ru" || value === "en";
+}
+
+function mergePluginSettings(raw: unknown): PluginSettings {
+  if (!raw || typeof raw !== "object") {
+    return DEFAULT_PLUGIN_SETTINGS;
+  }
+
+  const candidate = raw as Partial<PluginSettings>;
+  const fbPaths = Array.isArray(candidate.fbPaths)
+    ? candidate.fbPaths.filter((pathValue): pathValue is string => typeof pathValue === "string")
+    : DEFAULT_PLUGIN_SETTINGS.fbPaths;
+
+  const deployCandidate = candidate.deploy;
+  const deploy = {
+    ...DEFAULT_PLUGIN_SETTINGS.deploy,
+    ...(deployCandidate && typeof deployCandidate === "object" ? deployCandidate : {}),
+  };
+
+  return {
+    fbPaths,
+    deploy: {
+      host: typeof deploy.host === "string" ? deploy.host : DEFAULT_PLUGIN_SETTINGS.deploy.host,
+      port: typeof deploy.port === "number" ? deploy.port : DEFAULT_PLUGIN_SETTINGS.deploy.port,
+      timeoutMs: typeof deploy.timeoutMs === "number" ? deploy.timeoutMs : DEFAULT_PLUGIN_SETTINGS.deploy.timeoutMs,
+    },
+    uiLanguage: isUiLanguage(candidate.uiLanguage) ? candidate.uiLanguage : DEFAULT_PLUGIN_SETTINGS.uiLanguage,
+  };
+}
+
+function sanitizeAndValidatePluginSettings(raw: unknown): { settings?: PluginSettings; error?: string } {
+  const merged = mergePluginSettings(raw);
+
+  const host = merged.deploy.host.trim();
+  if (!host) {
+    return { error: "Поле Host не должно быть пустым" };
+  }
+
+  const port = Math.trunc(merged.deploy.port);
+  if (!Number.isFinite(port) || port < 1 || port > 65535) {
+    return { error: "Port должен быть числом от 1 до 65535" };
+  }
+
+  const timeoutMs = Math.trunc(merged.deploy.timeoutMs);
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1000) {
+    return { error: "Timeout должен быть не меньше 1000 мс" };
+  }
+
+  const uniquePaths = new Set<string>();
+  const fbPaths: string[] = [];
+  for (const pathValue of merged.fbPaths) {
+    const normalizedPath = pathValue.trim();
+    if (!normalizedPath || uniquePaths.has(normalizedPath)) {
+      continue;
+    }
+    uniquePaths.add(normalizedPath);
+    fbPaths.push(normalizedPath);
+  }
+
+  return {
+    settings: {
+      fbPaths,
+      deploy: {
+        host,
+        port,
+        timeoutMs,
+      },
+      uiLanguage: merged.uiLanguage,
+    },
+  };
+}
+
+function readSettingsFromVsCodeConfig(): PluginSettings {
+  const config = vscode.workspace.getConfiguration("openfb");
+
+  const fbPaths = config.get<string[]>("fbLibraryPaths");
+  const host = config.get<string>("host");
+  const port = config.get<number>("port");
+  const timeoutMs = config.get<number>("deployTimeoutMs");
+  const uiLanguage = config.get<string>("uiLanguage");
+
+  return {
+    fbPaths: Array.isArray(fbPaths)
+      ? fbPaths.filter((pathValue): pathValue is string => typeof pathValue === "string")
+      : DEFAULT_PLUGIN_SETTINGS.fbPaths,
+    deploy: {
+      host: typeof host === "string" ? host : DEFAULT_PLUGIN_SETTINGS.deploy.host,
+      port: typeof port === "number" ? port : DEFAULT_PLUGIN_SETTINGS.deploy.port,
+      timeoutMs: typeof timeoutMs === "number" ? timeoutMs : DEFAULT_PLUGIN_SETTINGS.deploy.timeoutMs,
+    },
+    uiLanguage: isUiLanguage(uiLanguage) ? uiLanguage : DEFAULT_PLUGIN_SETTINGS.uiLanguage,
+  };
+}
 
 export function activate(context: vscode.ExtensionContext) {
   // Ensure the responses output channel exists and is registered in the Output panel
@@ -32,9 +130,10 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      const basePanelTitle = path.parse(uri.fsPath).name;
       const panel = vscode.window.createWebviewPanel(
         "openfbEditor",
-        "OpenFB Editor",
+        basePanelTitle,
         vscode.ViewColumn.Beside,
         {
           enableScripts: true,
@@ -178,7 +277,7 @@ export function activate(context: vscode.ExtensionContext) {
               const testJson = JSON.stringify(messageData);
               logger.debug("Message serializable (on ready)", testJson.length, "bytes");
               panel.webview.postMessage(messageData);
-              logger.info("Message sent to webview on ready");
+              logger.debug("Message sent to webview on ready");
               
               // Clear fallback timeout if message was received
               if (timeoutHandle) {
@@ -243,6 +342,170 @@ export function activate(context: vscode.ExtensionContext) {
                   vscode.window.showErrorMessage(errorMsg);
                 });
               return; 
+            } else if (m?.type === "save-sys") {
+              try {
+                const updatedModel = m.model;
+                if (!updatedModel) {
+                  logger.warn("save-sys: no model in message");
+                  panel.webview.postMessage({ type: "save-sys-result", payload: { success: false, error: "Нет данных модели" } });
+                  return;
+                }
+
+                const nodes: Array<{ id: string; x: number; y: number }> = m.nodes || [];
+                const normParams = m.normParams;
+
+                // --- Ensure all blocks have a mapping entry ---
+                const appName = updatedModel.applicationName || "App";
+                if (updatedModel.subAppNetwork?.blocks && updatedModel.devices?.length > 0) {
+                  const mappings = updatedModel.mappings || [];
+                  const mappedInstances = new Set(mappings.map((mp: any) => mp.fbInstance));
+                  const defaultDevice = updatedModel.devices[0].name || "FORTE_PC";
+                  const defaultResource = updatedModel.devices[0].resources?.[0]?.name || "EMB_RES";
+
+                  for (const block of updatedModel.subAppNetwork.blocks) {
+                    const qualifiedName = `${appName}.${block.id}`;
+                    if (!mappedInstances.has(qualifiedName)) {
+                      mappings.push({
+                        fbInstance: qualifiedName,
+                        device: defaultDevice,
+                        resource: defaultResource,
+                      });
+                      logger.info(`Auto-mapped new block "${qualifiedName}" -> ${defaultDevice}.${defaultResource}`);
+                    }
+                  }
+                  updatedModel.mappings = mappings;
+                }
+
+                // Patch the original XML file preserving all untracked attributes
+                const xml = patchSysFile(uri.fsPath, {
+                  model: updatedModel,
+                  nodes,
+                  normParams,
+                });
+
+                const defaultUri = vscode.Uri.file(
+                  uri.fsPath.replace(/\.sys$/i, "_new.sys")
+                );
+
+                const saveUri = await vscode.window.showSaveDialog({
+                  defaultUri,
+                  filters: { "IEC 61499 System": ["sys"] },
+                  title: "Сохранить SYS файл как",
+                });
+
+                if (!saveUri) {
+                  logger.info("Save cancelled by user");
+                  return;
+                }
+
+                fs.writeFileSync(saveUri.fsPath, xml, "utf8");
+                logger.info("SYS file saved to", saveUri.fsPath);
+                vscode.window.showInformationMessage(`Файл сохранён: ${saveUri.fsPath}`);
+                panel.webview.postMessage({ type: "save-sys-result", payload: { success: true, filePath: saveUri.fsPath } });
+              } catch (err) {
+                logger.error("Failed to save SYS file", err);
+                vscode.window.showErrorMessage(`Не удалось сохранить файл: ${err}`);
+                panel.webview.postMessage({ type: "save-sys-result", payload: { success: false, error: String(err) } });
+              }
+              return;
+            } else if (m?.type === "settings:load") {
+              try {
+                const settings = readSettingsFromVsCodeConfig();
+                panel.webview.postMessage({ type: "settings:loaded", payload: settings });
+              } catch (err) {
+                logger.error("Failed to load plugin settings", err);
+                panel.webview.postMessage({ type: "settings:error", payload: "Не удалось загрузить настройки" });
+              }
+              return;
+            } else if (m?.type === "settings:save") {
+              try {
+                const { settings, error } = sanitizeAndValidatePluginSettings(m.payload);
+                if (!settings) {
+                  panel.webview.postMessage({ type: "settings:error", payload: error || "Некорректные настройки" });
+                  return;
+                }
+
+                const config = vscode.workspace.getConfiguration("openfb");
+                await config.update("fbLibraryPaths", settings.fbPaths, vscode.ConfigurationTarget.Global);
+                await config.update("host", settings.deploy.host, vscode.ConfigurationTarget.Global);
+                await config.update("port", settings.deploy.port, vscode.ConfigurationTarget.Global);
+                await config.update("deployTimeoutMs", settings.deploy.timeoutMs, vscode.ConfigurationTarget.Global);
+                await config.update("uiLanguage", settings.uiLanguage, vscode.ConfigurationTarget.Global);
+
+                panel.webview.postMessage({ type: "settings:saved", payload: readSettingsFromVsCodeConfig() });
+              } catch (err) {
+                logger.error("Failed to save plugin settings", err);
+                panel.webview.postMessage({ type: "settings:error", payload: "Не удалось сохранить настройки" });
+              }
+              return;
+            } else if (m?.type === "settings:pick-path") {
+              try {
+                const picks = await vscode.window.showOpenDialog({
+                  canSelectFiles: true,
+                  canSelectFolders: true,
+                  canSelectMany: false,
+                  openLabel: "Выбрать",
+                  title: "Выберите папку или .fbt файл",
+                  filters: {
+                    "FBDK Type": ["fbt"],
+                  },
+                });
+
+                if (!picks || picks.length === 0) {
+                  return;
+                }
+
+                panel.webview.postMessage({ type: "settings:path-picked", payload: picks[0].fsPath });
+              } catch (err) {
+                logger.error("Failed to pick settings path", err);
+                panel.webview.postMessage({ type: "settings:error", payload: "Не удалось выбрать путь" });
+              }
+              return;
+            } else if (m?.type === "request-all-fb-types") {
+              logger.info("Request for all FB types (library palette)");
+              try {
+                // Use existing searchPaths from diagram loading
+                const newRegistry = new FBTypeRegistry(searchPaths);
+                const tree = newRegistry.scanAllTypes();
+                
+                // Collect all FBTypeModels from cache (populated by scanAllTypes)
+                const allFbTypes = newRegistry.getAllTypeModels();
+                logger.info("Sending FB types tree and models", {
+                  rootNodes: tree.length,
+                  typeModels: allFbTypes.length,
+                });
+
+                panel.webview.postMessage({
+                  type: "all-fb-types-loaded",
+                  fbTypesTree: tree,
+                  fbTypes: allFbTypes,
+                });
+              } catch (err) {
+                logger.error("Failed to scan all FB types", err);
+                panel.webview.postMessage({
+                  type: "all-fb-types-error",
+                  payload: `Не удалось загрузить библиотеку типов: ${err}`,
+                });
+              }
+              return;
+            } else if (m?.type === "dirty-state-changed") {
+              const isDirty = !!m.isDirty;
+              panel.title = isDirty ? `${basePanelTitle} (изм)` : basePanelTitle;
+              return;
+            } else if (m?.type === "webview-log") {
+              // Forward webview logs to the extension OutputChannel
+              const level = m.level as string;
+              const logMsg = m.message as string;
+              const args = m.args as string[] | undefined;
+              const full = args?.length ? `[Webview] ${logMsg} ${args.join(" ")}` : `[Webview] ${logMsg}`;
+              switch (level) {
+                case "debug": logger.debug(full); break;
+                case "info":  logger.info(full);  break;
+                case "warn":  logger.warn(full);  break;
+                case "error": logger.error(full);  break;
+                default:      logger.info(full);  break;
+              }
+              return;
             }
           } catch (err) {
             logger.error("Error handling webview message", err);
@@ -331,31 +594,62 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       z-index: 1000;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 12px;
-      background: #f3f3f3;
+      background: ${EXTENSION_COLORS.TOOLBAR_BG};
       padding: 0 12px;
-      border-top: 1px solid #ddd;
-      border-bottom: 1px solid #ddd;
+      border-top: 1px solid ${EXTENSION_COLORS.TOOLBAR_BORDER};
+      border-bottom: 1px solid ${EXTENSION_COLORS.TOOLBAR_BORDER};
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .toolbar-left {
+      position: absolute;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .toolbar-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .toolbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     #toolbar button {
       padding: 8px 12px;
-      border: 1px solid #bbb;
-      background: #28a745;
-      color: #fff;
+      border: 1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER};
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG};
+      color: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT};
       cursor: pointer;
       border-radius: 4px;
       font-family: Roboto, sans-serif;
     }
-    #toolbar button:hover { background: #218838; }
+    #toolbar button:hover { background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_HOVER}; }
+    #toolbar #settingsBtn, #toolbar #saveAsBtn {
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_BG};
+      color: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_TEXT};
+      border: 1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_BORDER};
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+    }
+    #toolbar #settingsBtn:hover, #toolbar #saveAsBtn:hover {
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_HOVER};
+    }
     
     /* Canvas - adjusted for left and right panels */
     canvas {
       display: block;
-      background: #ffffff;
+      background: ${EXTENSION_COLORS.PANEL_BG};
       position: absolute;
-      left: 250px;
+      left: 0;
       top: 48px;
       right: 300px;
       bottom: 0;
@@ -368,21 +662,21 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       top: 48px;
       width: 250px;
       height: calc(100vh - 48px);
-      background: #ffffff;
-      border-right: 1px solid #ddd;
+      background: ${EXTENSION_COLORS.PANEL_BG};
+      border-right: 1px solid ${EXTENSION_COLORS.BORDER_DEFAULT};
       overflow-y: auto;
       z-index: 500;
-      display: flex;
+      display: none;
       flex-direction: column;
     }
     
     #left-sidepanel-header {
       padding: 10px;
-      border-bottom: 1px solid #eee;
-      background: #f3f3f3;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
       font-weight: 600;
       font-size: 14px;
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       position: sticky;
       top: 0;
     }
@@ -391,15 +685,15 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       flex: 1;
       padding: 8px;
       font-size: 13px;
-      color: #555;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
     }
     
     .device-section {
       margin-bottom: 12px;
       padding: 8px;
-      background: #f9f9f9;
+      background: ${EXTENSION_COLORS.DEVICE_SECTION_BG};
       border-radius: 4px;
-      border-left: 3px solid #28a745;
+      border-left: 3px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG};
     }
     
     .device-header {
@@ -412,7 +706,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     .device-name {
       font-weight: 600;
       font-size: 13px;
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       word-break: break-word;
       flex: 1;
     }
@@ -428,23 +722,23 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     .device-section-title {
       font-weight: 600;
       font-size: 10px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 4px;
       padding-bottom: 3px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
     }
     
     .device-section-title-collapsible {
       font-weight: 600;
       font-size: 10px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 4px;
       padding-bottom: 3px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
       display: flex;
       align-items: center;
       gap: 6px;
@@ -464,7 +758,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .device-label {
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       font-size: 10px;
       min-width: 70px;
     }
@@ -476,7 +770,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .device-value {
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       font-weight: 500;
       text-align: right;
       word-break: break-word;
@@ -495,12 +789,12 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       align-items: center;
       justify-content: center;
       font-size: 9px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       flex-shrink: 0;
     }
     
     .device-toggle:hover {
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
     }
     
     .device-fbs-container {
@@ -513,7 +807,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     
     .resource-item {
       padding: 1px 0 1px 8px;
-      color: #555;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
       font-size: 12px;
     }
     
@@ -524,30 +818,62 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       top: 48px;
       width: 300px;
       height: calc(100vh - 48px);
-      background: #ffffff;
-      border-left: 1px solid #ddd;
+      background: ${EXTENSION_COLORS.PANEL_BG};
+      border-left: 1px solid ${EXTENSION_COLORS.BORDER_DEFAULT};
       overflow-y: auto;
       z-index: 500;
       display: flex;
       flex-direction: column;
     }
     
-    #sidepanel-header {
-      padding: 12px;
-      border-bottom: 1px solid #eee;
-      background: #f3f3f3;
-      font-weight: 600;
-      font-size: 13px;
-      color: #333;
+    #sidepanel-tabs {
+      display: flex;
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_DEFAULT};
       position: sticky;
       top: 0;
+      z-index: 10;
+    }
+    
+    .sidepanel-tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    
+    .sidepanel-tab:hover {
+      background: ${EXTENSION_COLORS.TOOLBAR_BUTTON_SECONDARY_HOVER};
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
+    }
+    
+    .sidepanel-tab.active {
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
+      border-bottom-color: ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG};
+      font-weight: 600;
+    }
+    
+    #sidepanel-header {
+      padding: 12px;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
+      font-weight: 600;
+      font-size: 13px;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
+      position: sticky;
+      top: 38px;
     }
     
     #sidepanel-content {
       flex: 1;
       padding: 12px;
       font-size: 12px;
-      color: #555;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
     }
     
     .sidepanel-section {
@@ -557,12 +883,12 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     .sidepanel-section-title {
       font-weight: 600;
       font-size: 11px;
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 6px;
       padding-bottom: 4px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
     }
     
     .sidepanel-item {
@@ -573,12 +899,12 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .sidepanel-label {
-      color: #666;
+      color: ${EXTENSION_COLORS.TEXT_MUTED};
       font-size: 11px;
     }
     
     .sidepanel-value {
-      color: #333;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
       font-weight: 500;
       word-break: break-word;
       text-align: right;
@@ -587,7 +913,7 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
     }
     
     .sidepanel-empty {
-      color: #999;
+      color: ${EXTENSION_COLORS.EMPTY_TEXT};
       font-style: italic;
       padding: 12px 8px;
       text-align: center;
@@ -602,27 +928,97 @@ function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
       margin-right: 6px;
       vertical-align: middle;
     }
+    
+    /* Modal overlay */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal-overlay.visible {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: ${EXTENSION_COLORS.PANEL_BG};
+      width: 600px;
+      max-width: 90%;
+      max-height: 80vh;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #settings-modal-header {
+      padding: 12px;
+      border-bottom: 1px solid ${EXTENSION_COLORS.BORDER_LIGHT};
+      background: ${EXTENSION_COLORS.PANEL_HEADER_BG};
+      font-weight: 600;
+      font-size: 13px;
+      color: ${EXTENSION_COLORS.TEXT_PRIMARY};
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    #settings-modal-body {
+      flex: 1;
+      padding: 12px;
+      font-size: 12px;
+      color: ${EXTENSION_COLORS.TEXT_SECONDARY};
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
   <div id="toolbar">
-    <button id="generateFbootBtn">Создать FBOOT</button>
-    <button id="deployBtn">Деплой</button>
+    <div class="toolbar-left">
+      <button id="addBlockBtn" style="padding:8px 12px; border:1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER}; background:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG}; color:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT}; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">+ Добавить FB</button>
+    </div>
+    <div class="toolbar-center">
+      <button id="generateFbootBtn">Создать FBOOT</button>
+      <button id="deployBtn">Деплой</button>
+    </div>
+    <div class="toolbar-right">
+      <button id="saveAsBtn">Сохранить как</button>
+      <button id="settingsBtn" title="Открыть настройки">⚙ Настройки</button>
+    </div>
   </div>
   
   <div id="left-sidepanel">
-    <div id="left-sidepanel-header">Устройства</div>
+    <div id="left-sidepanel-header">Библиотека типов</div>
     <div id="left-sidepanel-content">
-      <div class="sidepanel-empty">Нет устройств</div>
+      <div class="sidepanel-empty">Библиотека закрыта</div>
     </div>
   </div>
   
   <canvas id="canvas"></canvas>
   
   <div id="sidepanel">
-    <div id="sidepanel-header">Информация о блоке</div>
+    <div id="sidepanel-tabs">
+      <button id="tab-devices" class="sidepanel-tab active">Устройства</button>
+      <button id="tab-blockinfo" class="sidepanel-tab">Информация о блоке</button>
+    </div>
+    <div id="sidepanel-header">Устройства</div>
     <div id="sidepanel-content">
-      <div class="sidepanel-empty">Выберите блок на диаграмме</div>
+      <div class="sidepanel-empty">Нет устройств</div>
+    </div>
+  </div>
+  
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div id="settings-modal-header"></div>
+      <div id="settings-modal-body"></div>
     </div>
   </div>
   

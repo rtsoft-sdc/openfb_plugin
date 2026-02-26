@@ -1,4 +1,4 @@
-import { EditorPort } from "./editorState";
+import { EditorPort } from "../editorState";
 
 /**
  * Node dimension calculation configuration
@@ -18,11 +18,6 @@ const NODE_LAYOUT = {
 
 /**
  * Calculate node dimensions based on its ports
- * 
- * Assumptions:
- * - Font is monospace, ~11px, ~7.5px per character (depends on actual font in renderer)
- * - Ports are divided into zones: Event Inputs, Event Outputs, Data Inputs, Data Outputs
- * - Each zone is separated with padding
  * 
  * @param ports List of editor ports for the node
  * @returns Width and height suitable for rendering the node with all ports

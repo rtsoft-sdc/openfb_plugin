@@ -20,7 +20,7 @@ export function parseMappings(
     
     const fbInstance = mapping.From;
     
-    // Parse "To": e.g., "FORTE_PC.EMB_RES" or just "FORTE_PC"
+    // Parse "To"
     const toParts = mapping.To.split(".");
     const device = toParts[0];
     const resource = toParts[1] || "EMB_RES"; // Default resource name

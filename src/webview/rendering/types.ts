@@ -113,6 +113,14 @@ export interface BoundingBox {
 }
 
 /**
+ * A point along an orthogonal connection route
+ */
+export interface Waypoint {
+  x: number;
+  y: number;
+}
+
+/**
  * Legend item to be rendered
  */
 export interface LegendItem {

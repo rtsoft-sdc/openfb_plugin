@@ -1,4 +1,4 @@
-import { Camera } from "./rendering/types";
+import { Camera } from "../rendering/types";
 
 /**
  * Convert screen (canvas) coordinates to world coordinates using the same

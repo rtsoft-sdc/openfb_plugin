@@ -5,7 +5,6 @@
 
 import * as C from "./constants";
 import { layoutPorts, drawPorts } from "./portRenderer";
-import { EditorState } from "../editorState";
 
 /**
  * Draw a rounded rectangle path on canvas
@@ -45,7 +44,7 @@ function roundedRectPath(
  * @param ctx - Canvas 2D rendering context
  * @param node - Node object to render
  */
-export function drawNode(ctx: CanvasRenderingContext2D, node: any): void {
+export function drawNode(ctx: CanvasRenderingContext2D, node: any, hoveredPortId?: string): void {
   // First, layout ports to compute their positions
   layoutPorts(node);
 
@@ -110,7 +109,7 @@ export function drawNode(ctx: CanvasRenderingContext2D, node: any): void {
   ctx.textBaseline = C.DEFAULT_TEXT_BASELINE;
 
   // Draw all ports for this node
-  drawPorts(ctx, node);
+  drawPorts(ctx, node, hoveredPortId);
 }
 
 /**
@@ -128,7 +127,7 @@ function drawNodeSelection(ctx: CanvasRenderingContext2D, node: any): void {
   ctx.save();
 
   // Draw glowing selection frame
-  ctx.strokeStyle = "#FFD700"; // Gold color for selection
+  ctx.strokeStyle = C.SELECTION_STROKE_COLOR; // Gold color for selection
   ctx.lineWidth = 3;
 
   // Draw rounded rectangle around node with padding
@@ -149,7 +148,8 @@ function drawNodeSelection(ctx: CanvasRenderingContext2D, node: any): void {
 export function drawNodes(
   ctx: CanvasRenderingContext2D,
   nodes: Array<any>,
-  selectedNodeId?: string
+  selectedNodeId?: string,
+  hoveredPortId?: string
 ): void {
   if (nodes.length === 0) {
     // Show message for empty diagram
@@ -163,7 +163,7 @@ export function drawNodes(
 
   // Draw each node
   for (const node of nodes) {
-    drawNode(ctx, node);
+    drawNode(ctx, node, hoveredPortId);
   }
 
   // Draw selection highlight if a node is selected

@@ -10,20 +10,20 @@
  * - Camera transformations: rendering/camera.ts
  */
 
-import { EditorState } from "./editorState";
-import { getWebviewLogger } from "./logging";
+import { EditorState } from "../editorState";
+import { getWebviewLogger } from "../logging";
 
 // Import rendering modules
 import {
   createCamera,
   applyCamera,
-  fitCameraToNodes,
-} from "./rendering/camera";
-import { Camera } from "./rendering/types";
-import { clearCanvas, drawGrid } from "./rendering/grid";
-import { drawConnections } from "./rendering/connectionRenderer";
-import { drawNodes } from "./rendering/nodeRenderer";
-import { drawStatsAndLegend } from "./rendering/legendRenderer";
+} from "./camera";
+import { Camera } from "./types";
+import { clearCanvas, drawGrid } from "./grid";
+import { drawConnections } from "./connectionRenderer";
+import { drawNodes } from "./nodeRenderer";
+import { drawStatsAndLegend } from "./legendRenderer";
+import { layoutPorts } from "./portRenderer";
 
 /**
  * Main canvas renderer class
@@ -35,8 +35,6 @@ export class CanvasRenderer {
 
   /** Camera state for viewport transformations */
   camera: Camera;
-  private isFirstRender = true;
-  private toolbarHeight = 0;
 
   /**
    * Initialize renderer with canvas element
@@ -44,7 +42,7 @@ export class CanvasRenderer {
    * @param canvas - HTML canvas element to render on
    * @throws Error if canvas 2D context cannot be obtained
    */
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(public readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       this.logger.error("Failed to get 2D context from canvas");
@@ -56,41 +54,10 @@ export class CanvasRenderer {
     this.ctx = ctx;
   }
 
-  /**
-   * Set toolbar height for fitToView calculations
-   */
-  setToolbarHeight(height: number) {
-    this.toolbarHeight = height;
-  }
 
-  /**
-   * Fit camera to nodes - centers and zooms to show all nodes
-   */
-  fitCameraToNodes(
-    nodes: Array<{ x: number; y: number; width: number; height: number }>,
-    canvasWidth: number,
-    canvasHeight: number,
-    toolbarHeight: number = 0
-  ): void {
-    const effectiveHeight = canvasHeight - toolbarHeight;
-    fitCameraToNodes(this.camera, nodes, canvasWidth, effectiveHeight);
-    this.logger.debug("Camera fitted to nodes", {
-      scale: this.camera.scale,
-      offsetX: this.camera.offsetX,
-      offsetY: this.camera.offsetY
-    });
-  }
 
   /**
    * Main render method - orchestrates the rendering pipeline
-   *
-   * Rendering order:
-   * 1. Clear canvas
-   * 2. Draw grid background
-   * 3. Fit to view on first render
-   * 4. Apply camera and zoom transformations
-   * 5. Draw connections and nodes
-   * 6. Draw overlay (stats and legend)
    *
    * @param state - Current editor state with nodes and connections
    */
@@ -98,19 +65,13 @@ export class CanvasRenderer {
     this.logger.debug(`Rendering ${state.nodes.length} nodes`);
     this.logger.debug("Canvas size", this.canvas.width, "x", this.canvas.height);
 
-    // 1: Clear canvas completely
+    // Clear canvas completely
     clearCanvas(this.ctx, this.canvas.width, this.canvas.height);
 
-    // 2: Draw grid background
+    // Draw grid background
     drawGrid(this.ctx, this.canvas.width, this.canvas.height);
 
-    // 3: Auto-fit to view on first render
-    if (this.isFirstRender && state.nodes.length > 0) {
-      state.fitToView(this.canvas.width, this.canvas.height, this.toolbarHeight);
-      this.isFirstRender = false;
-    }
-
-    // 4-5: Apply camera and zoom transformations
+    // Apply camera and zoom transformations
     this.ctx.save();
     
     // Apply zoom from editor state
@@ -121,12 +82,21 @@ export class CanvasRenderer {
     // Apply camera transformation for compatibility with existing system
     applyCamera(this.ctx, this.camera);
 
-    drawConnections(this.ctx, state);
-    drawNodes(this.ctx, state.nodes, state.selection.nodeId);
+    // Layout ports BEFORE drawing connections
+    // This ensures port coordinates are computed before connections try to use them
+    //for (const node of state.nodes) {
+      //layoutPorts(node);
+    //}
+
+    // Draw connections (now port positions are available)
+    drawConnections(this.ctx, state, state.selection.connectionId);
+    
+    // Draw nodes
+    drawNodes(this.ctx, state.nodes, state.selection.nodeId, state.hoveredPortId);
 
     this.ctx.restore();
 
-    // 6: Draw overlay UI (stats and legend) - not affected by zoom
+    // Draw overlay UI (stats and legend) - not affected by zoom
     drawStatsAndLegend(this.ctx, state, this.canvas, {
       offsetX: this.camera.offsetX,
       offsetY: this.camera.offsetY,

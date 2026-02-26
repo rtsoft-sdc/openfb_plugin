@@ -1,0 +1,12 @@
+# Exclude everything by default
+**
+
+# Keep only production runtime package contents
+!package.json
+!README.md
+!LICENSE
+!out/extension.js
+!out/webview/main.js
+
+# Do not ship source maps in production VSIX
+**/*.map

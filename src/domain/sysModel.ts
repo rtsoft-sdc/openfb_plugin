@@ -47,7 +47,8 @@ export interface SysParameter {
   fbName: string; // FB instance name to which parameter belongs
   name: string; // parameter name
   value: string; // parameter value
-  attributes?: Array<{    // parameter attributes
+  attributes?: Array<{
+    // parameter attributes
     name: string;
     value: string;
   }>;
