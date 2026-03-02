@@ -9,6 +9,7 @@ export interface SettingsPanelState {
   isSaving: boolean;
   statusText: string;
   statusColor: string;
+  lockedFbPath?: string;
 }
 
 export interface SettingsPanelCallbacks {
@@ -53,13 +54,20 @@ export function renderSettingsPanel(
   } else if (panelState.loadError) {
     settingsContentHtml = `<div class="sidepanel-empty" style="color:${COLORS.ERROR_TEXT};">${escapeHtml(panelState.loadError)}</div>`;
   } else {
+    const lockedPath = panelState.lockedFbPath;
     const fbPathsHtml = panelState.draft.fbPaths.length > 0
-      ? `<div style="display:flex; flex-direction:column; gap:6px;">${panelState.draft.fbPaths.map((pathValue, idx) => `
+      ? `<div style="display:flex; flex-direction:column; gap:6px;">${panelState.draft.fbPaths.map((pathValue, idx) => {
+        const isLocked = lockedPath ? pathValue === lockedPath : false;
+        const removeBtn = isLocked
+          ? `<button class="settings-remove-path-btn" data-index="${idx}" title="Нельзя удалить" style="width:24px; min-width:24px; padding:4px 0; border:1px solid ${COLORS.UI_BORDER}; background:${COLORS.BUTTON_REMOVE_BG}; border-radius:4px; cursor:not-allowed; font-size:11px; opacity:0.5;" disabled>✗</button>`
+          : `<button class="settings-remove-path-btn" data-index="${idx}" title="Удалить путь" style="width:24px; min-width:24px; padding:4px 0; border:1px solid ${COLORS.UI_BORDER}; background:${COLORS.BUTTON_REMOVE_BG}; border-radius:4px; cursor:pointer; font-size:11px;">✗</button>`;
+        return `
           <div class="settings-fbpath-row" style="display:flex; gap:6px; align-items:center;">
             <span class="settings-fbpath-label" title="${escapeHtml(pathValue)}" style="flex:1; min-width:0; margin:0; padding:0; border:none; background:transparent; font-size:12px; color:${COLORS.INPUT_TEXT}; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(pathValue)}</span>
-            <button class="settings-remove-path-btn" data-index="${idx}" title="Удалить путь" style="width:24px; min-width:24px; padding:4px 0; border:1px solid ${COLORS.UI_BORDER}; background:${COLORS.BUTTON_REMOVE_BG}; border-radius:4px; cursor:pointer; font-size:11px;">✗</button>
+            ${removeBtn}
           </div>
-        `).join("")}</div>`
+        `;
+      }).join("")}</div>`
       : '<div class="sidepanel-empty">Список путей пуст</div>';
 
     settingsContentHtml = `
@@ -116,6 +124,10 @@ export function renderSettingsPanel(
     btn.addEventListener("click", () => {
       const idx = Number(btn.dataset.index);
       if (!Number.isFinite(idx) || idx < 0 || idx >= panelState.draft.fbPaths.length) {
+        return;
+      }
+
+      if (panelState.lockedFbPath && panelState.draft.fbPaths[idx] === panelState.lockedFbPath) {
         return;
       }
 

@@ -15,6 +15,8 @@ export interface SettingsDialogController {
   updateSettingsModal: () => void;
   closeSettingsModal: () => void;
   setUpdateSidepanel: (fn: () => void) => void;
+  setLockedFbPath: (pathValue?: string) => void;
+  getLockedFbPath: () => string | undefined;
   getSettingsDraft: () => PluginSettings;
   setSettingsDraft: (next: PluginSettings) => void;
   getIsSettingsLoading: () => boolean;
@@ -45,6 +47,7 @@ export function createSettingsDialogController(
   let settingsStatusText = "Сохранено";
   let settingsStatusColor: string = COLORS.SUCCESS_TEXT;
   let updateSidepanel = () => {};
+  let lockedFbPath: string | undefined;
 
   function clonePluginSettings(settings: PluginSettings): PluginSettings {
     return {
@@ -92,6 +95,15 @@ export function createSettingsDialogController(
       }
       uniquePaths.add(normalizedPath);
       fbPaths.push(normalizedPath);
+    }
+
+    if (lockedFbPath) {
+      const lockedNormalized = lockedFbPath.trim();
+      if (lockedNormalized) {
+        const filtered = fbPaths.filter((p) => p !== lockedNormalized);
+        fbPaths.length = 0;
+        fbPaths.push(lockedNormalized, ...filtered);
+      }
     }
 
     return {
@@ -146,6 +158,7 @@ export function createSettingsDialogController(
       isSaving: isSettingsSaving,
       statusText: settingsStatusText,
       statusColor: settingsStatusColor,
+      lockedFbPath,
     }),
     onDraftChange: (nextDraft) => {
       settingsDraft = nextDraft;
@@ -178,6 +191,10 @@ export function createSettingsDialogController(
     setUpdateSidepanel: (fn: () => void) => {
       updateSidepanel = fn;
     },
+    setLockedFbPath: (pathValue?: string) => {
+      lockedFbPath = pathValue && pathValue.trim() ? pathValue.trim() : undefined;
+    },
+    getLockedFbPath: () => lockedFbPath,
     getSettingsDraft: () => settingsDraft,
     setSettingsDraft: (next: PluginSettings) => {
       settingsDraft = next;

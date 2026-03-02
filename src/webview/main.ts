@@ -188,6 +188,7 @@ const messageHandler = createMessageHandler({
   closeSettingsModal: settingsDialog.closeSettingsModal,
   getSettingsDraft: settingsDialog.getSettingsDraft,
   setSettingsDraft: settingsDialog.setSettingsDraft,
+  setLockedFbPath: settingsDialog.setLockedFbPath,
   getIsSettingsLoading: settingsDialog.getIsSettingsLoading,
   setIsSettingsLoading: settingsDialog.setIsSettingsLoading,
   getIsSettingsSaving: settingsDialog.getIsSettingsSaving,

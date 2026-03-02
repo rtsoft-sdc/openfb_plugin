@@ -173,75 +173,102 @@ export function activate(context: vscode.ExtensionContext) {
         // Get directory of .sys file
         const sysFileDir = path.dirname(uri.fsPath);
         logger.info("SYS file directory", sysFileDir);
-        
-        // Read library paths from settings
-        const config = vscode.workspace.getConfiguration("openfb");
-        const userPaths = config.get<string[]>("fbLibraryPaths") || [];
-        
-        // Search paths: sys file directory first, then workspace root, then user configured paths
-        const uniquePaths = new Set<string>();
-        uniquePaths.add(sysFileDir);
-        uniquePaths.add(workspaceFolder.uri.fsPath);
-        userPaths.forEach(p => uniquePaths.add(p));
-        const searchPaths = Array.from(uniquePaths);
-        
-        logger.info("FB library search paths", searchPaths);
 
-        logger.info("Loading SYS file", uri.fsPath);
-        let model = parseSysFile(uri.fsPath, searchPaths);
-        
-        // Extract the FB types that are actually used in the SYS file
-        const usedTypeNames = new Set<string>();
-        const collectTypeNames = (network: any) => {
-          for (const block of network?.blocks || []) {
-            if (block?.typeShort) usedTypeNames.add(block.typeShort);
+        let searchPaths: string[] = [];
+        let model: any;
+        let fbTypeMap = new Map();
+
+        const resolveTypeLibraryPath = (): string | undefined => {
+          const typeLibDir = path.join(sysFileDir, "Type Library");
+          try {
+            if (fs.existsSync(typeLibDir) && fs.statSync(typeLibDir).isDirectory()) {
+              return typeLibDir;
+            }
+          } catch (err) {
+            logger.warn("Failed to resolve Type Library path", err);
           }
-          for (const subApp of network?.subApps || []) {
-            if (subApp?.typeShort) usedTypeNames.add(subApp.typeShort);
-            if (subApp?.subAppNetwork) collectTypeNames(subApp.subAppNetwork);
-          }
+          return undefined;
         };
-        collectTypeNames(model.subAppNetwork);
-        logger.info("FB types used in SYS file", Array.from(usedTypeNames));
-        
-        const registry = new FBTypeRegistry(searchPaths);
-        // Scan only for the types that are used in the SYS file
-        registry.scanForTypes(Array.from(usedTypeNames));
-        // Resolve FB kinds using registry results (preferred: registry searches recursively)
-        try {
-          for (const b of model.subAppNetwork.blocks) {
-            const typeName = b.typeShort;
-            if (!typeName) continue;
-            const info = registry.get(typeName);
-            if (info && info.filePath) {
-              try {
-                const { kind } = loadFbt(info.filePath);
-                b.fbKind = kind;
-                (b as any).resolvedTypePath = info.filePath;
-                logger.debug(`Resolved type ${typeName} -> ${info.filePath} (kind=${kind})`);
-              } catch (err) {
-                logger.warn(`Failed to load FBT for type ${typeName}`, err);
+
+        const applyLockedPath = (settings: PluginSettings, lockedPath?: string): PluginSettings => {
+          if (!lockedPath) return settings;
+          const normalized = lockedPath.trim();
+          if (!normalized) return settings;
+          const filtered = settings.fbPaths.filter((p) => p !== normalized);
+          return {
+            ...settings,
+            fbPaths: [normalized, ...filtered],
+          };
+        };
+
+        const loadDiagramData = async (): Promise<void> => {
+          const config = vscode.workspace.getConfiguration("openfb");
+          const userPaths = config.get<string[]>("fbLibraryPaths") || [];
+          const typeLibPath = resolveTypeLibraryPath();
+
+          const uniquePaths = new Set<string>();
+          if (typeLibPath) uniquePaths.add(typeLibPath);
+          uniquePaths.add(sysFileDir);
+          uniquePaths.add(workspaceFolder.uri.fsPath);
+          userPaths.forEach((p) => uniquePaths.add(p));
+          searchPaths = Array.from(uniquePaths);
+
+          logger.info("FB library search paths", searchPaths);
+          logger.info("Loading SYS file", uri.fsPath);
+          model = parseSysFile(uri.fsPath, searchPaths);
+
+          const usedTypeNames = new Set<string>();
+          const collectTypeNames = (network: any) => {
+            for (const block of network?.blocks || []) {
+              if (block?.typeShort) usedTypeNames.add(block.typeShort);
+            }
+            for (const subApp of network?.subApps || []) {
+              if (subApp?.typeShort) usedTypeNames.add(subApp.typeShort);
+              if (subApp?.subAppNetwork) collectTypeNames(subApp.subAppNetwork);
+            }
+          };
+          collectTypeNames(model.subAppNetwork);
+          logger.info("FB types used in SYS file", Array.from(usedTypeNames));
+
+          const registry = new FBTypeRegistry(searchPaths);
+          registry.scanForTypes(Array.from(usedTypeNames));
+          try {
+            for (const b of model.subAppNetwork.blocks) {
+              const typeName = b.typeShort;
+              if (!typeName) continue;
+              const info = registry.get(typeName);
+              if (info && info.filePath) {
+                try {
+                  const { kind } = loadFbt(info.filePath);
+                  b.fbKind = kind;
+                  (b as any).resolvedTypePath = info.filePath;
+                  logger.debug(`Resolved type ${typeName} -> ${info.filePath} (kind=${kind})`);
+                } catch (err) {
+                  logger.warn(`Failed to load FBT for type ${typeName}`, err);
+                }
+              } else {
+                logger.debug(`FB type ${typeName} not found in registry`);
               }
-            } else {
-              logger.debug(`FB type ${typeName} not found in registry`);
+            }
+            logger.info("FB type classification via registry complete");
+          } catch (err) {
+            logger.warn("FB type classification via registry failed", err);
+          }
+
+          fbTypeMap = new Map();
+          for (const typeName of usedTypeNames) {
+            const fbModel = registry.getTypeModel(typeName);
+            if (fbModel) {
+              fbTypeMap.set(typeName, fbModel);
+              logger.debug(
+                `Type "${typeName}" ports:`,
+                fbModel.ports.map((p) => `${p.name}(${p.direction}/${p.kind})`)
+              );
             }
           }
-          logger.info("FB type classification via registry complete");
-        } catch (err) {
-          logger.warn("FB type classification via registry failed", err);
-        }
-        
-        const fbTypeMap = new Map();
-        for (const typeName of usedTypeNames) {
-          const fbModel = registry.getTypeModel(typeName);
-          if (fbModel) {
-            fbTypeMap.set(typeName, fbModel);
-            logger.debug(
-              `Type "${typeName}" ports:`,
-              fbModel.ports.map((p) => `${p.name}(${p.direction}/${p.kind})`)
-            );
-          }
-        }
+        };
+
+        await loadDiagramData();
 
         logger.debug(
           "Sending to webview",
@@ -291,13 +318,13 @@ export function activate(context: vscode.ExtensionContext) {
                 const sysPath = uri.fsPath;
                 const parsed = path.parse(sysPath);
                 const systemName = model.systemName || parsed.name;
-                const deviceNames = model.devices?.map((d) => d.name) || [];
+                const deviceNames = model.devices?.map((d: { name?: string }) => d.name) || [];
 
                 const fbootPaths = deviceNames.length
-                  ? deviceNames.map((device) => path.join(parsed.dir, `${systemName}_${device}.fboot`))
+                  ? deviceNames.map((device: string | undefined) => path.join(parsed.dir, `${systemName}_${device}.fboot`))
                   : [path.join(parsed.dir, `${systemName}.fboot`)];
 
-                const missingFiles = fbootPaths.filter((filePath) => !fs.existsSync(filePath));
+                const missingFiles = fbootPaths.filter((filePath: string) => !fs.existsSync(filePath));
                 if (missingFiles.length > 0) {
                   vscode.window.showErrorMessage(`.fboot файл(ы) не найдены: ${missingFiles.join(", ")}`);
                   return;
@@ -411,7 +438,9 @@ export function activate(context: vscode.ExtensionContext) {
             } else if (m?.type === "settings:load") {
               try {
                 const settings = readSettingsFromVsCodeConfig();
-                panel.webview.postMessage({ type: "settings:loaded", payload: settings });
+                const lockedPath = resolveTypeLibraryPath();
+                const nextSettings = applyLockedPath(settings, lockedPath);
+                panel.webview.postMessage({ type: "settings:loaded", payload: { settings: nextSettings, lockedPath } });
               } catch (err) {
                 logger.error("Failed to load plugin settings", err);
                 panel.webview.postMessage({ type: "settings:error", payload: "Не удалось загрузить настройки" });
@@ -425,14 +454,19 @@ export function activate(context: vscode.ExtensionContext) {
                   return;
                 }
 
-                const config = vscode.workspace.getConfiguration("openfb");
-                await config.update("fbLibraryPaths", settings.fbPaths, vscode.ConfigurationTarget.Global);
-                await config.update("host", settings.deploy.host, vscode.ConfigurationTarget.Global);
-                await config.update("port", settings.deploy.port, vscode.ConfigurationTarget.Global);
-                await config.update("deployTimeoutMs", settings.deploy.timeoutMs, vscode.ConfigurationTarget.Global);
-                await config.update("uiLanguage", settings.uiLanguage, vscode.ConfigurationTarget.Global);
+                const lockedPath = resolveTypeLibraryPath();
+                const nextSettings = applyLockedPath(settings, lockedPath);
 
-                panel.webview.postMessage({ type: "settings:saved", payload: readSettingsFromVsCodeConfig() });
+                const config = vscode.workspace.getConfiguration("openfb");
+                await config.update("fbLibraryPaths", nextSettings.fbPaths, vscode.ConfigurationTarget.Global);
+                await config.update("host", nextSettings.deploy.host, vscode.ConfigurationTarget.Global);
+                await config.update("port", nextSettings.deploy.port, vscode.ConfigurationTarget.Global);
+                await config.update("deployTimeoutMs", nextSettings.deploy.timeoutMs, vscode.ConfigurationTarget.Global);
+                await config.update("uiLanguage", nextSettings.uiLanguage, vscode.ConfigurationTarget.Global);
+
+                await loadDiagramData();
+                panel.webview.postMessage({ type: "settings:saved", payload: { settings: nextSettings, lockedPath } });
+                panel.webview.postMessage({ type: "load-diagram", payload: model, fbTypes: Array.from(fbTypeMap.entries()) });
               } catch (err) {
                 logger.error("Failed to save plugin settings", err);
                 panel.webview.postMessage({ type: "settings:error", payload: "Не удалось сохранить настройки" });
@@ -520,7 +554,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                 // Determine TypeLibrary directory next to .sys file
                 const sysDir = path.dirname(uri.fsPath);
-                const typeLibDir = path.join(sysDir, "TypeLibrary");
+                const typeLibDir = path.join(sysDir, "Type Library");
                 if (!fs.existsSync(typeLibDir)) {
                   fs.mkdirSync(typeLibDir, { recursive: true });
                 }

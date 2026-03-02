@@ -27,6 +27,7 @@ interface MessageHandlerDeps {
   closeSettingsModal: () => void;
   getSettingsDraft: () => PluginSettings;
   setSettingsDraft: (next: PluginSettings) => void;
+  setLockedFbPath: (pathValue?: string) => void;
   getIsSettingsLoading: () => boolean;
   setIsSettingsLoading: (next: boolean) => void;
   getIsSettingsSaving: () => boolean;
@@ -44,8 +45,21 @@ function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: Messa
     return;
   }
 
-  const loadedSettings = event.data.payload as PluginSettings;
-  deps.setSettingsDraft(deps.clonePluginSettings(loadedSettings));
+  const payload = event.data.payload as { settings?: PluginSettings; lockedPath?: string } | PluginSettings;
+  const loadedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
+  const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
+  const nextSettings = deps.clonePluginSettings(loadedSettings);
+  if (lockedPath) {
+    const normalizedLocked = lockedPath.trim();
+    if (normalizedLocked) {
+      nextSettings.fbPaths = [
+        normalizedLocked,
+        ...nextSettings.fbPaths.filter((p) => p !== normalizedLocked),
+      ];
+    }
+  }
+  deps.setSettingsDraft(nextSettings);
+  deps.setLockedFbPath(lockedPath);
   deps.setIsSettingsLoading(false);
   deps.setIsSettingsSaving(false);
   deps.setSettingsLoadError(undefined);
@@ -78,8 +92,21 @@ function handleSettingsPathPicked(event: MessageEvent<ExtensionMessage>, deps: M
 
 function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
   if (event.data.payload) {
-    const savedSettings = event.data.payload as PluginSettings;
-    deps.setSettingsDraft(deps.clonePluginSettings(savedSettings));
+    const payload = event.data.payload as { settings?: PluginSettings; lockedPath?: string } | PluginSettings;
+    const savedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
+    const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
+    const nextSettings = deps.clonePluginSettings(savedSettings);
+    if (lockedPath) {
+      const normalizedLocked = lockedPath.trim();
+      if (normalizedLocked) {
+        nextSettings.fbPaths = [
+          normalizedLocked,
+          ...nextSettings.fbPaths.filter((p) => p !== normalizedLocked),
+        ];
+      }
+    }
+    deps.setSettingsDraft(nextSettings);
+    deps.setLockedFbPath(lockedPath);
   }
 
   deps.setIsSettingsSaving(false);
