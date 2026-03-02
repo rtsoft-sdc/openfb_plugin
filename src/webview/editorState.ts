@@ -7,6 +7,7 @@ import type { EditorAction } from "./store/actions";
 import type { EditorStore, EditorStoreState } from "./store/types";
 import { logEditorAction } from "./store/middleware";
 import { normalizeCoordinates } from "./utils/coordinateNormalization";
+import { COORDINATE_CONFIG, ZOOM_CONFIG } from "./constants";
 
 /**
  * Represents a block (FB instance) in the diagram
@@ -254,10 +255,9 @@ export class EditorState implements EditorStore {
       };
     });
 
-    // Normalize coordinates to fit diagram in standard viewport
-    // This scales down large diagrams (4000+ units) to readable size
+    // Scale and shift coordinates (adaptive multiplier based on block count)
     this.logger.info("Normalizing coordinates for", rawNodes.length, "nodes");
-    const { coords: coordinateMap, params: normParams } = normalizeCoordinates(
+    const { coords: coordinateMap, params: normParams, boundsWidth, boundsHeight } = normalizeCoordinates(
       rawNodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
     );
     this.normParams = normParams;
@@ -277,6 +277,20 @@ export class EditorState implements EditorStore {
     }
     this.logger.info("Normalized", normalizedCount, "node coordinates");
 
+    // Auto-fit: compute zoom to fit entire diagram in viewport
+    const totalWidth = boundsWidth + 2 * COORDINATE_CONFIG.PADDING;
+    const totalHeight = boundsHeight + 2 * COORDINATE_CONFIG.PADDING;
+    const initialZoom = Math.max(
+      ZOOM_CONFIG.MIN,
+      Math.min(
+        1.0,
+        COORDINATE_CONFIG.TARGET_WIDTH / totalWidth,
+        COORDINATE_CONFIG.TARGET_HEIGHT / totalHeight
+      )
+    );
+    this.logger.info(`Auto-fit zoom: ${initialZoom.toFixed(3)} (diagram: ${boundsWidth.toFixed(0)}×${boundsHeight.toFixed(0)})`);
+
+
     const mappedConnections = (diagram.subAppNetwork.connections || []).map((c: DiagramConnection) => {
       const editorConn = {
         id: `${c.fromBlock}.${c.fromPort}->${c.toBlock}.${c.toPort}`,
@@ -293,7 +307,8 @@ export class EditorState implements EditorStore {
       model: diagram,
       fbTypes,
       nodes: rawNodes,
-      connections: mappedConnections
+      connections: mappedConnections,
+      initialZoom
     });
 
     this.logger.info("Total nodes created", this.nodes.length);

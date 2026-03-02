@@ -1,6 +1,9 @@
 /**
  * Coordinate normalization utilities
- * Scales diagram coordinates to fit target dimensions
+ * Scales and shifts diagram coordinates so blocks have proportional spacing.
+ * The scale factor adapts to the number of blocks:
+ *   - Small diagrams (≤16 blocks): world ≈ 1× viewport → zoom ~100%
+ *   - Large diagrams (600+ blocks): world ≈ 2-3× viewport → zoom ~50%
  */
 
 import { COORDINATE_CONFIG } from "../constants";
@@ -31,26 +34,37 @@ export interface NormalizationParams {
 export interface NormalizeResult {
   coords: Map<string, NormalizedCoordinates>;
   params: NormalizationParams;
+  /** Scaled width of the diagram bounding box in world pixels */
+  boundsWidth: number;
+  /** Scaled height of the diagram bounding box in world pixels */
+  boundsHeight: number;
 }
 
 /**
- * Normalize coordinates of blocks to fit within target dimensions
- * Preserves aspect ratio and centers the diagram
- * 
+ * Normalize block coordinates: scale down large XML coordinate spaces
+ * and shift so the diagram starts at (padding, padding).
+ *
+ * The world-space multiplier adapts to block count:
+ *   M = max(1.0, log2(N) / 4)
+ *   - ≤16 blocks → M=1.0, fits 1× viewport, zoom ≈ 100%
+ *   - 600 blocks → M≈2.3, fits ~2.3× viewport, zoom ≈ 50%
+ *
+ * Small diagrams stay at full zoom; large diagrams get an overview.
+ *
  * @param blocks - Array of blocks with x, y, width, height
- * @returns Map of original coordinates to normalized coordinates
+ * @returns Scaled/shifted coordinates, normalization params, and world-space bounding box
  */
 export function normalizeCoordinates(
   blocks: Block[]
 ): NormalizeResult {
   const coords = new Map<string, NormalizedCoordinates>();
   const defaultParams: NormalizationParams = { minX: 0, minY: 0, scale: 1, offsetX: 0, offsetY: 0 };
-  
+
   if (blocks.length === 0) {
-    return { coords, params: defaultParams };
+    return { coords, params: defaultParams, boundsWidth: 0, boundsHeight: 0 };
   }
 
-  // 1. Find bounding box of all blocks
+  // 1. Find bounding box of all blocks (including their sizes)
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -65,35 +79,42 @@ export function normalizeCoordinates(
 
   const boundsWidth = maxX - minX;
   const boundsHeight = maxY - minY;
+  const padding = COORDINATE_CONFIG.PADDING;
 
-  // 2. Calculate scale to fit in target dimensions with padding
-  const targetWidth = COORDINATE_CONFIG.TARGET_WIDTH - 2 * COORDINATE_CONFIG.PADDING;
-  const targetHeight = COORDINATE_CONFIG.TARGET_HEIGHT - 2 * COORDINATE_CONFIG.PADDING;
+  // 2. Compute adaptive multiplier based on block count
+  //    ≤11 blocks: M=1.0 (diagram fills viewport at ~100%)
+  //    29 blocks: M≈1.39 (zoom ~72%)
+  //    600 blocks: M≈2.64 (overview at ~45%)
+  const M = Math.max(1.0, Math.log2(blocks.length) / 3.5);
 
-  const scaleX = targetWidth / boundsWidth;
-  const scaleY = targetHeight / boundsHeight;
-  
-  // Use minimum scale to preserve aspect ratio and fit both dimensions
-  const scale = Math.min(scaleX, scaleY);
+  const desiredWidth = COORDINATE_CONFIG.TARGET_WIDTH * M - 2 * padding;
+  const desiredHeight = COORDINATE_CONFIG.TARGET_HEIGHT * M - 2 * padding;
 
-  // 3. Calculate scaled diagram dimensions
-  const scaledWidth = boundsWidth * scale;
-  const scaledHeight = boundsHeight * scale;
+  const scale = Math.min(
+    desiredWidth / boundsWidth,
+    desiredHeight / boundsHeight,
+    1.0   // Never enlarge — small diagrams stay 1:1
+  );
 
-  // 4. Calculate offset to center the diagram in target space
-  const offsetX = COORDINATE_CONFIG.PADDING + (targetWidth - scaledWidth) / 2;
-  const offsetY = COORDINATE_CONFIG.PADDING + (targetHeight - scaledHeight) / 2;
+  // 3. Scaled bounding box dimensions (world pixels)
+  const scaledBoundsWidth = boundsWidth * scale;
+  const scaledBoundsHeight = boundsHeight * scale;
 
-  // 5. Transform all block coordinates
+  // 4. Transform coordinates: shift to (padding, padding) with scale
   for (const block of blocks) {
     const key = `${block.x},${block.y}`;
-    const normalizedX = (block.x - minX) * scale + offsetX;
-    const normalizedY = (block.y - minY) * scale + offsetY;
-    
-    coords.set(key, { x: normalizedX, y: normalizedY });
+    coords.set(key, {
+      x: (block.x - minX) * scale + padding,
+      y: (block.y - minY) * scale + padding,
+    });
   }
 
-  return { coords, params: { minX, minY, scale, offsetX, offsetY } };
+  return {
+    coords,
+    params: { minX, minY, scale, offsetX: padding, offsetY: padding },
+    boundsWidth: scaledBoundsWidth,
+    boundsHeight: scaledBoundsHeight,
+  };
 }
 
 /**

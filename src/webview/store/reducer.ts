@@ -42,7 +42,11 @@ export function editorReducer(
         ui: {
           ...state.ui,
           selection: {},
-          isDragging: false
+          isDragging: false,
+          viewport: {
+            ...state.ui.viewport,
+            zoom: action.initialZoom ?? state.ui.viewport.zoom
+          }
         }
       };
 

@@ -9,12 +9,6 @@ import { CANVAS_COLORS } from "../../colorScheme";
 // NODE RENDERING
 // ============================================================================
 
-/** Width of rendered node block */
-export const NODE_WIDTH = 140;
-
-/** Height of rendered node block */
-export const NODE_HEIGHT = 80;
-
 /** Radius for rounded corners on node rectangles */
 export const NODE_BORDER_RADIUS = 8;
 
@@ -65,7 +59,7 @@ export const PORT_RADIUS = 4;
 export const PORT_SPACING = 18;
 
 /** Starting Y offset for port layout */
-export const PORT_LAYOUT_START_Y = 12;
+export const PORT_LAYOUT_START_Y = 8;
 
 /** Gap between event and data port zones */
 export const PORT_ZONE_GAP = 8;

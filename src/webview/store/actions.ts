@@ -58,6 +58,8 @@ export interface SetGraphDataAction {
   fbTypes: Map<string, FBTypeModel>;
   nodes: EditorNode[];
   connections: EditorConnection[];
+  /** Optional initial zoom level (e.g. 0.5 when nodes overlap) */
+  initialZoom?: number;
 }
 
 /**

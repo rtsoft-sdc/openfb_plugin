@@ -41,7 +41,7 @@ export function drawConnections(
 
     // Skip if ports not found (disconnected reference)
     if (!fromPort || !toPort) {
-      logger.warn(`Connection ${c.id}: port not found (fromPort=${!!fromPort} [${c.fromPortId}], toPort=${!!toPort} [${c.toPortId}])`);
+      logger.debug(`Connection ${c.id}: port not found (fromPort=${!!fromPort} [${c.fromPortId}], toPort=${!!toPort} [${c.toPortId}])`);
       skippedCount++;
       continue;
     }
