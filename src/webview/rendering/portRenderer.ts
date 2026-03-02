@@ -100,6 +100,14 @@ export function drawPorts(ctx: CanvasRenderingContext2D, node: any, hoveredPortI
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(p.name, p.x + r + C.PORT_LABEL_OFFSET, p.y);
+
+      if (p.value && p.value.trim() !== "") {
+        ctx.fillStyle = C.PORT_VALUE_COLOR;
+        ctx.font = C.PORT_VALUE_FONT;
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`= ${p.value}`, p.x - r - C.PORT_VALUE_OFFSET, p.y);
+      }
     } else {
       // Output: arrow points to the right
       ctx.fillStyle = portColor;
@@ -123,6 +131,14 @@ export function drawPorts(ctx: CanvasRenderingContext2D, node: any, hoveredPortI
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       ctx.fillText(p.name, p.x - r - C.PORT_LABEL_OFFSET, p.y);
+
+      if (p.value && p.value.trim() !== "") {
+        ctx.fillStyle = C.PORT_VALUE_COLOR;
+        ctx.font = C.PORT_VALUE_FONT;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`= ${p.value}`, p.x + r + C.PORT_VALUE_OFFSET, p.y);
+      }
     }
 
     // Reset text alignment

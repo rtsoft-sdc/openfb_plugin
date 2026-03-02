@@ -454,6 +454,18 @@ export function editorReducer(
       const updatedBlocks = [...model.subAppNetwork.blocks];
       updatedBlocks[blockIndex] = { ...block, parameters: params };
 
+      const updatedNodes = state.diagram.nodes.map((n) => {
+        if (n.id !== action.nodeId) return n;
+        return {
+          ...n,
+          ports: n.ports.map((p) =>
+            p.name === action.paramName
+              ? { ...p, value: action.value }
+              : p
+          ),
+        };
+      });
+
       logger.info(`Parameter updated: ${action.nodeId}.${action.paramName} = ${action.value}`);
 
       return {
@@ -468,6 +480,7 @@ export function editorReducer(
               blocks: updatedBlocks,
             },
           },
+          nodes: updatedNodes,
         },
       };
     }

@@ -85,11 +85,20 @@ export const PORT_TYPE_COLOR = CANVAS_COLORS.PORT_TYPE_COLOR;
 /** Port name label font */
 export const PORT_NAME_FONT = "11px monospace";
 
+/** Port value label font (lighter, smaller) */
+export const PORT_VALUE_FONT = "10px monospace";
+
 /** Port name label text color */
 export const PORT_NAME_COLOR = CANVAS_COLORS.PORT_NAME_COLOR;
 
+/** Port value label text color */
+export const PORT_VALUE_COLOR = CANVAS_COLORS.PORT_VALUE_COLOR;
+
 /** Padding from port circle to name label */
 export const PORT_LABEL_OFFSET = 8;
+
+/** Padding from port circle to value label */
+export const PORT_VALUE_OFFSET = 5;
 
 // --- Port hover ---
 

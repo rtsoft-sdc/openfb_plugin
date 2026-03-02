@@ -60,6 +60,7 @@ export interface EditorPort extends FBPort {
   nodeId: string;
   x: number;
   y: number;
+  value?: string;
 }
 
 export interface EditorNode {
@@ -205,10 +206,19 @@ export class EditorState implements EditorStore {
 
     const rawNodes = diagramBlocks.map((b: any) => {
       const subAppParams = (b as any).subAppInterfaceParams as Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }> | undefined;
+      const paramMap = new Map<string, string>();
+      const params = (b as any).parameters as Array<{ name: string; value: string }> | undefined;
+      if (params) {
+        for (const param of params) {
+          if (param?.name !== undefined) {
+            paramMap.set(param.name, param.value ?? "");
+          }
+        }
+      }
       const fbType = fbTypes.get(b.typeShort);
       const ports = subAppParams
-        ? this.buildPortsFromSubApp(b.id, subAppParams)
-        : (fbType ? this.buildPorts(b.id, fbType) : []);
+        ? this.buildPortsFromSubApp(b.id, subAppParams, paramMap)
+        : (fbType ? this.buildPorts(b.id, fbType, paramMap) : []);
       const inferredKind = subAppParams ? "SUBAPP" : (b as any).fbKind;
       
       // Use cached dimensions or calculate and cache them (optimization #4)
@@ -292,10 +302,12 @@ export class EditorState implements EditorStore {
 
   private buildPorts(
     nodeId: string,
-    fbType: FBTypeModel
+    fbType: FBTypeModel,
+    paramMap?: Map<string, string>
   ): EditorPort[] {
     return fbType.ports.map((p) => ({
       ...p,
+      value: p.kind === "data" ? paramMap?.get(p.name) : undefined,
       id: `${nodeId}.${p.name}`,
       nodeId,
       x: 0,
@@ -305,12 +317,14 @@ export class EditorState implements EditorStore {
 
   private buildPortsFromSubApp(
     nodeId: string,
-    params: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>
+    params: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>,
+    paramMap?: Map<string, string>
   ): EditorPort[] {
     return params.map((p) => ({
       name: p.name,
       kind: p.kind,
       direction: p.direction,
+      value: p.kind === "data" ? paramMap?.get(p.name) : undefined,
       id: `${nodeId}.${p.name}`,
       nodeId,
       x: 0,
