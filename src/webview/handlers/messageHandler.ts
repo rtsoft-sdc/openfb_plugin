@@ -36,6 +36,7 @@ interface MessageHandlerDeps {
   clonePluginSettings: (settings: PluginSettings) => PluginSettings;
   updateSettingsDirtyState: (dirty: boolean) => void;
   setSettingsStatus: (text: string, color: string) => void;
+  handleCreateFbTypeResult: (payload?: { success?: boolean; filePath?: string; error?: string }) => void;
 }
 
 function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
@@ -173,6 +174,10 @@ function handleSaveSysResult(event: MessageEvent<ExtensionMessage>, deps: Messag
   }
 }
 
+function handleCreateFbTypeResult(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  deps.handleCreateFbTypeResult(event.data.payload);
+}
+
 export function createMessageHandler(deps: MessageHandlerDeps) {
   return (event: MessageEvent<ExtensionMessage>) => {
     deps.logger.debug("=== MESSAGE RECEIVED ===");
@@ -204,6 +209,9 @@ export function createMessageHandler(deps: MessageHandlerDeps) {
         return;
       case "save-sys-result":
         handleSaveSysResult(event, deps);
+        return;
+      case "create-fb-type-result":
+        handleCreateFbTypeResult(event, deps);
         return;
       default:
         deps.logger.debug("Message type not recognized", event.data?.type);
