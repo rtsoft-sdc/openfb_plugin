@@ -44,7 +44,12 @@ function roundedRectPath(
  * @param ctx - Canvas 2D rendering context
  * @param node - Node object to render
  */
-export function drawNode(ctx: CanvasRenderingContext2D, node: any, hoveredPortId?: string): void {
+export function drawNode(
+  ctx: CanvasRenderingContext2D,
+  node: any,
+  hoveredPortId?: string,
+  drawInside?: (ctx: CanvasRenderingContext2D, node: any) => void,
+): void {
   // First, layout ports to compute their positions
   layoutPorts(node);
 
@@ -107,6 +112,15 @@ export function drawNode(ctx: CanvasRenderingContext2D, node: any, hoveredPortId
   // Reset text alignment/baseline
   ctx.textAlign = C.DEFAULT_TEXT_ALIGN;
   ctx.textBaseline = C.DEFAULT_TEXT_BASELINE;
+
+  // Draw optional inside-layer (e.g. event-to-var connections) before ports
+  if (drawInside) {
+    ctx.save();
+    roundedRectPath(ctx, x, y, w, h, C.NODE_BORDER_RADIUS);
+    ctx.clip();
+    drawInside(ctx, node);
+    ctx.restore();
+  }
 
   // Draw all ports for this node
   drawPorts(ctx, node, hoveredPortId);

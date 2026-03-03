@@ -27,6 +27,7 @@ interface MessageHandlerDeps {
   closeSettingsModal: () => void;
   getSettingsDraft: () => PluginSettings;
   setSettingsDraft: (next: PluginSettings) => void;
+  setLockedFbPath: (pathValue?: string) => void;
   getIsSettingsLoading: () => boolean;
   setIsSettingsLoading: (next: boolean) => void;
   getIsSettingsSaving: () => boolean;
@@ -36,6 +37,7 @@ interface MessageHandlerDeps {
   clonePluginSettings: (settings: PluginSettings) => PluginSettings;
   updateSettingsDirtyState: (dirty: boolean) => void;
   setSettingsStatus: (text: string, color: string) => void;
+  handleCreateFbTypeResult: (payload?: { success?: boolean; filePath?: string; error?: string }) => void;
 }
 
 function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
@@ -43,8 +45,21 @@ function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: Messa
     return;
   }
 
-  const loadedSettings = event.data.payload as PluginSettings;
-  deps.setSettingsDraft(deps.clonePluginSettings(loadedSettings));
+  const payload = event.data.payload as { settings?: PluginSettings; lockedPath?: string } | PluginSettings;
+  const loadedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
+  const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
+  const nextSettings = deps.clonePluginSettings(loadedSettings);
+  if (lockedPath) {
+    const normalizedLocked = lockedPath.trim();
+    if (normalizedLocked) {
+      nextSettings.fbPaths = [
+        normalizedLocked,
+        ...nextSettings.fbPaths.filter((p) => p !== normalizedLocked),
+      ];
+    }
+  }
+  deps.setSettingsDraft(nextSettings);
+  deps.setLockedFbPath(lockedPath);
   deps.setIsSettingsLoading(false);
   deps.setIsSettingsSaving(false);
   deps.setSettingsLoadError(undefined);
@@ -77,8 +92,21 @@ function handleSettingsPathPicked(event: MessageEvent<ExtensionMessage>, deps: M
 
 function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
   if (event.data.payload) {
-    const savedSettings = event.data.payload as PluginSettings;
-    deps.setSettingsDraft(deps.clonePluginSettings(savedSettings));
+    const payload = event.data.payload as { settings?: PluginSettings; lockedPath?: string } | PluginSettings;
+    const savedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
+    const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
+    const nextSettings = deps.clonePluginSettings(savedSettings);
+    if (lockedPath) {
+      const normalizedLocked = lockedPath.trim();
+      if (normalizedLocked) {
+        nextSettings.fbPaths = [
+          normalizedLocked,
+          ...nextSettings.fbPaths.filter((p) => p !== normalizedLocked),
+        ];
+      }
+    }
+    deps.setSettingsDraft(nextSettings);
+    deps.setLockedFbPath(lockedPath);
   }
 
   deps.setIsSettingsSaving(false);
@@ -173,6 +201,10 @@ function handleSaveSysResult(event: MessageEvent<ExtensionMessage>, deps: Messag
   }
 }
 
+function handleCreateFbTypeResult(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
+  deps.handleCreateFbTypeResult(event.data.payload);
+}
+
 export function createMessageHandler(deps: MessageHandlerDeps) {
   return (event: MessageEvent<ExtensionMessage>) => {
     deps.logger.debug("=== MESSAGE RECEIVED ===");
@@ -204,6 +236,9 @@ export function createMessageHandler(deps: MessageHandlerDeps) {
         return;
       case "save-sys-result":
         handleSaveSysResult(event, deps);
+        return;
+      case "create-fb-type-result":
+        handleCreateFbTypeResult(event, deps);
         return;
       default:
         deps.logger.debug("Message type not recognized", event.data?.type);

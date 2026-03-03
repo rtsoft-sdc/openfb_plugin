@@ -3,6 +3,7 @@
  */
 export enum FBKind {
   BASIC = "BASIC",           // Contains <BasicFB> with ECC/algorithms
+  SIMPLE = "SIMPLE",         // Contains <SimpleFB> with single Algorithm
   COMPOSITE = "COMPOSITE",   // Contains <FBNetwork> with internal blocks
   ADAPTER = "ADAPTER",       // Contains <AdapterType> for protocol adaptation
   SUBAPP = "SUBAPP",         // Contains <SubAppNetwork> for hierarchical apps
@@ -25,6 +26,7 @@ export function detectFBKind(fbType: any): FBKind {
   if (exists(fbType.AdapterType)) return FBKind.ADAPTER;
   if (exists(fbType.SubAppNetwork)) return FBKind.SUBAPP;
   if (exists(fbType.FBNetwork)) return FBKind.COMPOSITE;
+  if (exists(fbType.SimpleFB)) return FBKind.SIMPLE;
   if (exists(fbType.BasicFB)) return FBKind.BASIC;
 
   return FBKind.SERVICE;

@@ -7,6 +7,8 @@ import type { EditorAction } from "./store/actions";
 import type { EditorStore, EditorStoreState } from "./store/types";
 import { logEditorAction } from "./store/middleware";
 import { normalizeCoordinates } from "./utils/coordinateNormalization";
+import { COORDINATE_CONFIG, ZOOM_CONFIG } from "./constants";
+import { getDefaultLiteralForIecType } from "../shared/iecDefaultValues";
 
 /**
  * Represents a block (FB instance) in the diagram
@@ -60,6 +62,8 @@ export interface EditorPort extends FBPort {
   nodeId: string;
   x: number;
   y: number;
+  value?: string;
+  isDefaultValue?: boolean;
 }
 
 export interface EditorNode {
@@ -205,10 +209,19 @@ export class EditorState implements EditorStore {
 
     const rawNodes = diagramBlocks.map((b: any) => {
       const subAppParams = (b as any).subAppInterfaceParams as Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }> | undefined;
+      const paramMap = new Map<string, string>();
+      const params = (b as any).parameters as Array<{ name: string; value: string }> | undefined;
+      if (params) {
+        for (const param of params) {
+          if (param?.name !== undefined) {
+            paramMap.set(param.name, param.value ?? "");
+          }
+        }
+      }
       const fbType = fbTypes.get(b.typeShort);
       const ports = subAppParams
-        ? this.buildPortsFromSubApp(b.id, subAppParams)
-        : (fbType ? this.buildPorts(b.id, fbType) : []);
+        ? this.buildPortsFromSubApp(b.id, subAppParams, paramMap)
+        : (fbType ? this.buildPorts(b.id, fbType, paramMap) : []);
       const inferredKind = subAppParams ? "SUBAPP" : (b as any).fbKind;
       
       // Use cached dimensions or calculate and cache them (optimization #4)
@@ -244,10 +257,9 @@ export class EditorState implements EditorStore {
       };
     });
 
-    // Normalize coordinates to fit diagram in standard viewport
-    // This scales down large diagrams (4000+ units) to readable size
+    // Scale and shift coordinates (adaptive multiplier based on block count)
     this.logger.info("Normalizing coordinates for", rawNodes.length, "nodes");
-    const { coords: coordinateMap, params: normParams } = normalizeCoordinates(
+    const { coords: coordinateMap, params: normParams, boundsWidth, boundsHeight } = normalizeCoordinates(
       rawNodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
     );
     this.normParams = normParams;
@@ -267,6 +279,20 @@ export class EditorState implements EditorStore {
     }
     this.logger.info("Normalized", normalizedCount, "node coordinates");
 
+    // Auto-fit: compute zoom to fit entire diagram in viewport
+    const totalWidth = boundsWidth + 2 * COORDINATE_CONFIG.PADDING;
+    const totalHeight = boundsHeight + 2 * COORDINATE_CONFIG.PADDING;
+    const initialZoom = Math.max(
+      ZOOM_CONFIG.MIN,
+      Math.min(
+        1.0,
+        COORDINATE_CONFIG.TARGET_WIDTH / totalWidth,
+        COORDINATE_CONFIG.TARGET_HEIGHT / totalHeight
+      )
+    );
+    this.logger.info(`Auto-fit zoom: ${initialZoom.toFixed(3)} (diagram: ${boundsWidth.toFixed(0)}×${boundsHeight.toFixed(0)})`);
+
+
     const mappedConnections = (diagram.subAppNetwork.connections || []).map((c: DiagramConnection) => {
       const editorConn = {
         id: `${c.fromBlock}.${c.fromPort}->${c.toBlock}.${c.toPort}`,
@@ -283,7 +309,8 @@ export class EditorState implements EditorStore {
       model: diagram,
       fbTypes,
       nodes: rawNodes,
-      connections: mappedConnections
+      connections: mappedConnections,
+      initialZoom
     });
 
     this.logger.info("Total nodes created", this.nodes.length);
@@ -292,25 +319,52 @@ export class EditorState implements EditorStore {
 
   private buildPorts(
     nodeId: string,
-    fbType: FBTypeModel
+    fbType: FBTypeModel,
+    paramMap?: Map<string, string>
   ): EditorPort[] {
-    return fbType.ports.map((p) => ({
-      ...p,
-      id: `${nodeId}.${p.name}`,
-      nodeId,
-      x: 0,
-      y: 0
-    }));
+    const resolveValue = (p: FBPort): { value?: string; isDefaultValue: boolean } => {
+      if (p.kind !== "data") {
+        return { value: undefined, isDefaultValue: false };
+      }
+
+      const explicitValue = paramMap?.get(p.name);
+      if (explicitValue !== undefined && explicitValue.trim() !== "") {
+        return { value: explicitValue, isDefaultValue: false };
+      }
+
+      if (p.direction !== "input") {
+        return { value: undefined, isDefaultValue: false };
+      }
+
+      const defaultValue = getDefaultLiteralForIecType(p.type);
+      return { value: defaultValue, isDefaultValue: defaultValue !== undefined };
+    };
+
+    return fbType.ports.map((p) => {
+      const resolved = resolveValue(p);
+      return {
+        ...p,
+        value: resolved.value,
+        isDefaultValue: resolved.isDefaultValue,
+        id: `${nodeId}.${p.name}`,
+        nodeId,
+        x: 0,
+        y: 0
+      };
+    });
   }
 
   private buildPortsFromSubApp(
     nodeId: string,
-    params: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>
+    params: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>,
+    paramMap?: Map<string, string>
   ): EditorPort[] {
     return params.map((p) => ({
       name: p.name,
       kind: p.kind,
       direction: p.direction,
+      value: p.kind === "data" ? paramMap?.get(p.name) : undefined,
+      isDefaultValue: false,
       id: `${nodeId}.${p.name}`,
       nodeId,
       x: 0,

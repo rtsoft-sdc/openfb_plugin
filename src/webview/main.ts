@@ -10,6 +10,7 @@ import { setupCanvasDnd } from "./handlers/canvasDnd";
 import { createCanvasLayout } from "./layout/canvasLayout";
 import { screenToWorld } from "./layout/transformUtils";
 import { createSettingsDialogController } from "./handlers/settingsDialogController";
+import { createNewFbDialogController } from "./handlers/newFbDialogController";
 
 /**
  * VS Code Webview API for communication with the extension host
@@ -88,6 +89,11 @@ const settingsDialog = createSettingsDialogController({
   vscode,
 });
 
+const newFbDialog = createNewFbDialogController({
+  logger,
+  vscode,
+});
+
 const rightPanel = createRightPanelController({
   state,
 });
@@ -142,6 +148,7 @@ setupToolbarHandlers({
   logger,
   vscode,
   openSettingsPanel: settingsDialog.openSettingsModal,
+  openNewFBDialog: newFbDialog.openNewFbDialog,
   openPalettePanel: () => leftPanel.openPalettePanel(),
   getSaveData: () => {
     const model = state.model;
@@ -181,6 +188,7 @@ const messageHandler = createMessageHandler({
   closeSettingsModal: settingsDialog.closeSettingsModal,
   getSettingsDraft: settingsDialog.getSettingsDraft,
   setSettingsDraft: settingsDialog.setSettingsDraft,
+  setLockedFbPath: settingsDialog.setLockedFbPath,
   getIsSettingsLoading: settingsDialog.getIsSettingsLoading,
   setIsSettingsLoading: settingsDialog.setIsSettingsLoading,
   getIsSettingsSaving: settingsDialog.getIsSettingsSaving,
@@ -190,6 +198,7 @@ const messageHandler = createMessageHandler({
   clonePluginSettings: settingsDialog.clonePluginSettings,
   updateSettingsDirtyState: settingsDialog.updateSettingsDirtyState,
   setSettingsStatus: settingsDialog.setSettingsStatus,
+  handleCreateFbTypeResult: newFbDialog.handleCreateFbTypeResult,
 });
 
 window.addEventListener("message", messageHandler);

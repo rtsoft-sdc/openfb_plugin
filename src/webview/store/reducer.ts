@@ -42,7 +42,11 @@ export function editorReducer(
         ui: {
           ...state.ui,
           selection: {},
-          isDragging: false
+          isDragging: false,
+          viewport: {
+            ...state.ui.viewport,
+            zoom: action.initialZoom ?? state.ui.viewport.zoom
+          }
         }
       };
 
@@ -454,6 +458,18 @@ export function editorReducer(
       const updatedBlocks = [...model.subAppNetwork.blocks];
       updatedBlocks[blockIndex] = { ...block, parameters: params };
 
+      const updatedNodes = state.diagram.nodes.map((n) => {
+        if (n.id !== action.nodeId) return n;
+        return {
+          ...n,
+          ports: n.ports.map((p) =>
+            p.name === action.paramName
+              ? { ...p, value: action.value, isDefaultValue: false }
+              : p
+          ),
+        };
+      });
+
       logger.info(`Parameter updated: ${action.nodeId}.${action.paramName} = ${action.value}`);
 
       return {
@@ -468,6 +484,7 @@ export function editorReducer(
               blocks: updatedBlocks,
             },
           },
+          nodes: updatedNodes,
         },
       };
     }

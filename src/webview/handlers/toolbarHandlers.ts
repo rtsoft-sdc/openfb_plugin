@@ -8,12 +8,13 @@ interface ToolbarHandlersDeps {
   logger: WebviewLogger;
   vscode?: HostApi;
   openSettingsPanel: () => void;
+  openNewFBDialog: () => void;
   openPalettePanel: () => void;
   getSaveData: () => { model: any; nodes: any[]; normParams: any } | undefined;
 }
 
 export function setupToolbarHandlers(deps: ToolbarHandlersDeps): void {
-  const { logger, vscode, openSettingsPanel, openPalettePanel, getSaveData } = deps;
+  const { logger, vscode, openSettingsPanel, openNewFBDialog, openPalettePanel, getSaveData } = deps;
 
   const deployBtn = document.getElementById("deployBtn") as HTMLButtonElement | null;
   if (deployBtn) {
@@ -59,6 +60,16 @@ export function setupToolbarHandlers(deps: ToolbarHandlersDeps): void {
     });
   } else {
     logger.warn("settings button not found in DOM");
+  }
+
+  const createBlockBtn = document.getElementById("createBlockBtn") as HTMLButtonElement | null;
+  if (createBlockBtn) {
+    createBlockBtn.addEventListener("click", () => {
+      logger.debug("createBlockBtn button clicked");
+      openNewFBDialog();
+    });
+  } else {
+    logger.warn("createBlockBtn button not found in DOM");
   }
 
   const addBlockBtn = document.getElementById("addBlockBtn") as HTMLButtonElement | null;

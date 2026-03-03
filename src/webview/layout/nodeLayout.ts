@@ -7,13 +7,13 @@ import { EditorPort } from "../editorState";
 const NODE_LAYOUT = {
   PORT_SPACING: 18,           // Vertical spacing between ports
   PORT_RADIUS: 4,             // Radius of port circle
-  MIN_WIDTH: 140,             // Minimum node width
-  MIN_HEIGHT: 80,             // Minimum node height
+  MIN_WIDTH: 10,             // Minimum node width
+  MIN_HEIGHT: 10,             // Minimum node height
   PADDING_X: 16,              // Horizontal padding inside node
-  PADDING_Y: 12,              // Vertical padding inside node
+  PADDING_Y: 6,               // Vertical padding inside node
   GAP_BETWEEN_ZONES: 8,       // Gap between event and data zones
   TEXT_WIDTH_PER_CHAR: 7.5,   // Estimated pixels per character (11px monospace)
-  ARROWS_AND_SPACING: 40,     // Space for arrows and spacing around port labels
+  ARROWS_AND_SPACING: 30,     // Space for arrows and spacing around port labels
 };
 
 /**
@@ -56,16 +56,16 @@ export function calculateNodeDimensions(ports: EditorPort[]): { width: number; h
   // - Final padding
 
   const eventZoneHeight = Math.max(eventInputs.length, eventOutputs.length) > 0
-    ? Math.max(eventInputs.length, eventOutputs.length) * NODE_LAYOUT.PORT_SPACING + 4
+    ? Math.max(eventInputs.length, eventOutputs.length) * NODE_LAYOUT.PORT_SPACING
     : 0;
 
   const dataZoneHeight = Math.max(dataInputs.length, dataOutputs.length) > 0
-    ? Math.max(dataInputs.length, dataOutputs.length) * NODE_LAYOUT.PORT_SPACING + 4
+    ? Math.max(dataInputs.length, dataOutputs.length) * NODE_LAYOUT.PORT_SPACING
     : 0;
 
   const height = Math.max(
     NODE_LAYOUT.MIN_HEIGHT,
-    NODE_LAYOUT.PADDING_Y + eventZoneHeight + (eventZoneHeight > 0 && dataZoneHeight > 0 ? NODE_LAYOUT.GAP_BETWEEN_ZONES : 0) + dataZoneHeight + 6
+    NODE_LAYOUT.PADDING_Y + eventZoneHeight + (eventZoneHeight > 0 && dataZoneHeight > 0 ? NODE_LAYOUT.GAP_BETWEEN_ZONES : 0) + dataZoneHeight + 2
   );
 
   return { width, height };

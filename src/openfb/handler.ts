@@ -5,6 +5,13 @@ import { XMLParser } from "fast-xml-parser";
 import * as vscode from "vscode";
 import { getLogger } from "../logging";
 
+export class DeployAbortedByUserError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DeployAbortedByUserError";
+  }
+}
+
 let openfbResponsesChannel: vscode.OutputChannel | undefined;
 export function setResponsesChannel(ch: vscode.OutputChannel) {
   openfbResponsesChannel = ch;
@@ -133,6 +140,24 @@ function extractRequestFbInfo(xml: string): { name?: string; type?: string } | u
   }
 }
 
+/**
+ * Extract resource names from QUERY response XML:
+ * <Response><FBList><FB Name="EMB_RES" .../></FBList></Response>
+ */
+function extractResourceNamesFromQueryResponse(xml: string): string[] {
+  if (!xml || typeof xml !== "string") return [];
+
+  const names = new Set<string>();
+  const re = /<FB\b[^>]*\bName\s*=\s*"([^"]+)"[^>]*\/?\s*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    const name = (m[1] || "").trim();
+    if (name) names.add(name);
+  }
+
+  return Array.from(names);
+}
+
 export class OpenFBHandler {
   private logger = getLogger();
 
@@ -184,6 +209,89 @@ export class OpenFBHandler {
     }
 
     return xml ? { resource, xml } : null;
+  }
+
+  /**
+   * Collect distinct non-empty resource names used by deploy commands.
+   */
+  private collectTargetResources(lines: string[]): string[] {
+    const resources = new Set<string>();
+    for (const line of lines) {
+      const parsed = this.parseCommandLine(line);
+      if (!parsed) continue;
+      const resource = parsed.resource.trim();
+      if (resource) resources.add(resource);
+    }
+    return Array.from(resources);
+  }
+
+  /**
+   * Send overwrite preparation commands for existing resource(s).
+   */
+  private async prepareOverwriteExistingResources(
+    socket: net.Socket,
+    resources: string[],
+  ): Promise<void> {
+    let requestId = 2;
+
+    for (const resourceName of resources) {
+      const killXml = `<Request ID="${requestId++}" Action="KILL"><FB Name="${resourceName}" Type=""/></Request>`;
+      await this.sendCommand(socket, "", killXml, -1, 0);
+
+      const deleteXml = `<Request ID="${requestId++}" Action="DELETE"><FB Name="${resourceName}" Type=""/></Request>`;
+      await this.sendCommand(socket, "", deleteXml, -1, 0);
+    }
+  }
+
+  /**
+   * Pre-deploy check:
+   * - if resource exists, ask user whether to overwrite
+   * - on overwrite: send KILL + DELETE before fboot commands
+   * - on abort: stop deploy
+   */
+  private async checkResourcesBeforeDeploy(socket: net.Socket, lines: string[]): Promise<void> {
+    const targetResources = this.collectTargetResources(lines);
+
+    if (targetResources.length === 0) {
+      this.logger.info("Resource pre-check skipped: no explicit resource in commands");
+      return;
+    }
+
+    const queryXml = '<Request ID="1" Action="QUERY"><FB Name="*" Type="*"/></Request>';
+    const responseXml = await this.sendCommand(socket, "", queryXml, -1, 0);
+    const serverResources = extractResourceNamesFromQueryResponse(responseXml);
+    const serverSet = new Set(serverResources);
+
+    const existing = targetResources.filter((resource) => serverSet.has(resource));
+    const missing = targetResources.filter((resource) => !serverSet.has(resource));
+
+    if (existing.length > 0) {
+      const promptMsg = `Ресурс(ы) уже существуют на сервере: ${existing.join(", ")}.`;
+      const abortOption: vscode.MessageItem = { title: "Прервать", isCloseAffordance: true };
+      const overwriteOption: vscode.MessageItem = { title: "Перезаписать" };
+
+      this.logger.warn(promptMsg, { serverResources, targetResources });
+      const choice = await vscode.window.showWarningMessage(
+        promptMsg,
+        { modal: true },
+        overwriteOption,
+        abortOption,
+      );
+
+      if (choice?.title !== overwriteOption.title) {
+        const abortMsg = `Деплой прерван пользователем: ресурс(ы) уже существуют (${existing.join(", ")}).`;
+        this.logger.info(abortMsg);
+        throw new DeployAbortedByUserError(abortMsg);
+      }
+
+      this.logger.info(`Пользователь выбрал перезапись ресурсов: ${existing.join(", ")}`);
+      await this.prepareOverwriteExistingResources(socket, existing);
+    }
+
+    if (missing.length > 0) {
+      const missingMsg = `Ресурс(ы) отсутствуют на сервере: ${missing.join(", ")}. Продолжаю деплой.`;
+      this.logger.info(missingMsg, { serverResources, targetResources });
+    }
   }
 
   /**
@@ -442,6 +550,9 @@ export class OpenFBHandler {
       this.logger.info("Connected to openFB", { host, port });
 
       try {
+        // Pre-check server resources before executing deploy commands
+        await this.checkResourcesBeforeDeploy(socket, lines);
+
         for (let i = 0; i < lines.length; i++) {
           const parsed = this.parseCommandLine(lines[i]);
           if (!parsed) continue;  // Skip empty XML
