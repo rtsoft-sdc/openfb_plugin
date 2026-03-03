@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { OpenFBHandler, setResponsesChannel } from "./openfb/handler";
+import { DeployAbortedByUserError, OpenFBHandler, setResponsesChannel } from "./openfb/handler";
 import { parseSysFile } from "./domain/sysParser";
 import { loadFbt } from "./domain/fbtParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
@@ -345,6 +345,10 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showInformationMessage(message);
                   })
                   .catch((err) => {
+                    if (err instanceof DeployAbortedByUserError) {
+                      vscode.window.showInformationMessage(err.message);
+                      return;
+                    }
                     logger.error("Deploy failed", err);
                     vscode.window.showErrorMessage(`Не удалось выполнить деплой: ${err}`);
                   });
