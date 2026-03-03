@@ -8,6 +8,7 @@ import type { EditorStore, EditorStoreState } from "./store/types";
 import { logEditorAction } from "./store/middleware";
 import { normalizeCoordinates } from "./utils/coordinateNormalization";
 import { COORDINATE_CONFIG, ZOOM_CONFIG } from "./constants";
+import { getDefaultLiteralForIecType } from "../shared/iecDefaultValues";
 
 /**
  * Represents a block (FB instance) in the diagram
@@ -62,6 +63,7 @@ export interface EditorPort extends FBPort {
   x: number;
   y: number;
   value?: string;
+  isDefaultValue?: boolean;
 }
 
 export interface EditorNode {
@@ -320,14 +322,36 @@ export class EditorState implements EditorStore {
     fbType: FBTypeModel,
     paramMap?: Map<string, string>
   ): EditorPort[] {
-    return fbType.ports.map((p) => ({
-      ...p,
-      value: p.kind === "data" ? paramMap?.get(p.name) : undefined,
-      id: `${nodeId}.${p.name}`,
-      nodeId,
-      x: 0,
-      y: 0
-    }));
+    const resolveValue = (p: FBPort): { value?: string; isDefaultValue: boolean } => {
+      if (p.kind !== "data") {
+        return { value: undefined, isDefaultValue: false };
+      }
+
+      const explicitValue = paramMap?.get(p.name);
+      if (explicitValue !== undefined && explicitValue.trim() !== "") {
+        return { value: explicitValue, isDefaultValue: false };
+      }
+
+      if (p.direction !== "input") {
+        return { value: undefined, isDefaultValue: false };
+      }
+
+      const defaultValue = getDefaultLiteralForIecType(p.type);
+      return { value: defaultValue, isDefaultValue: defaultValue !== undefined };
+    };
+
+    return fbType.ports.map((p) => {
+      const resolved = resolveValue(p);
+      return {
+        ...p,
+        value: resolved.value,
+        isDefaultValue: resolved.isDefaultValue,
+        id: `${nodeId}.${p.name}`,
+        nodeId,
+        x: 0,
+        y: 0
+      };
+    });
   }
 
   private buildPortsFromSubApp(
@@ -340,6 +364,7 @@ export class EditorState implements EditorStore {
       kind: p.kind,
       direction: p.direction,
       value: p.kind === "data" ? paramMap?.get(p.name) : undefined,
+      isDefaultValue: false,
       id: `${nodeId}.${p.name}`,
       nodeId,
       x: 0,

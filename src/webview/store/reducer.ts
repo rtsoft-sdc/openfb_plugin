@@ -464,7 +464,7 @@ export function editorReducer(
           ...n,
           ports: n.ports.map((p) =>
             p.name === action.paramName
-              ? { ...p, value: action.value }
+              ? { ...p, value: action.value, isDefaultValue: false }
               : p
           ),
         };

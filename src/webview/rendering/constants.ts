@@ -82,11 +82,17 @@ export const PORT_NAME_FONT = "11px monospace";
 /** Port value label font (lighter, smaller) */
 export const PORT_VALUE_FONT = "10px monospace";
 
+/** Port default value label font (gray italic) */
+export const PORT_DEFAULT_VALUE_FONT = "italic 10px monospace";
+
 /** Port name label text color */
 export const PORT_NAME_COLOR = CANVAS_COLORS.PORT_NAME_COLOR;
 
 /** Port value label text color */
 export const PORT_VALUE_COLOR = CANVAS_COLORS.PORT_VALUE_COLOR;
+
+/** Port default value label text color */
+export const PORT_DEFAULT_VALUE_COLOR = CANVAS_COLORS.PORT_DEFAULT_VALUE_COLOR;
 
 /** Padding from port circle to name label */
 export const PORT_LABEL_OFFSET = 8;

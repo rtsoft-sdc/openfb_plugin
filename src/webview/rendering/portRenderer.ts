@@ -102,11 +102,11 @@ export function drawPorts(ctx: CanvasRenderingContext2D, node: any, hoveredPortI
       ctx.fillText(p.name, p.x + r + C.PORT_LABEL_OFFSET, p.y);
 
       if (p.value && p.value.trim() !== "") {
-        ctx.fillStyle = C.PORT_VALUE_COLOR;
-        ctx.font = C.PORT_VALUE_FONT;
+        ctx.fillStyle = p.isDefaultValue ? C.PORT_DEFAULT_VALUE_COLOR : C.PORT_VALUE_COLOR;
+        ctx.font = p.isDefaultValue ? C.PORT_DEFAULT_VALUE_FONT : C.PORT_VALUE_FONT;
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
-        ctx.fillText(`= ${p.value}`, p.x - r - C.PORT_VALUE_OFFSET, p.y);
+        ctx.fillText(p.value, p.x - r - C.PORT_VALUE_OFFSET, p.y);
       }
     } else {
       // Output: arrow points to the right
@@ -133,11 +133,11 @@ export function drawPorts(ctx: CanvasRenderingContext2D, node: any, hoveredPortI
       ctx.fillText(p.name, p.x - r - C.PORT_LABEL_OFFSET, p.y);
 
       if (p.value && p.value.trim() !== "") {
-        ctx.fillStyle = C.PORT_VALUE_COLOR;
-        ctx.font = C.PORT_VALUE_FONT;
+        ctx.fillStyle = p.isDefaultValue ? C.PORT_DEFAULT_VALUE_COLOR : C.PORT_VALUE_COLOR;
+        ctx.font = p.isDefaultValue ? C.PORT_DEFAULT_VALUE_FONT : C.PORT_VALUE_FONT;
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        ctx.fillText(`= ${p.value}`, p.x + r + C.PORT_VALUE_OFFSET, p.y);
+        ctx.fillText(p.value, p.x + r + C.PORT_VALUE_OFFSET, p.y);
       }
     }
 
