@@ -103,8 +103,8 @@ export class NodeDragHandler {
     const nodeScreenWidth = node.width * camera.scale;
     const nodeScreenHeight = node.height * camera.scale;
 
-    const canvasWidth = this.canvas.width;
-    const canvasHeight = this.canvas.height;
+    const canvasWidth = this.renderer.logicalWidth;
+    const canvasHeight = this.renderer.logicalHeight;
 
     let offsetDeltaX = 0;
     let offsetDeltaY = 0;

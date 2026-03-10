@@ -1,6 +1,7 @@
-import { COLOR_SCHEME } from "../colorScheme";
+import { COLOR_SCHEME } from "../shared/colorScheme";
+import { LogLevel, shouldLog, getTimestamp } from "../shared/logLevel";
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
+export type { LogLevel } from "../shared/logLevel";
 
 export class WebviewLogger {
   private logLevel: LogLevel = "info";
@@ -34,12 +35,8 @@ export class WebviewLogger {
     } catch { /* ignore postMessage errors */ }
   }
 
-  private getTimestamp(): string {
-    return new Date().toISOString().split("T")[1].slice(0, 12);
-  }
-
   private formatMessage(level: LogLevel, message: string): string {
-    return `%c[${this.getTimestamp()}] [${this.name}] [${level.toUpperCase()}]%c ${message}`;
+    return `%c[${getTimestamp()}] [${this.name}] [${level.toUpperCase()}]%c ${message}`;
   }
 
   private getColorStyle(level: LogLevel): string[] {
@@ -57,13 +54,12 @@ export class WebviewLogger {
     }
   }
 
-  private shouldLog(level: LogLevel): boolean {
-    const levels: LogLevel[] = ["debug", "info", "warn", "error"];
-    return levels.indexOf(level) >= levels.indexOf(this.logLevel);
+  private _shouldLog(level: LogLevel): boolean {
+    return shouldLog(level, this.logLevel);
   }
 
   debug(message: string, ...args: any[]) {
-    if (!this.shouldLog("debug")) return;
+    if (!this._shouldLog("debug")) return;
     const [style1, style2] = this.getColorStyle("debug");
     const msg = this.formatMessage("debug", message);
     console.log(msg, style1, style2, ...args);
@@ -71,7 +67,7 @@ export class WebviewLogger {
   }
 
   info(message: string, ...args: any[]) {
-    if (!this.shouldLog("info")) return;
+    if (!this._shouldLog("info")) return;
     const [style1, style2] = this.getColorStyle("info");
     const msg = this.formatMessage("info", message);
     console.log(msg, style1, style2, ...args);
@@ -79,7 +75,7 @@ export class WebviewLogger {
   }
 
   warn(message: string, ...args: any[]) {
-    if (!this.shouldLog("warn")) return;
+    if (!this._shouldLog("warn")) return;
     const [style1, style2] = this.getColorStyle("warn");
     const msg = this.formatMessage("warn", message);
     console.warn(msg, style1, style2, ...args);
@@ -87,7 +83,7 @@ export class WebviewLogger {
   }
 
   error(message: string, error?: Error | any) {
-    if (!this.shouldLog("error")) return;
+    if (!this._shouldLog("error")) return;
     const [style1, style2] = this.getColorStyle("error");
     const msg = this.formatMessage("error", message);
     if (error instanceof Error) {

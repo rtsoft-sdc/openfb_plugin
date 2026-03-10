@@ -3,6 +3,7 @@
  */
 
 import type { IecDataType } from "../iecConstants";
+import type { AlgorithmLanguage } from "./algorithmLanguage";
 
 // -----------------------------------------------------------------------------
 // Shared interface elements
@@ -61,7 +62,7 @@ export interface SubAppInterfaceList {
 export interface Algorithm {
   name: string;
   comment?: string;
-  language: "ST" | "C";
+  language: AlgorithmLanguage;
   body: string;
 }
 
@@ -160,7 +161,7 @@ export interface Service {
 // Common metadata
 // -----------------------------------------------------------------------------
 
-import { FBKind } from "../../domain/FBKind";
+import { FBKind } from "../models/FBKind";
 
 export type NewFBCategory = FBKind.BASIC | FBKind.SIMPLE | FBKind.COMPOSITE | FBKind.SERVICE | FBKind.SUBAPP;
 

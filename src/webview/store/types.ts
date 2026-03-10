@@ -4,7 +4,8 @@
  */
 
 import { EditorNode, EditorConnection, ViewState } from "../editorState";
-import { FBTypeModel } from "../../domain/fbtModel";
+import { FBTypeModel } from "../../shared/models/fbtModel";
+import type { SysModel } from "../../shared/models/sysModel";
 import { EditorAction } from "./actions";
 
 /**
@@ -54,7 +55,7 @@ export interface EditorStoreState {
     fbTypes?: Map<string, FBTypeModel>;
 
     /** Full diagram model from extension (contains mappings, devices, etc) */
-    model?: any;
+    model?: SysModel;
 
     /** True when the model has unsaved changes */
     isDirty: boolean;

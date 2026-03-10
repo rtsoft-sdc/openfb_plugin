@@ -1,8 +1,15 @@
-import { EditorState } from "../editorState";
-import { COLORS, CANVAS_COLORS } from "../../colorScheme";
-import { buildPortSectionHtml, buildCollapsibleSectionHtml} from "./panelUtils";
-import { validateParameterValue } from "../store/parameterValidator";
+import { EditorState, EditorNode, EditorPort } from "../editorState";
+import { COLORS, CANVAS_COLORS } from "../../shared/colorScheme";
+import { buildPortSectionHtml } from "./panelUtils";
+import { validateParameterValue } from "../../shared/parameterValidator";
 import { getWebviewLogger } from "../logging";
+import type { SysConnection } from "../../shared/models/sysModel";
+import {
+  buildDeviceParametersHtml,
+  buildDeviceResourcesHtml,
+  buildDeviceFBsHtml,
+  buildDeviceConnectionsHtml,
+} from "./deviceTreeRenderer";
 
 export type DiagramTabMode = "devices" | "blockinfo";
 
@@ -21,92 +28,6 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
 
   let diagramTabMode: DiagramTabMode = "devices";
 
-  function buildDeviceParametersHtml(deviceId: string, device: any): string {
-    if (!device.parameters || device.parameters.length === 0) return "";
-
-    const paramsId = `${deviceId}-params`;
-    let contentHtml = "";
-    for (const param of device.parameters) {
-      contentHtml += `<div class="device-item"><span class="device-label">${param.name}</span><span class="device-value">${param.value}</span></div>`;
-    }
-
-    return buildCollapsibleSectionHtml({
-      sectionId: paramsId,
-      title: "Параметры",
-      toggleTitle: "Раскрыть/скрыть параметры",
-      containerClass: "device-params-container",
-      itemsCount: device.parameters.length,
-      contentHtml,
-      wrapperClass: "device-subsection",
-      buttonClass: "device-toggle"
-    });
-  }
-
-  function buildDeviceResourcesHtml(deviceId: string, device: any): string {
-    if (!device.resources || device.resources.length === 0) return "";
-
-    const resId = `${deviceId}-resources`;
-    let contentHtml = "";
-    for (const resource of device.resources) {
-      contentHtml += `<div class="device-item"><span class="device-label">${resource.name}</span></div>`;
-    }
-
-    return buildCollapsibleSectionHtml({
-      sectionId: resId,
-      title: "Ресурсы",
-      toggleTitle: "Раскрыть/скрыть ресурсы",
-      containerClass: "device-resources-container",
-      itemsCount: device.resources.length,
-      contentHtml,
-      wrapperClass: "device-subsection",
-      buttonClass: "device-toggle"
-    });
-  }
-
-  function buildDeviceFBsHtml(deviceId: string, uniqueFBs: string[]): string {
-    if (uniqueFBs.length === 0) return "";
-
-    const fbListId = `${deviceId}-fbs`;
-    let contentHtml = "";
-    for (const fb of uniqueFBs) {
-      contentHtml += `<div class="device-item"><span class="device-label">${fb}</span></div>`;
-    }
-
-    return buildCollapsibleSectionHtml({
-      sectionId: fbListId,
-      title: "Function Blocks",
-      toggleTitle: "Раскрыть/скрыть список FB",
-      containerClass: "device-fbs-container",
-      itemsCount: uniqueFBs.length,
-      contentHtml,
-      wrapperClass: "device-subsection",
-      buttonClass: "device-toggle"
-    });
-  }
-
-  function buildDeviceConnectionsHtml(deviceId: string, deviceConnections: any[]): string {
-    if (deviceConnections.length === 0) return "";
-
-    const connListId = `${deviceId}-conns`;
-    let contentHtml = "";
-    for (const conn of deviceConnections) {
-      const connLabel = `${conn.fromBlock}.${conn.fromPort} → ${conn.toBlock}.${conn.toPort}`;
-      const connType = conn.type ? ` [${conn.type}]` : "";
-      contentHtml += `<div class="device-item"><span class="device-label" title="${connLabel}">${connLabel}${connType}</span></div>`;
-    }
-
-    return buildCollapsibleSectionHtml({
-      sectionId: connListId,
-      title: "Connections",
-      toggleTitle: "Раскрыть/скрыть список соединений",
-      containerClass: "device-conns-container",
-      itemsCount: deviceConnections.length,
-      contentHtml,
-      wrapperClass: "device-subsection",
-      buttonClass: "device-toggle"
-    });
-  }
-
   function renderDevicesTab(): void {
     const sidepanelHeader = document.getElementById("sidepanel-header");
     const sidepanelContent = document.getElementById("sidepanel-content");
@@ -124,17 +45,17 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     let html = "";
 
     for (const device of state.model.devices) {
-      const deviceFBs = state.model?.mappings?.filter((m: any) => m.device === device.name) || [];
-      const uniqueFBs = Array.from(new Set(deviceFBs.map((m: any) => m.fbInstance))) as string[];
+      const deviceFBs = state.model?.mappings?.filter((m) => m.device === device.name) || [];
+      const uniqueFBs = Array.from(new Set(deviceFBs.map((m) => m.fbInstance))) as string[];
 
-      const deviceConnections = state.model?.connections?.filter((conn: any) => {
+      const deviceConnections = state.model?.subAppNetwork?.connections?.filter((conn) => {
         const fromBlockInDevice = uniqueFBs.some((fb) => conn.fromBlock.startsWith(fb));
         const toBlockInDevice = uniqueFBs.some((fb) => conn.toBlock.startsWith(fb));
         return fromBlockInDevice && toBlockInDevice;
       }) || [];
 
       const deviceId = `device-${device.name.replace(/\s+/g, "_")}`;
-      const borderColor = (device as any).color ? `rgb(${(device as any).color})` : COLORS.BUTTON_PRIMARY_BG;
+      const borderColor = device.color ? `rgb(${device.color})` : COLORS.BUTTON_PRIMARY_BG;
 
       html += `<div class="device-section" style="border-left: 3px solid ${borderColor}">`;
       html += '<div class="device-header">';
@@ -158,21 +79,24 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     sidepanelContent.innerHTML = html;
   }
 
-  function buildBlockInfoHtml(node: any): string {
+  function buildBlockInfoHtml(node: EditorNode, displayType?: string, displayKind?: string): string {
+    const safeType = (displayType && displayType.trim()) || node.type || "—";
+    const safeKind = displayKind || (node.fbKind ? String(node.fbKind) : undefined);
     let html = '<div class="sidepanel-section">';
     html += `<div class="sidepanel-item"><span class="sidepanel-label">Имя:</span><span class="sidepanel-value">${node.id}</span></div>`;
-    html += `<div class="sidepanel-item"><span class="sidepanel-label">Тип:</span><span class="sidepanel-value">${node.type}</span></div>`;
+    html += `<div class="sidepanel-item"><span class="sidepanel-label">Тип:</span><span class="sidepanel-value">${safeType}</span></div>`;
 
-    if (node.fbKind) {
+    if (safeKind) {
       const kindLabels: Record<string, string> = {
         BASIC: "Basic",
+        SIMPLE: "Simple",
         COMPOSITE: "Composite",
         ADAPTER: "Adapter",
         SUBAPP: "Sub-app",
         SERVICE: "Service",
         UNKNOWN: "Unknown",
       };
-      const kindLabel = kindLabels[String(node.fbKind)] || String(node.fbKind);
+      const kindLabel = kindLabels[safeKind] || safeKind;
       html += `<div class="sidepanel-item"><span class="sidepanel-label">Класс:</span><span class="sidepanel-value">${kindLabel}</span></div>`;
     }
     html += "</div>";
@@ -186,7 +110,7 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
 
 
 
-  function buildPortsHtml(nodeId: string, ports: any[], nodeParamMap: Map<string, string>, opcMappingSet: Set<string>): string {
+  function buildPortsHtml(nodeId: string, ports: EditorPort[], nodeParamMap: Map<string, string>, opcMappingSet: Set<string>): string {
     if (ports.length === 0) return "";
 
     let html = "";
@@ -261,18 +185,21 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
 
     const nodeParamMap = new Map<string, string>();
     const opcMappingSet = new Set<string>();
-    const diagramBlock = state.model?.subAppNetwork?.blocks?.find((b: any) => b.id === node.id);
+    const diagramBlock = state.model?.subAppNetwork?.blocks?.find((b) => b.id === node.id);
     if (diagramBlock?.parameters) {
       for (const p of diagramBlock.parameters) {
         nodeParamMap.set(p.name, p.value);
-        if (p.attributes?.some((a: any) => a.name === "OpcMapping" && a.value === "true")) {
+        if (p.attributes?.some((a) => a.name === "OpcMapping" && a.value === "true")) {
           opcMappingSet.add(p.name);
         }
       }
     }
 
+    const displayType = node.type || diagramBlock?.typeShort || diagramBlock?.typeLong || "";
+    const displayKind = (node.fbKind || diagramBlock?.fbKind) ? String(node.fbKind || diagramBlock?.fbKind) : undefined;
+
     let html = "";
-    html += buildBlockInfoHtml(node);
+    html += buildBlockInfoHtml(node, displayType, displayKind);
     html += buildPortsHtml(selectedNodeId, node.ports || [], nodeParamMap, opcMappingSet);
 
     sidepanelContent.innerHTML = html;

@@ -1,61 +1,24 @@
-import { FBTypeModel, FBPort } from "../domain/fbtModel";
-import { FBKind } from "../domain/FBKind";
+import { FBTypeModel, FBPort } from "../shared/models/fbtModel";
+import { FBKind } from "../shared/models/FBKind";
+import type { SysModel, SysConnection } from "../shared/models/sysModel";
 import { getWebviewLogger } from "./logging";
 import { calculateNodeDimensions } from "./layout/nodeLayout";
 import { editorReducer, createInitialState } from "./store/reducer";
 import type { EditorAction } from "./store/actions";
 import type { EditorStore, EditorStoreState } from "./store/types";
 import { logEditorAction } from "./store/middleware";
-import { normalizeCoordinates } from "./utils/coordinateNormalization";
-import { COORDINATE_CONFIG, ZOOM_CONFIG } from "./constants";
-import { getDefaultLiteralForIecType } from "../shared/iecDefaultValues";
+import { buildPorts, convertDiagramToEditorGraph } from "./modelConverter";
 
 /**
- * Represents a block (FB instance) in the diagram
+ * Type alias for backward compatibility.
+ * DiagramModel is now SysModel from the domain layer.
  */
-export interface DiagramBlock {
-  id: string;
-  typeShort: string;
-  typeLong: string;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  subAppInterfaceParams?: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>;
-}
-
-/** Extended DiagramBlock includes detection info from SYS parser */
-export interface DiagramBlockWithKind extends DiagramBlock {
-  fbKind?: FBKind;
-  resolvedTypePath?: string;
-}
+export type DiagramModel = SysModel;
 
 /**
- * Represents a connection between two ports
+ * Type alias: DiagramConnection is SysConnection from the domain layer.
  */
-export interface DiagramConnection {
-  fromBlock: string;
-  fromPort: string;
-  toBlock: string;
-  toPort: string;
-  type?: "event" | "data";  // Connection type from SYS file
-}
-
-/**
- * Represents the complete diagram model loaded from a file
- */
-export interface DiagramSubAppNetwork {
-  blocks: DiagramBlock[];
-  subApps?: DiagramBlock[];
-  connections?: DiagramConnection[];
-}
-
-export interface DiagramModel {
-  applicationName: string;
-  subAppNetwork: DiagramSubAppNetwork;
-  mappings?: Array<{ fbInstance: string; device: string; resource?: string }>;
-  devices?: Array<{ name: string; type?: string; color?: string; [key: string]: any }>;
-}
+export type DiagramConnection = SysConnection;
 
 export interface EditorPort extends FBPort {
   id: string;
@@ -107,7 +70,7 @@ export class EditorState implements EditorStore {
     mouseY: number;
   };
   fbTypes?: Map<string, FBTypeModel>;
-  model?: any;  
+  model?: SysModel;  
   private logger = getWebviewLogger();
   private postMessageFn?: (msg: unknown) => void;
 
@@ -194,182 +157,26 @@ export class EditorState implements EditorStore {
   }
 
   public loadFromDiagram(
-    diagram: DiagramModel,
+    diagram: SysModel,
     fbTypes: Map<string, FBTypeModel>
   ) {
-    // Build editor-friendly graph structures, then commit with a single atomic action.
     // Clear caches when loading new diagram
     this.dimensionCache.clear();
 
-    // First pass: create nodes and cache dimensions by type
-    const diagramBlocks: DiagramBlock[] = [
-      ...(diagram.subAppNetwork.blocks || []),
-      ...((diagram.subAppNetwork as any).subApps || []),
-    ];
-
-    const rawNodes = diagramBlocks.map((b: any) => {
-      const subAppParams = (b as any).subAppInterfaceParams as Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }> | undefined;
-      const paramMap = new Map<string, string>();
-      const params = (b as any).parameters as Array<{ name: string; value: string }> | undefined;
-      if (params) {
-        for (const param of params) {
-          if (param?.name !== undefined) {
-            paramMap.set(param.name, param.value ?? "");
-          }
-        }
-      }
-      const fbType = fbTypes.get(b.typeShort);
-      const ports = subAppParams
-        ? this.buildPortsFromSubApp(b.id, subAppParams, paramMap)
-        : (fbType ? this.buildPorts(b.id, fbType, paramMap) : []);
-      const inferredKind = subAppParams ? "SUBAPP" : (b as any).fbKind;
-      
-      // Use cached dimensions or calculate and cache them (optimization #4)
-      let dimensions = this.dimensionCache.get(b.typeShort);
-      if (!dimensions) {
-        dimensions = calculateNodeDimensions(ports);
-        this.dimensionCache.set(b.typeShort, dimensions);
-      }
-      const { width, height } = dimensions;
-      
-      // Find device color if this block is mapped to a device
-      let deviceColor: string | undefined;
-      const blockMapping = diagram.mappings?.find((m: any) => m.fbInstance === b.id);
-      if (blockMapping && diagram.devices) {
-        const device = diagram.devices.find((d: any) => d.name === blockMapping.device);
-        if (device && (device as any).color) {
-          deviceColor = (device as any).color;
-        }
-      }
-      
-      return {
-        id: b.id,
-        type: b.typeShort,
-        x: b.x,
-        y: b.y,
-        ports: ports,
-        width: width,
-        height: height,
-        deviceColor: deviceColor,
-        fbKind: inferredKind,
-        resolvedTypePath: (b as any).resolvedTypePath,
-        subAppInterfaceParams: (b as any).subAppInterfaceParams,
-      };
-    });
-
-    // Scale and shift coordinates (adaptive multiplier based on block count)
-    this.logger.info("Normalizing coordinates for", rawNodes.length, "nodes");
-    const { coords: coordinateMap, params: normParams, boundsWidth, boundsHeight } = normalizeCoordinates(
-      rawNodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
-    );
-    this.normParams = normParams;
-    this.logger.debug("Normalization params:", JSON.stringify(normParams));
-
-    // Apply normalized coordinates to nodes
-    let normalizedCount = 0;
-    for (const node of rawNodes) {
-      const key = `${node.x},${node.y}`;
-      const normalized = coordinateMap.get(key);
-      if (normalized) {
-        this.logger.debug(`Node ${node.id}: (${node.x}, ${node.y}) → (${normalized.x.toFixed(1)}, ${normalized.y.toFixed(1)})`);
-        node.x = normalized.x;
-        node.y = normalized.y;
-        normalizedCount++;
-      }
-    }
-    this.logger.info("Normalized", normalizedCount, "node coordinates");
-
-    // Auto-fit: compute zoom to fit entire diagram in viewport
-    const totalWidth = boundsWidth + 2 * COORDINATE_CONFIG.PADDING;
-    const totalHeight = boundsHeight + 2 * COORDINATE_CONFIG.PADDING;
-    const initialZoom = Math.max(
-      ZOOM_CONFIG.MIN,
-      Math.min(
-        1.0,
-        COORDINATE_CONFIG.TARGET_WIDTH / totalWidth,
-        COORDINATE_CONFIG.TARGET_HEIGHT / totalHeight
-      )
-    );
-    this.logger.info(`Auto-fit zoom: ${initialZoom.toFixed(3)} (diagram: ${boundsWidth.toFixed(0)}×${boundsHeight.toFixed(0)})`);
-
-
-    const mappedConnections = (diagram.subAppNetwork.connections || []).map((c: DiagramConnection) => {
-      const editorConn = {
-        id: `${c.fromBlock}.${c.fromPort}->${c.toBlock}.${c.toPort}`,
-        fromPortId: `${c.fromBlock}.${c.fromPort}`,
-        toPortId: `${c.toBlock}.${c.toPort}`,
-        type: c.type
-      };
-      this.logger.debug(`Created EditorConnection: ${editorConn.id} (type=${editorConn.type})`);
-      return editorConn;
-    });
+    const result = convertDiagramToEditorGraph(diagram, fbTypes, this.dimensionCache, this.logger);
+    this.normParams = result.normParams;
 
     this.dispatch({
       type: "SET_GRAPH_DATA",
       model: diagram,
       fbTypes,
-      nodes: rawNodes,
-      connections: mappedConnections,
-      initialZoom
+      nodes: result.nodes,
+      connections: result.connections,
+      initialZoom: result.initialZoom,
     });
 
     this.logger.info("Total nodes created", this.nodes.length);
     this.logger.info("Total connections created", this.connections.length);
-  }
-
-  private buildPorts(
-    nodeId: string,
-    fbType: FBTypeModel,
-    paramMap?: Map<string, string>
-  ): EditorPort[] {
-    const resolveValue = (p: FBPort): { value?: string; isDefaultValue: boolean } => {
-      if (p.kind !== "data") {
-        return { value: undefined, isDefaultValue: false };
-      }
-
-      const explicitValue = paramMap?.get(p.name);
-      if (explicitValue !== undefined && explicitValue.trim() !== "") {
-        return { value: explicitValue, isDefaultValue: false };
-      }
-
-      if (p.direction !== "input") {
-        return { value: undefined, isDefaultValue: false };
-      }
-
-      const defaultValue = getDefaultLiteralForIecType(p.type);
-      return { value: defaultValue, isDefaultValue: defaultValue !== undefined };
-    };
-
-    return fbType.ports.map((p) => {
-      const resolved = resolveValue(p);
-      return {
-        ...p,
-        value: resolved.value,
-        isDefaultValue: resolved.isDefaultValue,
-        id: `${nodeId}.${p.name}`,
-        nodeId,
-        x: 0,
-        y: 0
-      };
-    });
-  }
-
-  private buildPortsFromSubApp(
-    nodeId: string,
-    params: Array<{ name: string; kind: "event" | "data"; direction: "input" | "output" }>,
-    paramMap?: Map<string, string>
-  ): EditorPort[] {
-    return params.map((p) => ({
-      name: p.name,
-      kind: p.kind,
-      direction: p.direction,
-      value: p.kind === "data" ? paramMap?.get(p.name) : undefined,
-      isDefaultValue: false,
-      id: `${nodeId}.${p.name}`,
-      nodeId,
-      x: 0,
-      y: 0
-    }));
   }
 
   public moveNode(id: string, x: number, y: number) {
@@ -411,30 +218,33 @@ export class EditorState implements EditorStore {
       return;
     }
 
-    const id = this.generateNodeId(blockType);
-    const ports = this.buildPorts(id, fbType);
+    const resolvedTypeName = (fbType.name || blockType).trim();
+
+    const id = this.generateNodeId(resolvedTypeName);
+    const ports = buildPorts(id, fbType);
 
     // Use cached dimensions or calculate and cache them
-    let dimensions = this.dimensionCache.get(blockType);
+    let dimensions = this.dimensionCache.get(resolvedTypeName);
     if (!dimensions) {
       dimensions = calculateNodeDimensions(ports);
-      this.dimensionCache.set(blockType, dimensions);
+      this.dimensionCache.set(resolvedTypeName, dimensions);
     }
 
     this.dispatch({
       type: "ADD_NODE",
       node: {
         id,
-        type: blockType,
+        type: resolvedTypeName,
         x: worldX,
         y: worldY,
         ports,
         width: dimensions.width,
         height: dimensions.height,
+        fbKind: fbType.kind,
       },
     });
 
-    this.logger.info(`Added node "${id}" (type=${blockType}) at (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
+    this.logger.info(`Added node "${id}" (type=${resolvedTypeName}) at (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
   }
 }
 

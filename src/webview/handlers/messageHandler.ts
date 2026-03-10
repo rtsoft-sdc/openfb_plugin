@@ -1,13 +1,14 @@
-import { FBTypeModel } from "../../domain/fbtModel";
-import { COLORS } from "../../colorScheme";
-import type { PluginSettings } from "../../shared/pluginSettings";
+import { FBTypeModel } from "../../shared/models/fbtModel";
+import type { SysModel } from "../../shared/models/sysModel";
+import { COLORS } from "../../shared/colorScheme";
+import { PluginSettings, clonePluginSettings, applyLockedPath } from "../../shared/pluginSettings";
 import type { EditorState } from "../editorState";
 import type { TreeNode } from "../panels/leftPanel";
 import type { WebviewLogger } from "../logging";
 
 export interface ExtensionMessage {
   type: string;
-  payload?: any;
+  payload?: SysModel | PluginSettings | { settings?: PluginSettings; lockedPath?: string } | { success?: boolean; filePath?: string; error?: string } | string;
   fbTypes?: [string, FBTypeModel][];
   fbTypesTree?: TreeNode[];
 }
@@ -15,12 +16,14 @@ export interface ExtensionMessage {
 interface LeftPanelDeps {
   handleAllFbTypesLoaded: (tree: TreeNode[]) => void;
   handleAllFbTypesError: (message?: string) => void;
+  isPaletteOpen: () => boolean;
 }
 
 interface MessageHandlerDeps {
   logger: WebviewLogger;
   state: EditorState;
   leftPanel: LeftPanelDeps;
+  requestAllFbTypes: () => boolean;
   centerDiagramInCanvas: () => void;
   updateSidepanel: () => void;
   updateSettingsModal: () => void;
@@ -34,7 +37,6 @@ interface MessageHandlerDeps {
   setIsSettingsSaving: (next: boolean) => void;
   setSettingsLoadError: (message?: string) => void;
   setSettingsDirty: (dirty: boolean) => void;
-  clonePluginSettings: (settings: PluginSettings) => PluginSettings;
   updateSettingsDirtyState: (dirty: boolean) => void;
   setSettingsStatus: (text: string, color: string) => void;
   handleCreateFbTypeResult: (payload?: { success?: boolean; filePath?: string; error?: string }) => void;
@@ -48,16 +50,7 @@ function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: Messa
   const payload = event.data.payload as { settings?: PluginSettings; lockedPath?: string } | PluginSettings;
   const loadedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
   const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
-  const nextSettings = deps.clonePluginSettings(loadedSettings);
-  if (lockedPath) {
-    const normalizedLocked = lockedPath.trim();
-    if (normalizedLocked) {
-      nextSettings.fbPaths = [
-        normalizedLocked,
-        ...nextSettings.fbPaths.filter((p) => p !== normalizedLocked),
-      ];
-    }
-  }
+  const nextSettings = applyLockedPath(clonePluginSettings(loadedSettings), lockedPath);
   deps.setSettingsDraft(nextSettings);
   deps.setLockedFbPath(lockedPath);
   deps.setIsSettingsLoading(false);
@@ -82,7 +75,7 @@ function handleSettingsPathPicked(event: MessageEvent<ExtensionMessage>, deps: M
     return;
   }
 
-  const nextDraft = deps.clonePluginSettings(settingsDraft);
+  const nextDraft = clonePluginSettings(settingsDraft);
   nextDraft.fbPaths.push(selectedPath);
   deps.setSettingsDraft(nextDraft);
   deps.updateSettingsDirtyState(true);
@@ -95,16 +88,7 @@ function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: Messag
     const payload = event.data.payload as { settings?: PluginSettings; lockedPath?: string } | PluginSettings;
     const savedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
     const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
-    const nextSettings = deps.clonePluginSettings(savedSettings);
-    if (lockedPath) {
-      const normalizedLocked = lockedPath.trim();
-      if (normalizedLocked) {
-        nextSettings.fbPaths = [
-          normalizedLocked,
-          ...nextSettings.fbPaths.filter((p) => p !== normalizedLocked),
-        ];
-      }
-    }
+    const nextSettings = applyLockedPath(clonePluginSettings(savedSettings), lockedPath);
     deps.setSettingsDraft(nextSettings);
     deps.setLockedFbPath(lockedPath);
   }
@@ -115,6 +99,13 @@ function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: Messag
 
   deps.updateSettingsModal();
   deps.closeSettingsModal();
+
+  if (deps.leftPanel.isPaletteOpen()) {
+    const requested = deps.requestAllFbTypes();
+    if (!requested) {
+      deps.leftPanel.handleAllFbTypesError("Host API недоступен");
+    }
+  }
 }
 
 function handleSettingsError(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
@@ -143,20 +134,21 @@ function handleLoadDiagram(event: MessageEvent<ExtensionMessage>, deps: MessageH
     return;
   }
 
-  deps.logger.debug("Diagram blocks", event.data.payload.subAppNetwork?.blocks);
+  const diagram = event.data.payload as SysModel;
+  deps.logger.debug("Diagram blocks", diagram.subAppNetwork?.blocks);
   deps.logger.info(
     "Diagram connections count",
-    event.data.payload.subAppNetwork?.connections?.length || 0
+    diagram.subAppNetwork?.connections?.length || 0
   );
-  if (event.data.payload.subAppNetwork?.connections && event.data.payload.subAppNetwork.connections.length > 0) {
-    deps.logger.debug("Diagram connections", event.data.payload.subAppNetwork.connections);
+  if (diagram.subAppNetwork?.connections && diagram.subAppNetwork.connections.length > 0) {
+    deps.logger.debug("Diagram connections", diagram.subAppNetwork.connections);
   }
 
-  for (const block of event.data.payload.subAppNetwork.blocks) {
+  for (const block of diagram.subAppNetwork.blocks) {
     deps.logger.debug(`Block: ${block.id} (type=${block.typeShort}) at (${block.x}, ${block.y})`);
   }
 
-  deps.state.loadFromDiagram(event.data.payload, fbTypes);
+  deps.state.loadFromDiagram(diagram, fbTypes);
   deps.centerDiagramInCanvas();
   deps.logger.debug("Loaded nodes", deps.state.nodes.length);
   deps.logger.debug("State nodes data", deps.state.nodes);
@@ -176,7 +168,7 @@ function handleAllFbTypesLoaded(event: MessageEvent<ExtensionMessage>, deps: Mes
       merged.set(name, model);
     }
     deps.state.dispatch({ type: "SET_GRAPH_DATA",
-      model: deps.state.model,
+      model: deps.state.model!,
       fbTypes: merged,
       nodes: deps.state.nodes,
       connections: deps.state.connections,
@@ -192,17 +184,26 @@ function handleAllFbTypesError(event: MessageEvent<ExtensionMessage>, deps: Mess
 }
 
 function handleSaveSysResult(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
-  if (event.data.payload?.success) {
-    deps.logger.info("File saved successfully:", event.data.payload.filePath);
+  const result = event.data.payload as { success?: boolean; filePath?: string; error?: string } | undefined;
+  if (result?.success) {
+    deps.logger.info("File saved successfully:", result.filePath);
     deps.state.dispatch({ type: "RESET_DIRTY" });
   } else {
-    const error = event.data.payload?.error || "Неизвестная ошибка сохранения";
+    const error = result?.error || "Неизвестная ошибка сохранения";
     deps.logger.error("Save failed:", error);
   }
 }
 
 function handleCreateFbTypeResult(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
-  deps.handleCreateFbTypeResult(event.data.payload);
+  const payload = event.data.payload as { success?: boolean; filePath?: string; error?: string } | undefined;
+  deps.handleCreateFbTypeResult(payload);
+
+  if (payload?.success && deps.leftPanel.isPaletteOpen()) {
+    const requested = deps.requestAllFbTypes();
+    if (!requested) {
+      deps.leftPanel.handleAllFbTypesError("Host API недоступен");
+    }
+  }
 }
 
 export function createMessageHandler(deps: MessageHandlerDeps) {

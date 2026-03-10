@@ -1,12 +1,19 @@
 import type { Algorithm } from "../../../shared/fbtypes";
+import { escapeXml } from "../../../shared/utils/xmlEscape";
 import type { NewFbDialogDraft } from "./newFbModel";
+import { ALGORITHM_LANGUAGE_SPECS, normalizeAlgorithmLanguage } from "../../../shared/fbtypes/algorithmLanguage";
 
 export interface SimpleAlgorithmCallbacks {
   onChange: (algorithm: Algorithm) => void;
 }
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escapeAttr = escapeXml;
+
+function renderAlgorithmLanguageOptions(selected: unknown): string {
+  const normalized = normalizeAlgorithmLanguage(selected);
+  return ALGORITHM_LANGUAGE_SPECS
+    .map((spec) => `<option value="${spec.value}" ${normalized === spec.value ? "selected" : ""}>${spec.label}</option>`)
+    .join("");
 }
 
 export function renderSimpleAlgorithm(
@@ -29,8 +36,7 @@ export function renderSimpleAlgorithm(
         <div class="ife-field">
           <label class="ife-inline-label">Lang</label>
           <select class="ife-select" data-field="lang">
-            <option value="ST" ${algorithm.language === "ST" ? "selected" : ""}>ST</option>
-            <option value="C" ${algorithm.language === "C" ? "selected" : ""}>C</option>
+            ${renderAlgorithmLanguageOptions(algorithm.language)}
           </select>
         </div>
         <div class="ife-field">
@@ -54,7 +60,7 @@ export function renderSimpleAlgorithm(
   const langSelect = container.querySelector<HTMLSelectElement>(".ife-select[data-field='lang']");
   if (langSelect) {
     langSelect.addEventListener("change", () => {
-      algorithm.language = langSelect.value as "ST" | "C";
+      algorithm.language = normalizeAlgorithmLanguage(langSelect.value);
       callbacks.onChange(algorithm);
     });
   }

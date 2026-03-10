@@ -6,6 +6,7 @@ export * from "./simpleFbType";
 export * from "./compositeFbType";
 export * from "./serviceInterfaceFbType";
 export * from "./subAppType";
+export * from "./algorithmLanguage";
 
 import type { BasicFBType } from "./basicFbType";
 import type { SimpleFBType } from "./simpleFbType";

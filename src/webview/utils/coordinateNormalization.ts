@@ -116,17 +116,3 @@ export function normalizeCoordinates(
     boundsHeight: scaledBoundsHeight,
   };
 }
-
-/**
- * Reverse-transform normalized screen coordinates back to original XML scale.
- */
-export function denormalizeCoordinates(
-  x: number,
-  y: number,
-  params: NormalizationParams,
-): { x: number; y: number } {
-  return {
-    x: Math.round((x - params.offsetX) / params.scale + params.minX),
-    y: Math.round((y - params.offsetY) / params.scale + params.minY),
-  };
-}

@@ -11,6 +11,7 @@ import { createCanvasLayout } from "./layout/canvasLayout";
 import { screenToWorld } from "./layout/transformUtils";
 import { createSettingsDialogController } from "./handlers/settingsDialogController";
 import { createNewFbDialogController } from "./handlers/newFbDialogController";
+import { setupCollapsibleDelegation } from "./panels/components/collapsible";
 
 /**
  * VS Code Webview API for communication with the extension host
@@ -63,27 +64,7 @@ const leftPanel = createLeftPanelController({
 
 let updateSidepanel = () => {};
 
-/**
- * Global event delegation handler for toggle buttons.
- * Handles both device-toggle and side-toggle buttons efficiently.
- */
-function setupToggleButtonDelegation() {
-  document.addEventListener('click', (e) => {
-    const button = (e.target as HTMLElement).closest('.device-toggle, .side-toggle');
-    if (!button) return;
-    
-    e.stopPropagation();
-    const dataIdAttr = (button as HTMLButtonElement).getAttribute('data-device-id');
-    if (dataIdAttr) {
-      const container = document.getElementById(dataIdAttr);
-      if (container) {
-        const isHidden = container.style.display === 'none';
-        container.style.display = isHidden ? 'block' : 'none';
-        button.textContent = isHidden ? '▼' : '▶';
-      }
-    }
-  });
-}
+// Collapsible toggle delegation is provided by setupCollapsibleDelegation() from components/collapsible
 
 const settingsDialog = createSettingsDialogController({
   vscode,
@@ -132,7 +113,7 @@ if (tabBlockinfo) {
 }
 
 // Setup event delegation for toggle buttons (optimization #1)
-setupToggleButtonDelegation();
+setupCollapsibleDelegation();
 
 const canvasLayout = createCanvasLayout({
   canvas,
@@ -170,7 +151,7 @@ setupCanvasDnd({
     const rect = canvas.getBoundingClientRect();
     const screenX = event.clientX - rect.left;
     const screenY = event.clientY - rect.top;
-    const worldPos = screenToWorld(canvas, renderer.camera, state.view.zoom, screenX, screenY);
+    const worldPos = screenToWorld(canvas, renderer.camera, state.view.zoom, screenX, screenY, renderer.dpr);
 
     state.addNode(blockType, worldPos.x, worldPos.y);
   },
@@ -182,6 +163,7 @@ const messageHandler = createMessageHandler({
   logger,
   state,
   leftPanel,
+  requestAllFbTypes,
   centerDiagramInCanvas: canvasLayout.centerDiagramInCanvas,
   updateSidepanel,
   updateSettingsModal: settingsDialog.updateSettingsModal,
@@ -195,7 +177,6 @@ const messageHandler = createMessageHandler({
   setIsSettingsSaving: settingsDialog.setIsSettingsSaving,
   setSettingsLoadError: settingsDialog.setSettingsLoadError,
   setSettingsDirty: settingsDialog.setSettingsDirty,
-  clonePluginSettings: settingsDialog.clonePluginSettings,
   updateSettingsDirtyState: settingsDialog.updateSettingsDirtyState,
   setSettingsStatus: settingsDialog.setSettingsStatus,
   handleCreateFbTypeResult: newFbDialog.handleCreateFbTypeResult,

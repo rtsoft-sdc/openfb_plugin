@@ -1,44 +1,10 @@
-interface CollapsibleSectionOptions {
-  sectionId: string;
-  title: string;
-  toggleTitle: string;
-  containerClass: string;
-  itemsCount: number;
-  contentHtml: string;
-  wrapperClass?: string;
-  buttonClass?: string;
-  expandedByDefault?: boolean;
-}
+/**
+ * Panel utilities — port section builder and re-exports.
+ */
 
-export function buildCollapsibleSectionHtml(options: CollapsibleSectionOptions): string {
-  const {
-    sectionId,
-    title,
-    toggleTitle,
-    containerClass,
-    itemsCount,
-    contentHtml,
-    wrapperClass = "device-subsection",
-    buttonClass = "device-toggle",
-    expandedByDefault = false,
-  } = options;
-
-  if (itemsCount === 0) return "";
-
-  const arrow = expandedByDefault ? "▼" : "▶";
-  const display = expandedByDefault ? "block" : "none";
-
-  let html = `<div class="${wrapperClass}">`;
-  html += '<div class="device-section-title-collapsible">';
-  html += `<button class="${buttonClass}" data-device-id="${sectionId}" title="${toggleTitle}">${arrow}</button>`;
-  html += `<span>${title} (${itemsCount})</span>`;
-  html += "</div>";
-  html += `<div class="${containerClass}" id="${sectionId}" style="display: ${display};">`;
-  html += contentHtml;
-  html += "</div></div>";
-
-  return html;
-}
+import { buildCollapsibleSectionHtml } from "./components/collapsible";
+export type { CollapsibleSectionOptions } from "./components/collapsible";
+export { buildCollapsibleSectionHtml } from "./components/collapsible";
 
 export interface PortBuilderOptions {
   nodeId: string;
@@ -79,7 +45,7 @@ export function buildPortSectionHtml(options: PortBuilderOptions): string {
     const portColor = portColorMap(port);
     const paramValue = nodeParamMap.get(port.name);
     const portType = (port as any).type
-      ? ` <span style="color: ${textMutedColor}; font-size: 11px;">(${(port as any).type})</span>`
+      ? ` <span class="port-type-annotation" style="color: ${textMutedColor};">(${(port as any).type})</span>`
       : "";
 
     contentHtml += '<div class="sidepanel-item">';
@@ -90,11 +56,11 @@ export function buildPortSectionHtml(options: PortBuilderOptions): string {
     if (editable && isDataInput) {
       const val = paramValue ?? "";
       const portDataType = (port as any).type || "";
-      contentHtml += `<input type="text" class="param-value-input" data-node-id="${nodeId}" data-port-name="${port.name}" data-port-type="${portDataType}" value="${val.replace(/"/g, '&quot;')}" style="font-size: 11px; flex: 1; text-align: center; margin: 0 4px; min-width: 40px; max-width: 100px; padding: 1px 4px; border: 1px solid rgba(128,128,128,0.3); border-radius: 3px; background: rgba(255,255,255,0.05); color: inherit;" />`;
+      contentHtml += `<input type="text" class="param-value-input" data-node-id="${nodeId}" data-port-name="${port.name}" data-port-type="${portDataType}" value="${val.replace(/"/g, '&quot;')}" />`;
     } else if (showValueWhenTruthyOnly ? !!paramValue : paramValue !== undefined) {
       const displayValue = paramValue ? `= ${paramValue}` : "";
       if (displayValue) {
-        contentHtml += `<span class="sidepanel-value" style="font-size: 11px; flex: 1; text-align: center;">${displayValue}</span>`;
+        contentHtml += `<span class="sidepanel-value">${displayValue}</span>`;
       }
     }
 
@@ -102,7 +68,7 @@ export function buildPortSectionHtml(options: PortBuilderOptions): string {
     if (opcMappingSet && isDataInput) {
       const checked = opcMappingSet.has(port.name) ? "checked" : "";
       const disabledAttr = editable ? "" : "disabled";
-      contentHtml += `<label class="opc-mapping-label" title="OPC UA Mapping" style="margin-left: auto; white-space: nowrap;"><input type="checkbox" class="opc-mapping-checkbox" data-node-id="${nodeId}" data-port-name="${port.name}" ${checked} ${disabledAttr} /> OPC</label>`;
+      contentHtml += `<label class="opc-mapping-label" title="OPC UA Mapping"><input type="checkbox" class="opc-mapping-checkbox" data-node-id="${nodeId}" data-port-name="${port.name}" ${checked} ${disabledAttr} /> OPC</label>`;
     }
 
     contentHtml += "</div>";

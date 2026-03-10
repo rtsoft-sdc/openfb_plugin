@@ -5,7 +5,7 @@
 
 import { ST_RESERVED_KEYWORDS } from "./iecConstants";
 
-export interface NameValidationResult {
+interface NameValidationResult {
   valid: boolean;
   error?: string;
 }
@@ -16,7 +16,7 @@ const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /**
  * Generic identifier validation used for FB type names, port names, algorithms, etc.
  */
-export function validateIdentifier(name: string, label = "Имя"): NameValidationResult {
+function validateIdentifier(name: string, label = "Имя"): NameValidationResult {
   if (!name || name.trim().length === 0) {
     return { valid: false, error: `${label} не может быть пустым` };
   }
@@ -57,9 +57,4 @@ export function validateIdentifier(name: string, label = "Имя"): NameValidati
 /** Validate FB type name. */
 export function validateFBName(name: string): NameValidationResult {
   return validateIdentifier(name, "Имя типа FB");
-}
-
-/** Validate event/variable/algorithm names (IEC identifiers). */
-export function validatePortName(name: string): NameValidationResult {
-  return validateIdentifier(name, "Имя порта");
 }

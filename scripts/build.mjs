@@ -8,7 +8,7 @@ async function cleanOutDir() {
 }
 
 const extensionConfig = {
-  entryPoints: ["src/extension.ts"],
+  entryPoints: ["src/host/extension.ts"],
   outfile: "out/extension.js",
   bundle: true,
   platform: "node",

@@ -9,6 +9,7 @@ export interface LeftPanelController {
   clearDraggedBlockType: () => void;
   handleAllFbTypesLoaded: (tree: TreeNode[]) => void;
   handleAllFbTypesError: (message?: string) => void;
+  isPaletteOpen: () => boolean;
 }
 
 interface LeftPanelOptions {
@@ -49,5 +50,6 @@ export function createLeftPanelController(options: LeftPanelOptions): LeftPanelC
     clearDraggedBlockType: () => fbtTreeController.clearDraggedBlockType(),
     handleAllFbTypesLoaded: (tree: TreeNode[]) => fbtTreeController.handleAllFbTypesLoaded(tree),
     handleAllFbTypesError: (message?: string) => fbtTreeController.handleAllFbTypesError(message),
+    isPaletteOpen: () => fbtTreeController.isFbtTreeOpen(),
   };
 }

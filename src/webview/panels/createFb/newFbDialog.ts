@@ -1,11 +1,12 @@
-import { COLORS } from "../../../colorScheme";
+import { escapeXml } from "../../../shared/utils/xmlEscape";
 import type { NewFBCategory, InterfaceList, SubAppInterfaceList, Algorithm, ECC, VarDeclaration } from "../../../shared/fbtypes";
-import { FBKind } from "../../../domain/FBKind";
+import { FBKind } from "../../../shared/models/FBKind";
 import type { NewFbDialogDraft, WizardStep } from "./newFbModel";
 import { renderInterfaceEditor, renderInternalVarsEditor } from "./newFbInterfaceEditor";
 import { renderFbPreview } from "./newFbPreviewRenderer";
 import { renderBasicEcc } from "./newFbBasicEcc";
 import { renderSimpleAlgorithm } from "./newFbSimpleAlgorithm";
+import { renderButton, renderButtonRow } from "../components/button";
 
 export interface NewFbDialogState {
   draft: NewFbDialogDraft;
@@ -29,14 +30,7 @@ export interface NewFbDialogCallbacks {
   rerender: () => void;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+const escapeHtml = escapeXml;
 
 function cloneDraft(draft: NewFbDialogDraft): NewFbDialogDraft {
   return {
@@ -105,15 +99,15 @@ function renderStep1(
 ): void {
   modalBody.innerHTML = `
     <div class="sidepanel-section">
-      <div class="sidepanel-section-title" style="color:${COLORS.TEXT_PRIMARY}; font-weight:700;">Основное</div>
-      <div class="sidepanel-item" style="display:block; padding-top:0;">
-        <div class="sidepanel-label" style="margin-bottom:4px; color:${COLORS.TEXT_MUTED};">Имя типа FB</div>
-        <input id="newFbNameInput" value="${escapeHtml(state.draft.name)}" style="width:100%; padding:6px 8px; border:1px solid ${state.nameError ? COLORS.ERROR_TEXT : COLORS.INPUT_BORDER}; border-radius:4px; font-size:12px; color:${COLORS.INPUT_TEXT};" />
-        <div style="margin-top:4px; min-height:16px; font-size:11px; color:${COLORS.ERROR_TEXT};">${escapeHtml(state.nameError || "")}</div>
+      <div class="sidepanel-section-title form-section-title">Основное</div>
+      <div class="sidepanel-item form-field-block--flush">
+        <div class="sidepanel-label form-label">Имя типа FB</div>
+        <input id="newFbNameInput" class="form-input${state.nameError ? " form-input--error" : ""}" value="${escapeHtml(state.draft.name)}" />
+        <div class="form-error-hint">${escapeHtml(state.nameError || "")}</div>
       </div>
-      <div class="sidepanel-item" style="display:block;">
-        <div class="sidepanel-label" style="margin-bottom:4px; color:${COLORS.TEXT_MUTED};">Категория</div>
-        <select id="newFbCategorySelect" style="width:100%; padding:6px 8px; border:1px solid ${COLORS.INPUT_BORDER}; border-radius:4px; font-size:12px; color:${COLORS.INPUT_TEXT};">
+      <div class="sidepanel-item form-field-block">
+        <div class="sidepanel-label form-label">Категория</div>
+        <select id="newFbCategorySelect" class="form-input">
           ${categoryOption(FBKind.BASIC, state.draft.category, "BASIC")}
           ${categoryOption(FBKind.SIMPLE, state.draft.category, "SIMPLE")}
           ${categoryOption(FBKind.COMPOSITE, state.draft.category, "COMPOSITE")}
@@ -121,19 +115,19 @@ function renderStep1(
           ${categoryOption(FBKind.SUBAPP, state.draft.category, "SUBAPP")}
         </select>
       </div>
-      <div class="sidepanel-item" style="display:block;">
-        <div class="sidepanel-label" style="margin-bottom:4px; color:${COLORS.TEXT_MUTED};">Комментарий (опционально)</div>
-        <textarea id="newFbCommentInput" rows="3" style="width:100%; padding:6px 8px; border:1px solid ${COLORS.INPUT_BORDER}; border-radius:4px; font-size:12px; color:${COLORS.INPUT_TEXT}; resize:vertical;">${escapeHtml(state.draft.comment)}</textarea>
+      <div class="sidepanel-item form-field-block">
+        <div class="sidepanel-label form-label">Комментарий (опционально)</div>
+        <textarea id="newFbCommentInput" class="form-textarea" rows="3">${escapeHtml(state.draft.comment)}</textarea>
       </div>
     </div>
 
-    <div class="sidepanel-section" style="display:flex; justify-content:center; gap:12px; margin-top:16px;">
-      <button id="newFbNextBtn" style="min-width:140px; padding:8px 16px; border:1px solid ${COLORS.SUCCESS_TEXT}; border-radius:4px; background:${COLORS.BUTTON_PRIMARY_BG}; color:${COLORS.BUTTON_TEXT_WHITE}; cursor:pointer; font-weight:500; font-size:13px;">Далее →</button>
-      <button id="newFbCancelBtn" style="min-width:120px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:pointer; font-size:13px;">Отмена</button>
+    <div class="sidepanel-section btn-row" style="margin-top:16px;">
+      ${renderButton({ id: "newFbNextBtn", label: "Далее →", style: "primary" })}
+      ${renderButton({ id: "newFbCancelBtn", label: "Отмена" })}
     </div>
 
     <div class="sidepanel-section">
-      <div id="newFbStatus" class="sidepanel-label" style="margin-top:8px; color:${state.statusColor}; text-align:center;">${escapeHtml(state.statusText)}</div>
+      <div id="newFbStatus" class="sidepanel-label form-status" style="color:${state.statusColor};">${escapeHtml(state.statusText)}</div>
     </div>
   `;
 
@@ -214,11 +208,11 @@ function renderStep2(
           ${isBasicOrSimple ? `<div id="wizardInternalVarsEditor" class="wizard-step2-editor-pane ${activeTab === "internal" ? "is-active" : ""}"></div>` : ""}
         </div>
         <div class="wizard-step2-actions">
-          <button id="newFbBackBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:120px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-size:13px;">← Назад</button>
-          <button id="newFbNextBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:140px; padding:8px 16px; border:1px solid ${COLORS.SUCCESS_TEXT}; border-radius:4px; background:${state.isSubmitting ? COLORS.BUTTON_DISABLED_BG : COLORS.BUTTON_PRIMARY_BG}; color:${COLORS.BUTTON_TEXT_WHITE}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-weight:500; font-size:13px;">${nextLabel}</button>
-          <button id="newFbCancelBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:100px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-size:13px;">Отмена</button>
+          ${renderButton({ id: "newFbBackBtn", label: "← Назад", disabled: state.isSubmitting })}
+          ${renderButton({ id: "newFbNextBtn", label: nextLabel, style: "primary", disabled: state.isSubmitting })}
+          ${renderButton({ id: "newFbCancelBtn", label: "Отмена", disabled: state.isSubmitting, minWidth: 100 })}
         </div>
-        <div id="newFbStatus" class="wizard-step2-status" style="color:${state.statusColor};">${escapeHtml(state.statusText)}</div>
+        <div id="newFbStatus" class="wizard-step2-status form-status" style="color:${state.statusColor};">${escapeHtml(state.statusText)}</div>
       </div>
     </div>
   `;
@@ -331,10 +325,10 @@ function renderStep3(
       <div id="basicEccEditor"></div>
     </div>
 
-    <div class="sidepanel-section" style="display:flex; justify-content:center; gap:12px; margin-top:12px;">
-      <button id="basicEccBackBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:120px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-size:13px;">← Назад</button>
-      <button id="basicEccCreateBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:140px; padding:8px 16px; border:1px solid ${COLORS.SUCCESS_TEXT}; border-radius:4px; background:${state.isSubmitting ? COLORS.BUTTON_DISABLED_BG : COLORS.BUTTON_PRIMARY_BG}; color:${COLORS.BUTTON_TEXT_WHITE}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-weight:500; font-size:13px;">${state.isSubmitting ? "Создание..." : "Создать"}</button>
-      <button id="basicEccCancelBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:100px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-size:13px;">Отмена</button>
+    <div class="sidepanel-section btn-row">
+      ${renderButton({ id: "basicEccBackBtn", label: "← Назад", disabled: state.isSubmitting })}
+      ${renderButton({ id: "basicEccCreateBtn", label: state.isSubmitting ? "Создание..." : "Создать", style: "primary", disabled: state.isSubmitting })}
+      ${renderButton({ id: "basicEccCancelBtn", label: "Отмена", disabled: state.isSubmitting, minWidth: 100 })}
     </div>
   `;
 
@@ -381,10 +375,10 @@ function renderSimpleStep3(
       <div id="simpleAlgorithmEditor"></div>
     </div>
 
-    <div class="sidepanel-section" style="display:flex; justify-content:center; gap:12px; margin-top:12px;">
-      <button id="simpleAlgBackBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:120px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-size:13px;">← Назад</button>
-      <button id="simpleAlgCreateBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:140px; padding:8px 16px; border:1px solid ${COLORS.SUCCESS_TEXT}; border-radius:4px; background:${state.isSubmitting ? COLORS.BUTTON_DISABLED_BG : COLORS.BUTTON_PRIMARY_BG}; color:${COLORS.BUTTON_TEXT_WHITE}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-weight:500; font-size:13px;">${state.isSubmitting ? "Создание..." : "Создать"}</button>
-      <button id="simpleAlgCancelBtn" ${state.isSubmitting ? "disabled" : ""} style="min-width:100px; padding:8px 16px; border:1px solid ${COLORS.UI_BORDER}; border-radius:4px; background:${COLORS.BUTTON_SECONDARY_BG}; cursor:${state.isSubmitting ? "not-allowed" : "pointer"}; font-size:13px;">Отмена</button>
+    <div class="sidepanel-section btn-row">
+      ${renderButton({ id: "simpleAlgBackBtn", label: "← Назад", disabled: state.isSubmitting })}
+      ${renderButton({ id: "simpleAlgCreateBtn", label: state.isSubmitting ? "Создание..." : "Создать", style: "primary", disabled: state.isSubmitting })}
+      ${renderButton({ id: "simpleAlgCancelBtn", label: "Отмена", disabled: state.isSubmitting, minWidth: 100 })}
     </div>
   `;
 

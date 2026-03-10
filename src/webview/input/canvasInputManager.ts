@@ -5,6 +5,8 @@ import { ViewportController } from "../handlers/viewportController";
 import { screenToWorld } from "../layout/transformUtils";
 import { PORT_HIT_RADIUS } from "../rendering/constants";
 import { computeOrthogonalRoute } from "../rendering/orthogonalRouter";
+import { pointToSegmentDist } from "../utils/geometry";
+import { showContextMenu, hideContextMenu, getActiveMenu } from "./contextMenu";
 
 /**
  * Manages canvas input events for the diagram editor
@@ -14,7 +16,6 @@ import { computeOrthogonalRoute } from "../rendering/orthogonalRouter";
 export class CanvasInputManager {
   private nodeDragHandler: NodeDragHandler;
   private viewportController: ViewportController;
-  private contextMenuEl: HTMLDivElement | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -38,6 +39,19 @@ export class CanvasInputManager {
     window.addEventListener("mousedown", this.onWindowMouseDown);
   }
 
+  /** Remove all registered event listeners to prevent memory leaks. */
+  dispose(): void {
+    this.canvas.removeEventListener("mousedown", this.onMouseDown);
+    this.canvas.removeEventListener("mousemove", this.onCanvasMouseMove);
+    this.canvas.removeEventListener("mouseup", this.onCanvasMouseUp);
+    this.canvas.removeEventListener("wheel", this.onWheel);
+    this.canvas.removeEventListener("contextmenu", this.onContextMenu);
+    window.removeEventListener("mousemove", this.onWindowMouseMove);
+    window.removeEventListener("mouseup", this.onWindowMouseUp);
+    window.removeEventListener("keydown", this.onKeyDown);
+    window.removeEventListener("mousedown", this.onWindowMouseDown);
+  }
+
   /**
    * Get world coordinates from mouse event using screen-to-world transformation.
    * Passed to NodeDragHandler to calculate node positions during drag operations.
@@ -47,7 +61,7 @@ export class CanvasInputManager {
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
 
-    return screenToWorld(this.canvas, this.renderer.camera, this.state.view.zoom, screenX, screenY);
+    return screenToWorld(this.canvas, this.renderer.camera, this.state.view.zoom, screenX, screenY, this.renderer.dpr);
   };
 
   private onMouseDown = (e: MouseEvent) => {
@@ -282,7 +296,7 @@ export class CanvasInputManager {
    */
   private onContextMenu = (e: MouseEvent) => {
     e.preventDefault();
-    this.hideContextMenu();
+    hideContextMenu();
 
     const worldPos = this.getMousePos(e);
 
@@ -290,7 +304,7 @@ export class CanvasInputManager {
     const clickedNode = this.findNodeAtPoint(worldPos.x, worldPos.y);
     if (clickedNode) {
       this.state.dispatch({ type: "SELECT_NODE", nodeId: clickedNode.id });
-      this.showContextMenu(e.clientX, e.clientY, () => {
+      showContextMenu(e.clientX, e.clientY, () => {
         this.state.dispatch({ type: "DELETE_NODE", nodeId: clickedNode.id });
       });
       return;
@@ -300,7 +314,7 @@ export class CanvasInputManager {
     const clickedConn = this.findConnectionAtPoint(worldPos.x, worldPos.y);
     if (clickedConn) {
       this.state.dispatch({ type: "SELECT_CONNECTION", connectionId: clickedConn.id });
-      this.showContextMenu(e.clientX, e.clientY, () => {
+      showContextMenu(e.clientX, e.clientY, () => {
         this.state.dispatch({ type: "DELETE_CONNECTION", connectionId: clickedConn.id });
       });
       return;
@@ -308,67 +322,12 @@ export class CanvasInputManager {
   };
 
   /**
-   * Show a context menu with a single "Удалить" item at the given screen position.
-   */
-  private showContextMenu(clientX: number, clientY: number, onDelete: () => void) {
-    const menu = document.createElement("div");
-    menu.style.cssText = `
-      position: fixed;
-      left: ${clientX}px;
-      top: ${clientY}px;
-      background: var(--vscode-menu-background, #252526);
-      color: var(--vscode-menu-foreground, #cccccc);
-      border: 1px solid var(--vscode-menu-border, #454545);
-      border-radius: 4px;
-      padding: 4px 0;
-      min-width: 120px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      z-index: 10000;
-      font-family: var(--vscode-font-family, sans-serif);
-      font-size: 13px;
-    `;
-
-    const item = document.createElement("div");
-    item.textContent = "Удалить";
-    item.style.cssText = `
-      padding: 6px 24px;
-      cursor: pointer;
-      white-space: nowrap;
-    `;
-    item.addEventListener("mouseenter", () => {
-      item.style.background = "var(--vscode-menu-selectionBackground, #094771)";
-      item.style.color = "var(--vscode-menu-selectionForeground, #ffffff)";
-    });
-    item.addEventListener("mouseleave", () => {
-      item.style.background = "transparent";
-      item.style.color = "var(--vscode-menu-foreground, #cccccc)";
-    });
-    item.addEventListener("click", () => {
-      onDelete();
-      this.hideContextMenu();
-    });
-
-    menu.appendChild(item);
-    document.body.appendChild(menu);
-    this.contextMenuEl = menu;
-  }
-
-  /**
-   * Hide the custom context menu if visible
-   */
-  private hideContextMenu() {
-    if (this.contextMenuEl) {
-      this.contextMenuEl.remove();
-      this.contextMenuEl = null;
-    }
-  }
-
-  /**
    * Close context menu on any mouse click outside
    */
   private onWindowMouseDown = (e: MouseEvent) => {
-    if (this.contextMenuEl && !this.contextMenuEl.contains(e.target as Node)) {
-      this.hideContextMenu();
+    const menu = getActiveMenu();
+    if (menu && !menu.contains(e.target as Node)) {
+      hideContextMenu();
     }
   };
 
@@ -388,29 +347,4 @@ export class CanvasInputManager {
       }
     }
   };
-}
-
-// ============ Geometry Helpers ============
-
-/**
- * Compute the minimum distance from point (px, py) to the line segment (ax, ay)-(bx, by).
- */
-function pointToSegmentDist(
-  px: number, py: number,
-  ax: number, ay: number,
-  bx: number, by: number
-): number {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) {
-    // Degenerate segment (single point)
-    return Math.hypot(px - ax, py - ay);
-  }
-  // Parameter t of the closest point on the segment, clamped to [0, 1]
-  let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-  const closestX = ax + t * dx;
-  const closestY = ay + t * dy;
-  return Math.hypot(px - closestX, py - closestY);
 }

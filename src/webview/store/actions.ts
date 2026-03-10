@@ -4,7 +4,7 @@
  */
 
 import type { DiagramModel, EditorNode, EditorConnection } from "../editorState";
-import type { FBTypeModel } from "../../domain/fbtModel";
+import type { FBTypeModel } from "../../shared/models/fbtModel";
 
 /**
  * Union type of all possible action types
@@ -52,7 +52,7 @@ export type EditorAction =
  * Set prepared graph data (already mapped to editor-friendly structures)
  * Used as a single atomic state update during diagram loading
  */
-export interface SetGraphDataAction {
+interface SetGraphDataAction {
   type: 'SET_GRAPH_DATA';
   model: DiagramModel;
   fbTypes: Map<string, FBTypeModel>;
@@ -66,7 +66,7 @@ export interface SetGraphDataAction {
  * Select a node in the diagram
  * If nodeId is undefined, clears selection
  */
-export interface SelectNodeAction {
+interface SelectNodeAction {
   type: 'SELECT_NODE';
   nodeId?: string;
 }
@@ -75,7 +75,7 @@ export interface SelectNodeAction {
  * Start dragging a node
  * Marks the node as being dragged
  */
-export interface StartDragAction {
+interface StartDragAction {
   type: 'START_DRAG';
   nodeId: string;
 }
@@ -84,7 +84,7 @@ export interface StartDragAction {
  * Move a node to a new position
  * Used during drag operations
  */
-export interface MoveNodeAction {
+interface MoveNodeAction {
   type: 'MOVE_NODE';
   nodeId: string;
   x: number;
@@ -95,7 +95,7 @@ export interface MoveNodeAction {
  * Stop dragging current node
  * Clears drag state
  */
-export interface StopDragAction {
+interface StopDragAction {
   type: 'STOP_DRAG';
 }
 
@@ -104,7 +104,7 @@ export interface StopDragAction {
  * The node must be fully constructed before dispatching
  * (ports, dimensions, coordinates already resolved)
  */
-export interface AddNodeAction {
+interface AddNodeAction {
   type: 'ADD_NODE';
   node: EditorNode;
 }
@@ -113,7 +113,7 @@ export interface AddNodeAction {
  * Delete a node (FB block) from the diagram
  * Removes: node, its connections (diagram + model), block from model, related mappings
  */
-export interface DeleteNodeAction {
+interface DeleteNodeAction {
   type: 'DELETE_NODE';
   nodeId: string;
 }
@@ -122,7 +122,7 @@ export interface DeleteNodeAction {
  * Select a connection in the diagram
  * If connectionId is undefined, clears connection selection
  */
-export interface SelectConnectionAction {
+interface SelectConnectionAction {
   type: 'SELECT_CONNECTION';
   connectionId?: string;
 }
@@ -131,7 +131,7 @@ export interface SelectConnectionAction {
  * Delete a connection from the diagram
  * Removes from both diagram.connections and model.subAppNetwork.connections
  */
-export interface DeleteConnectionAction {
+interface DeleteConnectionAction {
   type: 'DELETE_CONNECTION';
   connectionId: string;
 }
@@ -139,7 +139,7 @@ export interface DeleteConnectionAction {
 /**
  * Set the currently hovered port (or clear hover)
  */
-export interface HoverPortAction {
+interface HoverPortAction {
   type: 'HOVER_PORT';
   portId?: string;
 }
@@ -149,7 +149,7 @@ export interface HoverPortAction {
  * factor > 1 = zoom in, factor < 1 = zoom out
  * Will be clamped to min/max zoom levels (to be defined in new zoom logic)
  */
-export interface ZoomAction {
+interface ZoomAction {
   type: 'ZOOM';
   factor: number;
   centerX: number;
@@ -162,7 +162,7 @@ export interface ZoomAction {
  * Pan the camera by a delta amount
  * Moves the viewport without changing zoom
  */
-export interface PanAction {
+interface PanAction {
   type: 'PAN';
   dx: number;
   dy: number;
@@ -173,7 +173,7 @@ export interface PanAction {
 /**
  * Start dragging a new connection from a port
  */
-export interface StartConnectionDragAction {
+interface StartConnectionDragAction {
   type: 'START_CONNECTION_DRAG';
   fromPortId: string;
   fromPortKind: 'event' | 'data';
@@ -186,7 +186,7 @@ export interface StartConnectionDragAction {
 /**
  * Update the mouse position during connection drag
  */
-export interface UpdateConnectionDragAction {
+interface UpdateConnectionDragAction {
   type: 'UPDATE_CONNECTION_DRAG';
   mouseX: number;
   mouseY: number;
@@ -195,7 +195,7 @@ export interface UpdateConnectionDragAction {
 /**
  * Complete connection drag - connect to target port
  */
-export interface CompleteConnectionDragAction {
+interface CompleteConnectionDragAction {
   type: 'COMPLETE_CONNECTION_DRAG';
   toPortId: string;
   toPortKind: 'event' | 'data';
@@ -206,7 +206,7 @@ export interface CompleteConnectionDragAction {
 /**
  * Cancel connection drag (dropped on empty area or invalid target)
  */
-export interface CancelConnectionDragAction {
+interface CancelConnectionDragAction {
   type: 'CANCEL_CONNECTION_DRAG';
 }
 
@@ -216,7 +216,7 @@ export interface CancelConnectionDragAction {
  * Update the value of a block parameter (initial value / literal assignment).
  * The value must pass IEC 61131-3 type validation before dispatch.
  */
-export interface UpdateParameterAction {
+interface UpdateParameterAction {
   type: 'UPDATE_PARAMETER';
   nodeId: string;
   paramName: string;
@@ -227,7 +227,7 @@ export interface UpdateParameterAction {
  * Toggle OPC UA mapping attribute on a block parameter.
  * Adds or removes the Attribute Name="OpcMapping" Value="true" entry.
  */
-export interface ToggleOpcMappingAction {
+interface ToggleOpcMappingAction {
   type: 'TOGGLE_OPC_MAPPING';
   nodeId: string;
   paramName: string;
@@ -237,6 +237,6 @@ export interface ToggleOpcMappingAction {
 /**
  * Reset isDirty flag after successful save.
  */
-export interface ResetDirtyAction {
+interface ResetDirtyAction {
   type: 'RESET_DIRTY';
 }

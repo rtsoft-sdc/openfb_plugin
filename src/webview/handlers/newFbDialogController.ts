@@ -1,6 +1,6 @@
-import { COLORS } from "../../colorScheme";
+import { COLORS } from "../../shared/colorScheme";
 import type { InterfaceList, SubAppInterfaceList, Algorithm, ECC, NewFBCategory, VarDeclaration } from "../../shared/fbtypes";
-import { FBKind } from "../../domain/FBKind";
+import { FBKind } from "../../shared/models/FBKind";
 import type { WebviewLogger } from "../logging";
 import {
   buildNewFbDefinition,

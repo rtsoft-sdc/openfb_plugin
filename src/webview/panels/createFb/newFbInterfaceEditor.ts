@@ -5,9 +5,10 @@
  * Input Vars, Output Vars) and notifies the parent on every change.
  */
 
-import { COLORS } from "../../../colorScheme";
+
+import { escapeXml } from "../../../shared/utils/xmlEscape";
 import { IEC_DATA_TYPES } from "../../../shared/iecConstants";
-import { FBKind } from "../../../domain/FBKind";
+import { FBKind } from "../../../shared/models/FBKind";
 import type {
   EventDeclaration,
   VarDeclaration,
@@ -40,9 +41,7 @@ export interface InternalVarsCallbacks {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+const escapeAttr = escapeXml;
 
 /** Generate `<option>` list for IEC data types, with the given value selected. */
 function dataTypeOptions(selected: string): string {
