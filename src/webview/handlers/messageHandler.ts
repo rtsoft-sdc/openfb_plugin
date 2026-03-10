@@ -99,6 +99,13 @@ function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: Messag
 
   deps.updateSettingsModal();
   deps.closeSettingsModal();
+
+  if (deps.leftPanel.isPaletteOpen()) {
+    const requested = deps.requestAllFbTypes();
+    if (!requested) {
+      deps.leftPanel.handleAllFbTypesError("Host API недоступен");
+    }
+  }
 }
 
 function handleSettingsError(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
