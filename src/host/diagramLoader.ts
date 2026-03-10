@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { parseSysFile } from "./parsing/sysParser";
 import { loadFbt } from "./parsing/fbtParser";
 import { FBTypeRegistry } from "./fbTypeRegistry";
+import { stripTypeLibraryPaths } from "./settingsManager";
 import type { SysSubAppNetwork } from "../shared/models/sysModel";
 import type { MessageContext } from "./messageRouter";
 import type { Logger } from "./logging";
@@ -40,13 +41,14 @@ export function createDiagramLoader(
 
   return async (): Promise<void> => {
     const config = vscode.workspace.getConfiguration("openfb");
-    const userPaths = config.get<string[]>("fbLibraryPaths") || [];
+    const rawUserPaths = config.get<string[]>("fbLibraryPaths") || [];
+    const userPaths = stripTypeLibraryPaths(rawUserPaths);
     const typeLibPath = resolveTypeLibraryPath();
 
     const uniquePaths = new Set<string>();
     if (typeLibPath) uniquePaths.add(typeLibPath);
-    uniquePaths.add(sysFileDir);
-    uniquePaths.add(workspaceFolder.uri.fsPath);
+    //uniquePaths.add(sysFileDir);
+    //uniquePaths.add(workspaceFolder.uri.fsPath);
     userPaths.forEach((p) => uniquePaths.add(p));
     shared.searchPaths = Array.from(uniquePaths);
 

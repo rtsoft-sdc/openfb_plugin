@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { applyLockedPath } from "../../shared/pluginSettings";
-import { sanitizeAndValidatePluginSettings, readSettingsFromVsCodeConfig } from "../settingsManager";
+import { sanitizeAndValidatePluginSettings, readSettingsFromVsCodeConfig, stripTypeLibraryPaths } from "../settingsManager";
 import type { WebviewMessage, MessageContext } from "../messageRouter";
 import { buildLoadDiagramMessage } from "../messageRouter";
 
@@ -27,9 +27,10 @@ export async function handleSettingsSave(m: WebviewMessage & { type: "settings:s
 
     const lockedPath = ctx.resolveTypeLibraryPath();
     const nextSettings = applyLockedPath(settings, lockedPath);
+    const persistedFbPaths = stripTypeLibraryPaths(nextSettings.fbPaths);
 
     const config = vscode.workspace.getConfiguration("openfb");
-    await config.update("fbLibraryPaths", nextSettings.fbPaths, vscode.ConfigurationTarget.Global);
+    await config.update("fbLibraryPaths", persistedFbPaths, vscode.ConfigurationTarget.Global);
     await config.update("host", nextSettings.deploy.host, vscode.ConfigurationTarget.Global);
     await config.update("port", nextSettings.deploy.port, vscode.ConfigurationTarget.Global);
     await config.update("deployTimeoutMs", nextSettings.deploy.timeoutMs, vscode.ConfigurationTarget.Global);

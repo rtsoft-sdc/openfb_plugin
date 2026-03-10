@@ -1,6 +1,15 @@
 import * as vscode from "vscode";
 import { DEFAULT_PLUGIN_SETTINGS, PluginSettings, UiLanguage, validatePluginSettings } from "../shared/pluginSettings";
 
+function isTypeLibraryPath(pathValue: string): boolean {
+  const normalized = pathValue.replace(/[\\/]+$/, "").toLowerCase();
+  return normalized.endsWith("type library");
+}
+
+export function stripTypeLibraryPaths(paths: string[]): string[] {
+  return paths.filter((pathValue) => !isTypeLibraryPath(pathValue.trim()));
+}
+
 export function isUiLanguage(value: unknown): value is UiLanguage {
   return value === "ru" || value === "en";
 }
@@ -46,10 +55,13 @@ export function readSettingsFromVsCodeConfig(): PluginSettings {
   const timeoutMs = config.get<number>("deployTimeoutMs");
   const uiLanguage = config.get<string>("uiLanguage");
 
+  const normalizedFbPaths = Array.isArray(fbPaths)
+    ? fbPaths.filter((pathValue): pathValue is string => typeof pathValue === "string")
+    : DEFAULT_PLUGIN_SETTINGS.fbPaths;
+
   return {
-    fbPaths: Array.isArray(fbPaths)
-      ? fbPaths.filter((pathValue): pathValue is string => typeof pathValue === "string")
-      : DEFAULT_PLUGIN_SETTINGS.fbPaths,
+    // Type Library should be resolved per-opened .sys, not stored globally.
+    fbPaths: stripTypeLibraryPaths(normalizedFbPaths),
     deploy: {
       host: typeof host === "string" ? host : DEFAULT_PLUGIN_SETTINGS.deploy.host,
       port: typeof port === "number" ? port : DEFAULT_PLUGIN_SETTINGS.deploy.port,
