@@ -8,6 +8,11 @@
 import type { Algorithm, ECC, ECState } from "../../../shared/fbtypes";
 import { escapeXml } from "../../../shared/utils/xmlEscape";
 import type { NewFbDialogDraft } from "./newFbModel";
+import {
+  ALGORITHM_LANGUAGE_SPECS,
+  DEFAULT_ALGORITHM_LANGUAGE,
+  normalizeAlgorithmLanguage,
+} from "../../../shared/fbtypes/algorithmLanguage";
 
 export interface BasicEccCallbacks {
   onChange: (ecc: ECC, algorithms: Algorithm[]) => void;
@@ -23,10 +28,17 @@ function getAlgorithmByName(list: Algorithm[], name: string): Algorithm | undefi
 function ensureAlgorithm(list: Algorithm[], name: string): Algorithm {
   let alg = getAlgorithmByName(list, name);
   if (!alg) {
-    alg = { name, language: "ST", body: "" };
+    alg = { name, language: DEFAULT_ALGORITHM_LANGUAGE, body: "" };
     list.push(alg);
   }
   return alg;
+}
+
+function renderAlgorithmLanguageOptions(selected: unknown): string {
+  const normalized = normalizeAlgorithmLanguage(selected);
+  return ALGORITHM_LANGUAGE_SPECS
+    .map((spec) => `<option value="${spec.value}" ${normalized === spec.value ? "selected" : ""}>${spec.label}</option>`)
+    .join("");
 }
 
 function transitionStateOptions(states: ECState[], selected: string): string {
@@ -81,7 +93,7 @@ export function renderBasicEcc(
 
     const algorithmName = st.actions?.[0]?.algorithm || "";
     const alg = algorithmName ? ensureAlgorithm(algorithms, algorithmName) : undefined;
-    const language = alg?.language || "ST";
+    const language = normalizeAlgorithmLanguage(alg?.language || DEFAULT_ALGORITHM_LANGUAGE);
     const algorithmControls = algorithmName
       ? `
         <div class="ife-event-row">
@@ -92,8 +104,7 @@ export function renderBasicEcc(
           <div class="ife-field">
             <label class="ife-inline-label">Lang</label>
             <select class="ife-select" data-idx="${idx}" data-field="alg-lang">
-            <option value="ST" ${language === "ST" ? "selected" : ""}>ST</option>
-            <option value="C" ${language === "C" ? "selected" : ""}>C</option>
+            ${renderAlgorithmLanguageOptions(language)}
             </select>
           </div>
         </div>
@@ -185,7 +196,7 @@ export function renderBasicEcc(
       const algName = state?.actions?.[0]?.algorithm || "";
       if (algName) {
         const alg = ensureAlgorithm(algorithms, algName);
-        alg.language = sel.value as "ST" | "C";
+        alg.language = normalizeAlgorithmLanguage(sel.value);
       }
       callbacks.onChange(ecc, algorithms);
     });

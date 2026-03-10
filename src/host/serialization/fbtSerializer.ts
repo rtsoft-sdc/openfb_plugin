@@ -14,6 +14,11 @@ import type {
   Service,
   Primitive,
 } from "../../shared/fbtypes";
+import {
+  DEFAULT_ALGORITHM_LANGUAGE,
+  getAlgorithmBodyTag,
+  normalizeAlgorithmLanguage,
+} from "../../shared/fbtypes/algorithmLanguage";
 import type { BasicFBType } from "../../shared/fbtypes/basicFbType";
 import type { SimpleFBType } from "../../shared/fbtypes/simpleFbType";
 import type { CompositeFBType } from "../../shared/fbtypes/compositeFbType";
@@ -58,8 +63,8 @@ function serializeECC(ecc: ECC, ind: number): string {
 }
 
 function serializeAlgorithm(alg: Algorithm, ind: number): string {
-  const language = alg.language || "ST";
-  const tag = language === "C" ? "C" : "ST";
+  const language = normalizeAlgorithmLanguage(alg.language || DEFAULT_ALGORITHM_LANGUAGE);
+  const tag = getAlgorithmBodyTag(language);
   const body = alg.body ?? "";
   let xml = `${indent(ind)}<Algorithm${attr("Name", alg.name)}${attr("Comment", alg.comment)}${attr("Language", language)}>\n`;
   xml += `${indent(ind + 1)}<${tag}><![CDATA[\n${body}\n]]></${tag}>` + "\n";

@@ -3,6 +3,7 @@
  */
 
 import type { IecDataType } from "../iecConstants";
+import type { AlgorithmLanguage } from "./algorithmLanguage";
 
 // -----------------------------------------------------------------------------
 // Shared interface elements
@@ -61,7 +62,7 @@ export interface SubAppInterfaceList {
 export interface Algorithm {
   name: string;
   comment?: string;
-  language: "ST" | "C";
+  language: AlgorithmLanguage;
   body: string;
 }
 

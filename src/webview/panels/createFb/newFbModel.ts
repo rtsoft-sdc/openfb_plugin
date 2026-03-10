@@ -14,6 +14,7 @@ import type {
 import type { EditorPort } from "../../editorState";
 import { FBKind } from "../../../shared/models/FBKind";
 import { createFbTypeTemplateDefinition, getTemplateInterfaceList } from "../../../shared/fbTypeTemplates";
+import { DEFAULT_ALGORITHM_LANGUAGE } from "../../../shared/fbtypes/algorithmLanguage";
 
 // ---------------------------------------------------------------------------
 // Wizard step
@@ -76,7 +77,7 @@ function createSimpleTypeDataFromTemplate(): SimpleTypeData {
   const template = createFbTypeTemplateDefinition("NewFB", FBKind.SIMPLE) as SimpleFBType;
   return {
     internalVars: template.simpleFB.internalVars ?? [],
-    algorithm: template.simpleFB.algorithm ?? { name: "ALG", language: "ST", body: "" },
+    algorithm: template.simpleFB.algorithm ?? { name: "ALG", language: DEFAULT_ALGORITHM_LANGUAGE, body: "" },
   };
 }
 

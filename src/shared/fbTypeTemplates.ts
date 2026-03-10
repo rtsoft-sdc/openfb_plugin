@@ -5,6 +5,7 @@ import type {
   InterfaceList,
   SubAppInterfaceList,
 } from "./fbtypes";
+import { DEFAULT_ALGORITHM_LANGUAGE } from "./fbtypes/algorithmLanguage";
 
 function createBasicInterfaceTemplate(): InterfaceList {
   return {
@@ -282,7 +283,7 @@ export function createFbTypeTemplateDefinition(
         interfaceList: createSimpleInterfaceTemplate(),
         simpleFB: {
           internalVars: [],
-          algorithm: { name: "ALG", language: "ST", body: "" },
+            algorithm: { name: "ALG", language: DEFAULT_ALGORITHM_LANGUAGE, body: "" },
         },
       };
     case FBKind.COMPOSITE:
