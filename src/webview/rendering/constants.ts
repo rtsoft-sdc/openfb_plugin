@@ -1,4 +1,4 @@
-import { CANVAS_COLORS } from "../../colorScheme";
+import { CANVAS_COLORS } from "../../shared/colorScheme";
 
 /**
  * Canvas rendering constants

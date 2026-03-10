@@ -1,3 +1,5 @@
+import { stripNamespacePrefix } from "./utils/iecTypeUtils";
+
 const IEC_DEFAULT_LITERAL_BY_TYPE: Record<string, string> = {
   BOOL: "FALSE",
 
@@ -37,11 +39,7 @@ const IEC_DEFAULT_LITERAL_BY_TYPE: Record<string, string> = {
 };
 
 function normalizeIecTypeName(typeName: string): string {
-  const normalized = typeName.trim().toUpperCase();
-  if (normalized.includes("::")) {
-    return normalized.split("::").pop() || normalized;
-  }
-  return normalized;
+  return stripNamespacePrefix(typeName.trim().toUpperCase());
 }
 
 export function getDefaultLiteralForIecType(typeName?: string): string | undefined {
@@ -53,4 +51,4 @@ export function getDefaultLiteralForIecType(typeName?: string): string | undefin
   return IEC_DEFAULT_LITERAL_BY_TYPE[normalized];
 }
 
-export { IEC_DEFAULT_LITERAL_BY_TYPE };
+

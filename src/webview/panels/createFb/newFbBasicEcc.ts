@@ -6,6 +6,7 @@
  */
 
 import type { Algorithm, ECC, ECState } from "../../../shared/fbtypes";
+import { escapeXml } from "../../../shared/utils/xmlEscape";
 import type { NewFbDialogDraft } from "./newFbModel";
 
 export interface BasicEccCallbacks {
@@ -13,9 +14,7 @@ export interface BasicEccCallbacks {
   rerender: () => void;
 }
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+const escapeAttr = escapeXml;
 
 function getAlgorithmByName(list: Algorithm[], name: string): Algorithm | undefined {
   return list.find((a) => a.name === name);

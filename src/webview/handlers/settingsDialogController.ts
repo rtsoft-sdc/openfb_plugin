@@ -1,6 +1,12 @@
-import { COLORS } from "../../colorScheme";
+import { COLORS } from "../../shared/colorScheme";
 import { createSettingsModalController } from "../panels/settingsModal";
-import { DEFAULT_PLUGIN_SETTINGS, PluginSettings } from "../../shared/pluginSettings";
+import {
+  DEFAULT_PLUGIN_SETTINGS,
+  PluginSettings,
+  clonePluginSettings,
+  validatePluginSettings,
+  applyLockedPath as applyLockedPathToSettings,
+} from "../../shared/pluginSettings";
 
 interface HostApi {
   postMessage(message: unknown): void;
@@ -25,7 +31,6 @@ export interface SettingsDialogController {
   setIsSettingsSaving: (next: boolean) => void;
   setSettingsLoadError: (message?: string) => void;
   setSettingsDirty: (dirty: boolean) => void;
-  clonePluginSettings: (settings: PluginSettings) => PluginSettings;
   updateSettingsDirtyState: (dirty: boolean) => void;
   setSettingsStatus: (text: string, color: string) => void;
 }
@@ -49,12 +54,13 @@ export function createSettingsDialogController(
   let updateSidepanel = () => {};
   let lockedFbPath: string | undefined;
 
-  function clonePluginSettings(settings: PluginSettings): PluginSettings {
-    return {
-      ...settings,
-      fbPaths: [...settings.fbPaths],
-      deploy: { ...settings.deploy },
-    };
+  function normalizeAndValidateSettingsDraft(draft: PluginSettings): { ok: true; settings: PluginSettings } | { ok: false; error: string } {
+    const result = validatePluginSettings(draft);
+    if (result.error !== undefined) {
+      return { ok: false, error: result.error };
+    }
+    const settings = applyLockedPathToSettings(result.settings, lockedFbPath);
+    return { ok: true, settings };
   }
 
   function updateSettingsDirtyState(dirty: boolean): void {
@@ -68,56 +74,6 @@ export function createSettingsDialogController(
   function setSettingsStatus(text: string, color: string): void {
     settingsStatusText = text;
     settingsStatusColor = color;
-  }
-
-  function normalizeAndValidateSettingsDraft(draft: PluginSettings): { ok: true; settings: PluginSettings } | { ok: false; error: string } {
-    const host = draft.deploy.host.trim();
-    if (!host) {
-      return { ok: false, error: "Host не должен быть пустым" };
-    }
-
-    const port = Math.trunc(draft.deploy.port);
-    if (!Number.isFinite(port) || port < 1 || port > 65535) {
-      return { ok: false, error: "Port должен быть от 1 до 65535" };
-    }
-
-    const timeoutMs = Math.trunc(draft.deploy.timeoutMs);
-    if (!Number.isFinite(timeoutMs) || timeoutMs < 1000) {
-      return { ok: false, error: "Timeout должен быть не меньше 1000 мс" };
-    }
-
-    const uniquePaths = new Set<string>();
-    const fbPaths: string[] = [];
-    for (const pathValue of draft.fbPaths) {
-      const normalizedPath = pathValue.trim();
-      if (!normalizedPath || uniquePaths.has(normalizedPath)) {
-        continue;
-      }
-      uniquePaths.add(normalizedPath);
-      fbPaths.push(normalizedPath);
-    }
-
-    if (lockedFbPath) {
-      const lockedNormalized = lockedFbPath.trim();
-      if (lockedNormalized) {
-        const filtered = fbPaths.filter((p) => p !== lockedNormalized);
-        fbPaths.length = 0;
-        fbPaths.push(lockedNormalized, ...filtered);
-      }
-    }
-
-    return {
-      ok: true,
-      settings: {
-        fbPaths,
-        deploy: {
-          host,
-          port,
-          timeoutMs,
-        },
-        uiLanguage: draft.uiLanguage === "en" ? "en" : "ru",
-      },
-    };
   }
 
   function saveSettingsDraft(): void {
@@ -213,7 +169,6 @@ export function createSettingsDialogController(
     setSettingsDirty: (dirty: boolean) => {
       settingsDirty = dirty;
     },
-    clonePluginSettings,
     updateSettingsDirtyState,
     setSettingsStatus,
   };

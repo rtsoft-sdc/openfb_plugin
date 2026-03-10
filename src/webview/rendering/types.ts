@@ -37,7 +37,7 @@ export interface StatsLegendOptions {
 /**
  * Node with computed rendering properties
  */
-export interface RenderedNode {
+interface RenderedNode {
   /** Unique node identifier */
   id: string;
 
@@ -75,7 +75,7 @@ export interface RenderedNode {
 /**
  * Connection between two ports
  */
-export interface DiagramConnection {
+interface DiagramConnection {
   /** Unique connection identifier */
   id: string;
 
@@ -92,7 +92,7 @@ export interface DiagramConnection {
 /**
  * Bounding box for geometric calculations
  */
-export interface BoundingBox {
+interface BoundingBox {
   /** Minimum X coordinate */
   minX: number;
 
@@ -118,22 +118,5 @@ export interface BoundingBox {
 export interface Waypoint {
   x: number;
   y: number;
-}
-
-/**
- * Legend item to be rendered
- */
-export interface LegendItem {
-  /** Item label text */
-  label: string;
-
-  /** Visual style type */
-  type: "port-event" | "port-data" | "connection-event" | "connection-data";
-
-  /** Item color */
-  color: string;
-
-  /** Optional dash pattern for connections */
-  dash?: number[];
 }
 

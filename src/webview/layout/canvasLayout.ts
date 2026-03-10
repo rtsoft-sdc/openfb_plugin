@@ -14,12 +14,14 @@ export function createCanvasLayout(deps: CanvasLayoutDeps) {
   const { canvas, state, renderer, logger } = deps;
 
   function resize(): void {
-    canvas.width = window.innerWidth - PANEL_LAYOUT_CONFIG.RIGHT_PANEL_WIDTH;
+    const cssWidth = window.innerWidth - PANEL_LAYOUT_CONFIG.RIGHT_PANEL_WIDTH;
     const toolbar = document.getElementById(PANEL_LAYOUT_CONFIG.TOOLBAR_ID);
     const toolbarHeight = toolbar ? toolbar.offsetHeight : 0;
-    canvas.height = Math.max(0, window.innerHeight - toolbarHeight);
+    const cssHeight = Math.max(0, window.innerHeight - toolbarHeight);
 
-    logger.debug(`Canvas resized to ${canvas.width}x${canvas.height} (toolbar ${toolbarHeight}px)`);
+    renderer.applyDpr(cssWidth, cssHeight);
+
+    logger.debug(`Canvas resized to ${cssWidth}x${cssHeight} (toolbar ${toolbarHeight}px, dpr=${renderer.dpr})`);
     renderer.render(state);
   }
 
@@ -49,8 +51,8 @@ export function createCanvasLayout(deps: CanvasLayoutDeps) {
 
     const diagramCenterX = (minX + maxX) / 2;
     const diagramCenterY = (minY + maxY) / 2;
-    const targetOffsetX = canvas.width / 2 - diagramCenterX;
-    const targetOffsetY = canvas.height / 2 - diagramCenterY;
+    const targetOffsetX = renderer.logicalWidth / 2 - diagramCenterX;
+    const targetOffsetY = renderer.logicalHeight / 2 - diagramCenterY;
 
     renderer.camera.offsetX = targetOffsetX;
     renderer.camera.offsetY = targetOffsetY;

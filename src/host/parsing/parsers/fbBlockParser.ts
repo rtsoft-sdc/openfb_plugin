@@ -1,0 +1,49 @@
+import { readAndParseXml } from "../xmlParserFactory";
+import { SysBlock } from "../../../shared/models/sysModel";
+import { detectFBKind, FBKind } from "../../../shared/models/FBKind";
+import { parseParameters } from "./parameterParser";
+import { resolveTypeFilePath } from "../fileSearch";
+import { stripNamespacePrefix } from "../../../shared/utils/iecTypeUtils";
+
+export function parseFBBlock(
+  fb: any,
+  fbName: string,
+  sysDir: string,
+  searchPaths: string[],
+  logger: any,
+): SysBlock {
+  const typeLong = fb.Type || "";
+  const typeShort = stripNamespacePrefix(typeLong);
+
+  const parameters = parseParameters(fbName, fb);
+
+  // Detect FB kind by searching for .fbt file
+  let fbKind: FBKind | undefined;
+  if (typeShort) {
+    const foundPath = resolveTypeFilePath(typeShort, "fbt", [sysDir, ...searchPaths]);
+
+    if (foundPath) {
+      try {
+        const fbtDoc = readAndParseXml(foundPath);
+        if (fbtDoc?.FBType) {
+          fbKind = detectFBKind(fbtDoc.FBType);
+          logger.debug(`Resolved fbKind for ${typeShort}: ${FBKind[fbKind]} from ${foundPath}`);
+        }
+      } catch (err) {
+        logger.warn(`Failed to parse .fbt file for ${typeShort}:`, err);
+      }
+    } else {
+      logger.debug(`No .fbt file found for type ${typeShort}`);
+    }
+  }
+
+  return {
+    id: fbName,
+    typeShort,
+    typeLong,
+    x: Number(fb.x ?? 0),
+    y: Number(fb.y ?? 0),
+    fbKind,
+    parameters: parameters.length > 0 ? parameters : undefined,
+  };
+}

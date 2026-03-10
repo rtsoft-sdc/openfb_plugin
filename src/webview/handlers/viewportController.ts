@@ -79,8 +79,8 @@ export class ViewportController {
       factor: zoomFactor,
       centerX: screenX,
       centerY: screenY,
-      canvasCenterX: this.renderer.canvas.width / 2,
-      canvasCenterY: this.renderer.canvas.height / 2
+      canvasCenterX: this.renderer.logicalWidth / 2,
+      canvasCenterY: this.renderer.logicalHeight / 2
     });
 
     // Sync camera with updated state so next pan doesn't jump

@@ -12,7 +12,7 @@ import type {
   SimpleFBType,
 } from "../../../shared/fbtypes";
 import type { EditorPort } from "../../editorState";
-import { FBKind } from "../../../domain/FBKind";
+import { FBKind } from "../../../shared/models/FBKind";
 import { createFbTypeTemplateDefinition, getTemplateInterfaceList } from "../../../shared/fbTypeTemplates";
 
 // ---------------------------------------------------------------------------

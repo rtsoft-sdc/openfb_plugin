@@ -14,13 +14,13 @@ import { StatsLegendOptions } from "./types";
  *
  * @param ctx - Canvas 2D rendering context
  * @param state - Editor state with nodes data
- * @param canvas - Canvas element for dimensions
+ * @param logicalWidth - Logical (CSS) canvas width
  * @param options - Camera state for display
  */
 export function drawStatsAndLegend(
   ctx: CanvasRenderingContext2D,
   state: EditorState,
-  canvas: HTMLCanvasElement,
+  logicalWidth: number,
   options: StatsLegendOptions
 ): void {
   // =========================================================================
@@ -40,7 +40,7 @@ export function drawStatsAndLegend(
   // LEGEND BOX - top right
   // =========================================================================
 
-  const legendX = canvas.width - C.LEGEND_MAX_WIDTH - C.STATS_PADDING;
+  const legendX = logicalWidth - C.LEGEND_MAX_WIDTH - C.STATS_PADDING;
   const legendY = C.STATS_PADDING;
   const legendHeight =
     C.LEGEND_TITLE_HEIGHT +

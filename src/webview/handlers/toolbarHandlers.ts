@@ -16,71 +16,39 @@ interface ToolbarHandlersDeps {
 export function setupToolbarHandlers(deps: ToolbarHandlersDeps): void {
   const { logger, vscode, openSettingsPanel, openNewFBDialog, openPalettePanel, getSaveData } = deps;
 
-  const deployBtn = document.getElementById("deployBtn") as HTMLButtonElement | null;
-  if (deployBtn) {
-    deployBtn.addEventListener("click", () => {
-      logger.debug("Deploy button clicked");
+  /** Bind a button to post a simple message to the extension host. */
+  function bindMessageButton(id: string, messageType: string): void {
+    const btn = document.getElementById(id) as HTMLButtonElement | null;
+    if (!btn) { logger.warn(`${id} not found in DOM`); return; }
+    btn.addEventListener("click", () => {
+      logger.debug(`${id} clicked`);
       try {
         if (vscode) {
-          vscode.postMessage({ type: "deploy" });
+          vscode.postMessage({ type: messageType });
         } else {
-          logger.warn("vscode.postMessage not available for deploy");
+          logger.warn(`vscode.postMessage not available for ${messageType}`);
         }
       } catch (err) {
-        logger.error("Failed to post deploy message", err);
+        logger.error(`Failed to post ${messageType} message`, err);
       }
     });
-  } else {
-    logger.warn("Deploy button not found in DOM");
   }
 
-  const generateFbootBtn = document.getElementById("generateFbootBtn") as HTMLButtonElement | null;
-  if (generateFbootBtn) {
-    generateFbootBtn.addEventListener("click", () => {
-      logger.debug("generateFbootBtn button clicked");
-      try {
-        if (vscode) {
-          vscode.postMessage({ type: "generateFboot" });
-        } else {
-          logger.warn("vscode.postMessage not available for deploy");
-        }
-      } catch (err) {
-        logger.error("Failed to post generateFboot message", err);
-      }
+  /** Bind a button to a simple callback. */
+  function bindCallbackButton(id: string, callback: () => void): void {
+    const btn = document.getElementById(id) as HTMLButtonElement | null;
+    if (!btn) { logger.warn(`${id} not found in DOM`); return; }
+    btn.addEventListener("click", () => {
+      logger.debug(`${id} clicked`);
+      callback();
     });
-  } else {
-    logger.warn("generateFboot button not found in DOM");
   }
 
-  const settingsBtn = document.getElementById("settingsBtn") as HTMLButtonElement | null;
-  if (settingsBtn) {
-    settingsBtn.addEventListener("click", () => {
-      logger.debug("settingsBtn button clicked");
-      openSettingsPanel();
-    });
-  } else {
-    logger.warn("settings button not found in DOM");
-  }
-
-  const createBlockBtn = document.getElementById("createBlockBtn") as HTMLButtonElement | null;
-  if (createBlockBtn) {
-    createBlockBtn.addEventListener("click", () => {
-      logger.debug("createBlockBtn button clicked");
-      openNewFBDialog();
-    });
-  } else {
-    logger.warn("createBlockBtn button not found in DOM");
-  }
-
-  const addBlockBtn = document.getElementById("addBlockBtn") as HTMLButtonElement | null;
-  if (addBlockBtn) {
-    addBlockBtn.addEventListener("click", () => {
-      logger.debug("addBlockBtn button clicked");
-      openPalettePanel();
-    });
-  } else {
-    logger.warn("addBlockBtn button not found in DOM");
-  }
+  bindMessageButton("deployBtn", "deploy");
+  bindMessageButton("generateFbootBtn", "generateFboot");
+  bindCallbackButton("settingsBtn", openSettingsPanel);
+  bindCallbackButton("createBlockBtn", openNewFBDialog);
+  bindCallbackButton("addBlockBtn", openPalettePanel);
 
   const saveAsBtn = document.getElementById("saveAsBtn") as HTMLButtonElement | null;
   if (saveAsBtn) {

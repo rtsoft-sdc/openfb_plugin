@@ -9,7 +9,7 @@ import { clearCanvas, drawGrid } from "../../rendering/grid";
 import { drawNode } from "../../rendering/nodeRenderer";
 import { layoutPorts } from "../../rendering/portRenderer";
 import { calculateNodeDimensions } from "../../layout/nodeLayout";
-import { FBKind } from "../../../domain/FBKind";
+import { FBKind } from "../../../shared/models/FBKind";
 import type { NewFbDialogDraft } from "./newFbModel";
 import { buildEditorPortsFromDraft } from "./newFbModel";
 import type { EventDeclaration } from "../../../shared/fbtypes";

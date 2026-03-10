@@ -1,13 +1,12 @@
 import type { Algorithm } from "../../../shared/fbtypes";
+import { escapeXml } from "../../../shared/utils/xmlEscape";
 import type { NewFbDialogDraft } from "./newFbModel";
 
 export interface SimpleAlgorithmCallbacks {
   onChange: (algorithm: Algorithm) => void;
 }
 
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+const escapeAttr = escapeXml;
 
 export function renderSimpleAlgorithm(
   container: HTMLElement,

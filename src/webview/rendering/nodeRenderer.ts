@@ -166,12 +166,6 @@ export function drawNodes(
   hoveredPortId?: string
 ): void {
   if (nodes.length === 0) {
-    // Show message for empty diagram
-    ctx.restore();
-    ctx.fillStyle = C.EMPTY_NODES_COLOR;
-    ctx.font = C.EMPTY_NODES_FONT;
-    ctx.fillText(C.EMPTY_NODES_MESSAGE, C.EMPTY_NODES_X, C.EMPTY_NODES_Y);
-    ctx.save();
     return;
   }
 

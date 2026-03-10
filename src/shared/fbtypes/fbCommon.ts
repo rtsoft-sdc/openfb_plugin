@@ -160,7 +160,7 @@ export interface Service {
 // Common metadata
 // -----------------------------------------------------------------------------
 
-import { FBKind } from "../../domain/FBKind";
+import { FBKind } from "../models/FBKind";
 
 export type NewFBCategory = FBKind.BASIC | FBKind.SIMPLE | FBKind.COMPOSITE | FBKind.SERVICE | FBKind.SUBAPP;
 

@@ -1,4 +1,4 @@
-import { FBKind } from "../domain/FBKind";
+import { FBKind } from "./models/FBKind";
 import type {
   NewFBCategory,
   NewFBTypeDefinition,
