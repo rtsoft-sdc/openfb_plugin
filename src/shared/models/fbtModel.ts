@@ -1,3 +1,5 @@
+import type { FBKind } from "./FBKind";
+
 export type PortKind = "event" | "data";
 export type PortDirection = "input" | "output";
 
@@ -12,4 +14,5 @@ export interface FBTypeModel {
   name: string;
   ports: FBPort[];
   sourcePath?: string; // Relative path from library root (e.g., "stdlib/convert")
+  kind?: FBKind;
 }

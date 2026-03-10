@@ -79,21 +79,24 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     sidepanelContent.innerHTML = html;
   }
 
-  function buildBlockInfoHtml(node: EditorNode): string {
+  function buildBlockInfoHtml(node: EditorNode, displayType?: string, displayKind?: string): string {
+    const safeType = (displayType && displayType.trim()) || node.type || "—";
+    const safeKind = displayKind || (node.fbKind ? String(node.fbKind) : undefined);
     let html = '<div class="sidepanel-section">';
     html += `<div class="sidepanel-item"><span class="sidepanel-label">Имя:</span><span class="sidepanel-value">${node.id}</span></div>`;
-    html += `<div class="sidepanel-item"><span class="sidepanel-label">Тип:</span><span class="sidepanel-value">${node.type}</span></div>`;
+    html += `<div class="sidepanel-item"><span class="sidepanel-label">Тип:</span><span class="sidepanel-value">${safeType}</span></div>`;
 
-    if (node.fbKind) {
+    if (safeKind) {
       const kindLabels: Record<string, string> = {
         BASIC: "Basic",
+        SIMPLE: "Simple",
         COMPOSITE: "Composite",
         ADAPTER: "Adapter",
         SUBAPP: "Sub-app",
         SERVICE: "Service",
         UNKNOWN: "Unknown",
       };
-      const kindLabel = kindLabels[String(node.fbKind)] || String(node.fbKind);
+      const kindLabel = kindLabels[safeKind] || safeKind;
       html += `<div class="sidepanel-item"><span class="sidepanel-label">Класс:</span><span class="sidepanel-value">${kindLabel}</span></div>`;
     }
     html += "</div>";
@@ -192,8 +195,11 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
       }
     }
 
+    const displayType = node.type || diagramBlock?.typeShort || diagramBlock?.typeLong || "";
+    const displayKind = (node.fbKind || diagramBlock?.fbKind) ? String(node.fbKind || diagramBlock?.fbKind) : undefined;
+
     let html = "";
-    html += buildBlockInfoHtml(node);
+    html += buildBlockInfoHtml(node, displayType, displayKind);
     html += buildPortsHtml(selectedNodeId, node.ports || [], nodeParamMap, opcMappingSet);
 
     sidepanelContent.innerHTML = html;

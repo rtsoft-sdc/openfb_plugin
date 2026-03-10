@@ -58,6 +58,7 @@ export function reduceNodeAction(
         id: action.node.id,
         typeShort: action.node.type,
         typeLong: action.node.type,
+        fbKind: action.node.fbKind,
         x: action.node.x,
         y: action.node.y,
         width: action.node.width,

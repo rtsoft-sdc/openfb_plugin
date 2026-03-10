@@ -163,6 +163,7 @@ const messageHandler = createMessageHandler({
   logger,
   state,
   leftPanel,
+  requestAllFbTypes,
   centerDiagramInCanvas: canvasLayout.centerDiagramInCanvas,
   updateSidepanel,
   updateSettingsModal: settingsDialog.updateSettingsModal,

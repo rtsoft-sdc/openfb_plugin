@@ -2,8 +2,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { parseSubFile } from "./parsing/subParser";
 import { FBTypeModel } from "../shared/models/fbtModel";
+import { FBKind } from "../shared/models/FBKind";
 import { TypeFileResolver } from "./parsing/typeFileResolver";
 import { getLogger } from "./logging";
+import { loadFbt } from "./parsing/fbtParser";
 
 interface FBTypeInfo {
   name: string;
@@ -359,10 +361,15 @@ export class FBTypeRegistry {
         ...iface.dataOutputs,
       ];
 
+      const kind = info.fileType === "sub"
+        ? FBKind.SUBAPP
+        : loadFbt(info.filePath).kind;
+
       return {
         name: typeName,
         ports,
         sourcePath: info.sourcePath,
+        kind,
       };
     } catch (err) {
       this.logger.error(`Failed to parse FBT file for type "${typeName}"`, err);

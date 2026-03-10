@@ -218,30 +218,33 @@ export class EditorState implements EditorStore {
       return;
     }
 
-    const id = this.generateNodeId(blockType);
+    const resolvedTypeName = (fbType.name || blockType).trim();
+
+    const id = this.generateNodeId(resolvedTypeName);
     const ports = buildPorts(id, fbType);
 
     // Use cached dimensions or calculate and cache them
-    let dimensions = this.dimensionCache.get(blockType);
+    let dimensions = this.dimensionCache.get(resolvedTypeName);
     if (!dimensions) {
       dimensions = calculateNodeDimensions(ports);
-      this.dimensionCache.set(blockType, dimensions);
+      this.dimensionCache.set(resolvedTypeName, dimensions);
     }
 
     this.dispatch({
       type: "ADD_NODE",
       node: {
         id,
-        type: blockType,
+        type: resolvedTypeName,
         x: worldX,
         y: worldY,
         ports,
         width: dimensions.width,
         height: dimensions.height,
+        fbKind: fbType.kind,
       },
     });
 
-    this.logger.info(`Added node "${id}" (type=${blockType}) at (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
+    this.logger.info(`Added node "${id}" (type=${resolvedTypeName}) at (${worldX.toFixed(1)}, ${worldY.toFixed(1)})`);
   }
 }
 

@@ -16,12 +16,14 @@ export interface ExtensionMessage {
 interface LeftPanelDeps {
   handleAllFbTypesLoaded: (tree: TreeNode[]) => void;
   handleAllFbTypesError: (message?: string) => void;
+  isPaletteOpen: () => boolean;
 }
 
 interface MessageHandlerDeps {
   logger: WebviewLogger;
   state: EditorState;
   leftPanel: LeftPanelDeps;
+  requestAllFbTypes: () => boolean;
   centerDiagramInCanvas: () => void;
   updateSidepanel: () => void;
   updateSettingsModal: () => void;
@@ -186,7 +188,15 @@ function handleSaveSysResult(event: MessageEvent<ExtensionMessage>, deps: Messag
 }
 
 function handleCreateFbTypeResult(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
-  deps.handleCreateFbTypeResult(event.data.payload as { success?: boolean; filePath?: string; error?: string } | undefined);
+  const payload = event.data.payload as { success?: boolean; filePath?: string; error?: string } | undefined;
+  deps.handleCreateFbTypeResult(payload);
+
+  if (payload?.success && deps.leftPanel.isPaletteOpen()) {
+    const requested = deps.requestAllFbTypes();
+    if (!requested) {
+      deps.leftPanel.handleAllFbTypesError("Host API недоступен");
+    }
+  }
 }
 
 export function createMessageHandler(deps: MessageHandlerDeps) {
