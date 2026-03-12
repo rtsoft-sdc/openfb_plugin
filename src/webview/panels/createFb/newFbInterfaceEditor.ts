@@ -17,6 +17,7 @@ import type {
   SubAppEventDeclaration,
 } from "../../../shared/fbtypes";
 import type { NewFbDialogDraft } from "./newFbModel";
+import { tr } from "../../i18nService";
 
 // ---------------------------------------------------------------------------
 // Callbacks interface
@@ -52,13 +53,13 @@ function dataTypeOptions(selected: string): string {
 
 function chipListMarkup(selected: string[]): string {
   if (selected.length === 0) {
-    return "<span class=\"ife-chip-empty\">(не выбраны)</span>";
+    return `<span class="ife-chip-empty">${tr("interfaceEditor.noneSelected")}</span>`;
   }
   return selected.map((name) => {
     const safe = escapeAttr(name);
     return `
       <span class="ife-chip" data-name="${safe}">
-        ${safe}<button class="ife-chip-remove" data-name="${safe}" title="Удалить">×</button>
+        ${safe}<button class="ife-chip-remove" data-name="${safe}" title="${tr("common.delete")}">×</button>
       </span>
     `;
   }).join("");
@@ -73,8 +74,8 @@ function addSelectMarkup(available: string[]): string {
     return `<option value="${safe}">${safe}</option>`;
   }).join("");
   return `
-    <select class="ife-with-add" title="Добавить">
-      <option value="" selected>+ добавить</option>
+    <select class="ife-with-add" title="${tr("common.add")}">
+      <option value="" selected>${tr("interfaceEditor.addItem")}</option>
       ${opts}
     </select>
   `;
@@ -102,7 +103,7 @@ function renderEventSection(
   section.innerHTML = `
     <div class="ife-section-header">
       <span class="ife-section-title">${title}</span>
-      <button class="ife-add-btn" title="Добавить">+</button>
+      <button class="ife-add-btn" title="${tr("common.add")}">+</button>
     </div>
   `;
 
@@ -139,9 +140,9 @@ function renderEventSection(
 
     row.innerHTML = `
       <div class="ife-event-row">
-        <input class="ife-input" value="${escapeAttr(ev.name)}" placeholder="Имя" data-idx="${i}" />
+        <input class="ife-input" value="${escapeAttr(ev.name)}" placeholder="${tr("interfaceEditor.namePlaceholder")}" data-idx="${i}" />
         ${typeSelect}
-        <button class="ife-remove-btn" data-idx="${i}" title="Удалить">✕</button>
+        <button class="ife-remove-btn" data-idx="${i}" title="${tr("common.delete")}">✕</button>
       </div>
       ${withSelect}
     `;
@@ -225,7 +226,7 @@ function renderVarSection(
   section.innerHTML = `
     <div class="ife-section-header">
       <span class="ife-section-title">${title}</span>
-      <button class="ife-add-btn" title="Добавить">+</button>
+      <button class="ife-add-btn" title="${tr("common.add")}">+</button>
     </div>
   `;
 
@@ -236,11 +237,11 @@ function renderVarSection(
     const row = document.createElement("div");
     row.className = "ife-row";
     row.innerHTML = `
-      <input class="ife-input ife-name" value="${escapeAttr(v.name)}" placeholder="Имя" data-idx="${i}" />
+      <input class="ife-input ife-name" value="${escapeAttr(v.name)}" placeholder="${tr("interfaceEditor.namePlaceholder")}" data-idx="${i}" />
       <select class="ife-select" data-idx="${i}">
         ${dataTypeOptions(v.type)}
       </select>
-      <button class="ife-remove-btn" data-idx="${i}" title="Удалить">✕</button>
+      <button class="ife-remove-btn" data-idx="${i}" title="${tr("common.delete")}">✕</button>
     `;
     list.appendChild(row);
   });
@@ -288,7 +289,7 @@ export function renderInternalVarsEditor(
   section.innerHTML = `
     <div class="ife-section-header">
       <span class="ife-section-title">Internal Vars</span>
-      <button class="ife-add-btn" title="Добавить">+</button>
+      <button class="ife-add-btn" title="${tr("common.add")}">+</button>
     </div>
   `;
 
@@ -299,14 +300,14 @@ export function renderInternalVarsEditor(
     const row = document.createElement("div");
     row.className = "ife-row ife-row-internal";
     row.innerHTML = `
-      <input class="ife-input ife-name" value="${escapeAttr(v.name)}" placeholder="Имя" data-idx="${i}" />
+      <input class="ife-input ife-name" value="${escapeAttr(v.name)}" placeholder="${tr("interfaceEditor.namePlaceholder")}" data-idx="${i}" />
       <select class="ife-select" data-idx="${i}">
         ${dataTypeOptions(v.type)}
       </select>
       <input class="ife-input ife-initial" value="${escapeAttr(v.initialValue ?? "")}" placeholder="Initial value" data-idx="${i}" />
       <input class="ife-input ife-array" value="${escapeAttr(v.arraySize ?? "")}" placeholder="Array size" data-idx="${i}" />
       <input class="ife-input ife-comment" value="${escapeAttr(v.comment ?? "")}" placeholder="Comment" data-idx="${i}" />
-      <button class="ife-remove-btn" data-idx="${i}" title="Удалить">✕</button>
+      <button class="ife-remove-btn" data-idx="${i}" title="${tr("common.delete")}">✕</button>
     `;
     list.appendChild(row);
   });

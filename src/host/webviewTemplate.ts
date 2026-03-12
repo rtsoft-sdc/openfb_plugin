@@ -4,12 +4,14 @@ import { EXTENSION_COLORS } from "../shared/colorScheme";
 import { buildLayoutStyles } from "./webviewStyles/layoutStyles";
 import { buildModalStyles } from "./webviewStyles/modalStyles";
 import { buildComponentStyles } from "./webviewStyles/componentStyles";
+import { t } from "../shared/i18n";
+import type { UiLanguage } from "../shared/pluginSettings";
 
 /**
  * Generate the full HTML document for the webview panel.
  * Contains all CSS styles and the skeleton DOM structure.
  */
-export function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
+export function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri, language: UiLanguage): string {
   const logger = getLogger();
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(extUri, "out", "webview", "main.js"),
@@ -19,7 +21,7 @@ export function getWebviewHtml(webview: vscode.Webview, extUri: vscode.Uri): str
 
   return `
 <!DOCTYPE html>
-<html>
+<html data-lang="${language}">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
@@ -29,7 +31,7 @@ ${buildStyles()}
   </style>
 </head>
 <body>
-${buildBodyHtml(scriptUri)}
+${buildBodyHtml(scriptUri, language)}
 </body>
 </html>`;
 }
@@ -42,27 +44,28 @@ function buildStyles(): string {
   ].join("\n");
 }
 
-function buildBodyHtml(scriptUri: vscode.Uri): string {
+function buildBodyHtml(scriptUri: vscode.Uri, language: UiLanguage): string {
+  const tr = (key: string) => t(language, key);
   return `
   <div id="toolbar">
     <div class="toolbar-left">
-      <button id="createBlockBtn" style="padding:8px 12px; border:1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER}; background:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG}; color:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT}; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">* Создать FB</button>
-      <button id="addBlockBtn" style="padding:8px 12px; border:1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER}; background:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG}; color:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT}; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">+ Добавить FB</button>
+      <button id="createBlockBtn" style="padding:8px 12px; border:1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER}; background:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG}; color:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT}; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">${tr("toolbar.createFb")}</button>
+      <button id="addBlockBtn" style="padding:8px 12px; border:1px solid ${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BORDER}; background:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_BG}; color:${EXTENSION_COLORS.TOOLBAR_BUTTON_PRIMARY_TEXT}; cursor:pointer; border-radius:4px; font-family:Roboto,sans-serif;">${tr("toolbar.addFb")}</button>
     </div>
     <div class="toolbar-center">
-      <button id="generateFbootBtn">Создать FBOOT</button>
-      <button id="deployBtn">Деплой</button>
+      <button id="generateFbootBtn">${tr("toolbar.generateFboot")}</button>
+      <button id="deployBtn">${tr("toolbar.deploy")}</button>
     </div>
     <div class="toolbar-right">
-      <button id="saveAsBtn">Сохранить как</button>
-      <button id="settingsBtn" title="Открыть настройки">⚙ Настройки</button>
+      <button id="saveAsBtn">${tr("toolbar.saveAs")}</button>
+      <button id="settingsBtn" title="${tr("toolbar.settingsTooltip")}">⚙ ${tr("toolbar.settings")}</button>
     </div>
   </div>
   
   <div id="left-sidepanel">
-    <div id="left-sidepanel-header">Библиотека типов</div>
+    <div id="left-sidepanel-header">${tr("panel.typeLibrary.title")}</div>
     <div id="left-sidepanel-content">
-      <div class="sidepanel-empty">Библиотека закрыта</div>
+      <div class="sidepanel-empty">${tr("panel.typeLibrary.closed")}</div>
     </div>
   </div>
   
@@ -70,12 +73,12 @@ function buildBodyHtml(scriptUri: vscode.Uri): string {
   
   <div id="sidepanel">
     <div id="sidepanel-tabs">
-      <button id="tab-devices" class="sidepanel-tab active">Устройства</button>
-      <button id="tab-blockinfo" class="sidepanel-tab">Информация о блоке</button>
+      <button id="tab-devices" class="sidepanel-tab active">${tr("panel.devices.title")}</button>
+      <button id="tab-blockinfo" class="sidepanel-tab">${tr("panel.blockInfo.title")}</button>
     </div>
-    <div id="sidepanel-header">Устройства</div>
+    <div id="sidepanel-header">${tr("panel.devices.title")}</div>
     <div id="sidepanel-content">
-      <div class="sidepanel-empty">Нет устройств</div>
+      <div class="sidepanel-empty">${tr("panel.devices.empty")}</div>
     </div>
   </div>
   

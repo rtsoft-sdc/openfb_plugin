@@ -7,6 +7,7 @@ import { EditorStoreState } from "../types";
 import { EditorAction } from "../actions";
 import { validateParameterValue } from "../../../shared/parameterValidator";
 import { getWebviewLogger } from "../../logging";
+import { getLanguage } from "../../i18nService";
 
 export function reduceParameterAction(
   state: EditorStoreState,
@@ -46,7 +47,7 @@ export function reduceParameterAction(
 
       // Validate value against port data type (skip for empty values — clears param)
       if (action.value.trim() !== "") {
-        const validation = validateParameterValue(action.value, portDataType);
+        const validation = validateParameterValue(action.value, portDataType, getLanguage());
         if (!validation.valid) {
           logger.warn(
             `UPDATE_PARAMETER rejected: ${action.nodeId}.${action.paramName} = "${action.value}" — ${validation.error}`,

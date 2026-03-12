@@ -6,6 +6,7 @@
 import * as C from "./constants";
 import { EditorState } from "../editorState";
 import { StatsLegendOptions } from "./types";
+import { tr } from "../i18nService";
 
 /**
  * Draw stats and legend on canvas overlay
@@ -27,7 +28,7 @@ export function drawStatsAndLegend(
   // STATS LINE - top left
   // =========================================================================
 
-  const statsText = `Узлы: ${state.nodes.length} | Масштаб: ${(options.scale * 100).toFixed(0)}%`;
+  const statsText = `${tr("legend.nodes")}: ${state.nodes.length} | ${tr("legend.zoom")}: ${(options.scale * 100).toFixed(0)}%`;
   ctx.fillStyle = C.STATS_TEXT_COLOR;
   ctx.font = C.STATS_FONT;
   ctx.fillText(
@@ -61,7 +62,7 @@ export function drawStatsAndLegend(
   ctx.font = C.LEGEND_TITLE_FONT;
   ctx.textAlign = "center";
   ctx.fillText(
-    C.LEGEND_TITLE,
+    tr("legend.title"),
     legendX + C.LEGEND_MAX_WIDTH / 2,
     legendY + C.LEGEND_PADDING + 12
   );
@@ -86,7 +87,7 @@ export function drawStatsAndLegend(
   ctx.fill();
   ctx.fillStyle = C.LEGEND_TEXT_COLOR;
   ctx.fillText(
-    C.LEGEND_EVENT_PORT,
+    tr("legend.event"),
     legendX + C.LEGEND_PADDING + 16,
     yPos
   );
@@ -108,7 +109,7 @@ export function drawStatsAndLegend(
   ctx.fill();
   ctx.fillStyle = C.LEGEND_TEXT_COLOR;
   ctx.font = C.LEGEND_ITEM_FONT;
-  ctx.fillText(C.LEGEND_DATA_PORT, legendX + C.LEGEND_PADDING + 16, yPos);
+  ctx.fillText(tr("legend.data"), legendX + C.LEGEND_PADDING + 16, yPos);
   yPos += C.LEGEND_LINE_HEIGHT;
 
   // =========================================================================
@@ -126,7 +127,7 @@ export function drawStatsAndLegend(
   ctx.fillStyle = C.LEGEND_TEXT_COLOR;
   ctx.font = C.LEGEND_ITEM_FONT;
   ctx.fillText(
-    C.LEGEND_EVENT_CONNECTION,
+    tr("legend.eventConnection"),
     legendX + C.LEGEND_PADDING + 16,
     yPos
   );
@@ -145,7 +146,7 @@ export function drawStatsAndLegend(
   ctx.fillStyle = C.LEGEND_TEXT_COLOR;
   ctx.font = C.LEGEND_ITEM_FONT;
   ctx.fillText(
-    C.LEGEND_DATA_CONNECTION,
+    tr("legend.dataConnection"),
     legendX + C.LEGEND_PADDING + 16,
     yPos
   );

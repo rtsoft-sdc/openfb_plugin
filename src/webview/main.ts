@@ -12,6 +12,7 @@ import { screenToWorld } from "./layout/transformUtils";
 import { createSettingsDialogController } from "./handlers/settingsDialogController";
 import { createNewFbDialogController } from "./handlers/newFbDialogController";
 import { setupCollapsibleDelegation } from "./panels/components/collapsible";
+import { tr } from "./i18nService";
 
 /**
  * VS Code Webview API for communication with the extension host
@@ -159,6 +160,30 @@ setupCanvasDnd({
 
 // Register message handler BEFORE anything else
 logger.debug("Registering message handler...");
+
+function refreshStaticLabels(): void {
+  const ids: Record<string, string> = {
+    createBlockBtn: "toolbar.createFb",
+    addBlockBtn: "toolbar.addFb",
+    generateFbootBtn: "toolbar.generateFboot",
+    deployBtn: "toolbar.deploy",
+    saveAsBtn: "toolbar.saveAs",
+    "tab-devices": "panel.devices.title",
+    "tab-blockinfo": "panel.blockInfo.title",
+    "left-sidepanel-header": "panel.typeLibrary.title",
+  };
+  for (const [id, key] of Object.entries(ids)) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = tr(key);
+  }
+  const settingsBtn = document.getElementById("settingsBtn");
+  if (settingsBtn) {
+    settingsBtn.textContent = `\u2699 ${tr("toolbar.settings")}`;
+    settingsBtn.title = tr("toolbar.settingsTooltip");
+  }
+  updateSidepanel();
+}
+
 const messageHandler = createMessageHandler({
   logger,
   state,
@@ -180,6 +205,7 @@ const messageHandler = createMessageHandler({
   updateSettingsDirtyState: settingsDialog.updateSettingsDirtyState,
   setSettingsStatus: settingsDialog.setSettingsStatus,
   handleCreateFbTypeResult: newFbDialog.handleCreateFbTypeResult,
+  refreshStaticLabels,
 });
 
 window.addEventListener("message", messageHandler);

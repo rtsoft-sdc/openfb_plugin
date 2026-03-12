@@ -219,9 +219,6 @@ export const DEFAULT_TEXT_ALIGN = "left";
 /** Default text baseline (for reset operations) */
 export const DEFAULT_TEXT_BASELINE = "alphabetic";
 
-/** Empty nodes message when no nodes are loaded */
-export const EMPTY_NODES_MESSAGE = "No nodes loaded";
-
 /** Empty nodes message font */
 export const EMPTY_NODES_FONT = "14px monospace";
 
@@ -238,20 +235,6 @@ export const EMPTY_NODES_X = 20;
 export const EMPTY_NODES_Y = 30;
 
 // ============================================================================
-// LEGEND ITEM LABELS (Russian)
+// LEGEND ITEM LABELS (localized via i18n)
 // ============================================================================
-
-/** Legend title in Russian */
-export const LEGEND_TITLE = "ЛЕГЕНДА";
-
-/** Event port type label */
-export const LEGEND_EVENT_PORT = "Событие (E)";
-
-/** Data port type label */
-export const LEGEND_DATA_PORT = "Данные (D)";
-
-/** Event connection label */
-export const LEGEND_EVENT_CONNECTION = "Соб. связь";
-
-/** Data connection label */
-export const LEGEND_DATA_CONNECTION = "Дан. связь";
+// Legend labels are now rendered dynamically via tr() in legendRenderer.ts

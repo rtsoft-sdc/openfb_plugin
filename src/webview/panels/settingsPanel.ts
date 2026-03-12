@@ -1,6 +1,7 @@
 import { PluginSettings, clonePluginSettings } from "./pluginSettings";
 import { escapeXml } from "../../shared/utils/xmlEscape";
 import { renderButton } from "./components/button";
+import { tr } from "../i18nService";
 
 export interface SettingsPanelState {
   draft: PluginSettings;
@@ -31,12 +32,12 @@ export function renderSettingsPanel(
   callbacks: SettingsPanelCallbacks
 ): void {
   if (sidepanelHeader) {
-    sidepanelHeader.textContent = "Настройки плагина";
+    sidepanelHeader.textContent = tr("panel.settings.title");
   }
 
   let settingsContentHtml = "";
   if (panelState.isLoading) {
-    settingsContentHtml = '<div class="sidepanel-empty">Загрузка настроек...</div>';
+    settingsContentHtml = `<div class="sidepanel-empty">${tr("common.loading")}</div>`;
   } else if (panelState.loadError) {
     settingsContentHtml = `<div class="sidepanel-empty fbt-error">${escapeHtml(panelState.loadError)}</div>`;
   } else {
@@ -45,8 +46,8 @@ export function renderSettingsPanel(
       ? `<div class="settings-paths-list">${panelState.draft.fbPaths.map((pathValue, idx) => {
         const isLocked = lockedPath ? pathValue === lockedPath : false;
         const removeBtn = isLocked
-          ? `<button class="settings-remove-path-btn" data-index="${idx}" title="Нельзя удалить" disabled>✗</button>`
-          : `<button class="settings-remove-path-btn" data-index="${idx}" title="Удалить путь">✗</button>`;
+          ? `<button class="settings-remove-path-btn" data-index="${idx}" title="${tr("panel.settings.pathLocked")}" disabled>✗</button>`
+          : `<button class="settings-remove-path-btn" data-index="${idx}" title="${tr("panel.settings.pathDelete")}">✗</button>`;
         return `
           <div class="settings-fbpath-row">
             <span class="settings-fbpath-label" title="${escapeHtml(pathValue)}">${escapeHtml(pathValue)}</span>
@@ -54,7 +55,7 @@ export function renderSettingsPanel(
           </div>
         `;
       }).join("")}</div>`
-      : '<div class="sidepanel-empty">Список путей пуст</div>';
+      : `<div class="sidepanel-empty">${tr("panel.settings.emptyPaths")}</div>`;
 
     settingsContentHtml = `
       <div class="sidepanel-section">
@@ -64,7 +65,7 @@ export function renderSettingsPanel(
         </div>
         ${fbPathsHtml}
         <div class="sidepanel-item" style="padding-top:8px; display:flex; justify-content:center;">
-          <button id="settingsAddPathBtn" class="settings-add-path-btn">+ Добавить путь</button>
+          <button id="settingsAddPathBtn" class="settings-add-path-btn">${tr("panel.settings.addPath")}</button>
         </div>
       </div>
       <div class="sidepanel-section">
@@ -85,7 +86,7 @@ export function renderSettingsPanel(
         </div>
       </div>
       <div class="sidepanel-section">
-        <div class="sidepanel-section-title form-section-title">Language</div>
+        <div class="sidepanel-section-title form-section-title">${tr("field.language")}</div>
         <div class="sidepanel-item form-field-block">
           <select id="settingsLangSelect" class="form-input">
             <option value="ru" ${panelState.draft.uiLanguage === "ru" ? "selected" : ""}>Русский</option>
@@ -98,8 +99,8 @@ export function renderSettingsPanel(
 
   sidepanelContent.innerHTML = `${settingsContentHtml}
     <div class="sidepanel-section btn-row" style="margin-top:16px;">
-      ${renderButton({ id: "settingsSaveBtn", label: panelState.isSaving ? "Сохранение..." : "Сохранить", style: "primary", disabled: !panelState.dirty || panelState.isSaving })}
-      ${renderButton({ id: "settingsCancelBtn", label: "Отмена", disabled: panelState.isSaving })}
+      ${renderButton({ id: "settingsSaveBtn", label: panelState.isSaving ? tr("settings.saving") : tr("common.save"), style: "primary", disabled: !panelState.dirty || panelState.isSaving })}
+      ${renderButton({ id: "settingsCancelBtn", label: tr("common.cancel"), disabled: panelState.isSaving })}
     </div>
     <div class="sidepanel-section">
       <div id="settingsStatus" class="sidepanel-label form-status" style="color:${panelState.statusColor};">${escapeHtml(panelState.statusText)}</div>

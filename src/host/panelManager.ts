@@ -6,6 +6,8 @@ import { routeWebviewMessage, buildLoadDiagramMessage } from "./messageRouter";
 import type { MessageContext, WebviewMessage } from "./messageRouter";
 import type { Logger } from "./logging";
 import { createTypeLibraryResolver, createDiagramLoader } from "./diagramLoader";
+import { readSettingsFromVsCodeConfig } from "./settingsManager";
+import { t } from "../shared/i18n";
 
 const FALLBACK_TIMEOUT_MS = 1500;
 
@@ -19,7 +21,7 @@ export async function openSysDiagramPanel(
   logger: Logger,
 ): Promise<void> {
   if (!uri) {
-    vscode.window.showErrorMessage("Не выбран SYS-файл");
+    vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "host.noSysSelected"));
     return;
   }
 
@@ -37,13 +39,13 @@ export async function openSysDiagramPanel(
     panelDisposables.forEach(d => d.dispose());
   }, null, panelDisposables);
 
-  panel.webview.html = getWebviewHtml(panel.webview, context.extensionUri);
+  panel.webview.html = getWebviewHtml(panel.webview, context.extensionUri, readSettingsFromVsCodeConfig().uiLanguage);
 
   try {
     const innerLogger = getLogger();
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
     if (!workspaceFolder) {
-      vscode.window.showErrorMessage("Файл не находится в рабочей области");
+      vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "host.fileOutsideWorkspace"));
       panel.dispose();
       return;
     }
@@ -118,13 +120,13 @@ export async function openSysDiagramPanel(
         innerLogger.info("Message sent to webview (fallback)");
       } catch (error) {
         innerLogger.error("Failed to send message to webview (fallback)", error);
-        vscode.window.showErrorMessage(`Не удалось отправить данные вебвью: ${error}`);
+        vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "host.failedSendToWebview", { error: String(error) }));
       }
     }, FALLBACK_TIMEOUT_MS);
 
   } catch (error) {
     logger.error("Error loading diagram", error);
-    vscode.window.showErrorMessage(`Ошибка: ${error}`);
+    vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "host.genericError", { error: String(error) }));
     panel.dispose();
   }
 }

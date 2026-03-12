@@ -2,13 +2,15 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import { patchSysFile } from "../parsing/sysPatcher";
 import type { WebviewMessage, MessageContext } from "../messageRouter";
+import { readSettingsFromVsCodeConfig } from "../settingsManager";
+import { t } from "../../shared/i18n";
 
 export async function handleSaveSys(m: WebviewMessage & { type: "save-sys" }, ctx: MessageContext): Promise<boolean> {
   try {
     const updatedModel = m.model;
     if (!updatedModel) {
       ctx.logger.warn("save-sys: no model in message");
-      ctx.panel.webview.postMessage({ type: "save-sys-result", payload: { success: false, error: "Нет данных модели" } });
+      ctx.panel.webview.postMessage({ type: "save-sys-result", payload: { success: false, error: t(readSettingsFromVsCodeConfig().uiLanguage, "saveSys.noModel") } });
       return true;
     }
 
@@ -50,7 +52,7 @@ export async function handleSaveSys(m: WebviewMessage & { type: "save-sys" }, ct
     const saveUri = await vscode.window.showSaveDialog({
       defaultUri,
       filters: { "IEC 61499 System": ["sys"] },
-      title: "Сохранить SYS файл как",
+      title: t(readSettingsFromVsCodeConfig().uiLanguage, "saveSys.dialogTitle"),
     });
 
     if (!saveUri) {
@@ -60,11 +62,11 @@ export async function handleSaveSys(m: WebviewMessage & { type: "save-sys" }, ct
 
     fs.writeFileSync(saveUri.fsPath, xml, "utf8");
     ctx.logger.info("SYS file saved to", saveUri.fsPath);
-    vscode.window.showInformationMessage(`Файл сохранён: ${saveUri.fsPath}`);
+    vscode.window.showInformationMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "saveSys.saved", { path: saveUri.fsPath }));
     ctx.panel.webview.postMessage({ type: "save-sys-result", payload: { success: true, filePath: saveUri.fsPath } });
   } catch (err) {
     ctx.logger.error("Failed to save SYS file", err);
-    vscode.window.showErrorMessage(`Не удалось сохранить файл: ${err}`);
+    vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "saveSys.saveFailed", { error: String(err) }));
     ctx.panel.webview.postMessage({ type: "save-sys-result", payload: { success: false, error: String(err) } });
   }
   return true;

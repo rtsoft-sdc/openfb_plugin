@@ -7,6 +7,7 @@ import {
   validatePluginSettings,
   applyLockedPath as applyLockedPathToSettings,
 } from "../../shared/pluginSettings";
+import { tr } from "../i18nService";
 
 interface HostApi {
   postMessage(message: unknown): void;
@@ -49,7 +50,7 @@ export function createSettingsDialogController(
   let settingsLoadError: string | undefined;
   let settingsDirty = false;
   let isSettingsSaving = false;
-  let settingsStatusText = "Сохранено";
+  let settingsStatusText = tr("settings.saved");
   let settingsStatusColor: string = COLORS.SUCCESS_TEXT;
   let updateSidepanel = () => {};
   let lockedFbPath: string | undefined;
@@ -66,7 +67,7 @@ export function createSettingsDialogController(
   function updateSettingsDirtyState(dirty: boolean): void {
     settingsDirty = dirty;
     if (dirty) {
-      settingsStatusText = "Есть несохранённые изменения";
+      settingsStatusText = tr("settings.unsavedChanges");
       settingsStatusColor = COLORS.WARNING_TEXT;
     }
   }
@@ -90,14 +91,14 @@ export function createSettingsDialogController(
 
     settingsDraft = clonePluginSettings(validation.settings);
     isSettingsSaving = true;
-    setSettingsStatus("Сохранение...", COLORS.STATUS_SAVING);
+    setSettingsStatus(tr("settings.saving"), COLORS.STATUS_SAVING);
     updateSidepanel();
     vscode.postMessage({ type: "settings:save", payload: validation.settings });
   }
 
   function requestSettingsPathPick(): void {
     if (!vscode) {
-      setSettingsStatus("Host API недоступен", COLORS.ERROR_TEXT);
+      setSettingsStatus(tr("settings.hostApiUnavailable"), COLORS.ERROR_TEXT);
       updateSidepanel();
       return;
     }
@@ -129,13 +130,13 @@ export function createSettingsDialogController(
     isSettingsSaving = false;
     settingsLoadError = undefined;
     if (!settingsDirty) {
-      setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
+      setSettingsStatus(tr("settings.saved"), COLORS.SUCCESS_TEXT);
     }
     if (vscode) {
       vscode.postMessage({ type: "settings:load" });
     } else {
       isSettingsLoading = false;
-      settingsLoadError = "Host API недоступен";
+      settingsLoadError = tr("settings.hostApiUnavailable");
     }
     settingsModal.openModal();
   }

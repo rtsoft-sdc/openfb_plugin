@@ -4,6 +4,8 @@ import * as fs from "fs";
 import { DeployAbortedByUserError, OpenFBHandler } from "../deploy/handler";
 import { FBootGenerator } from "../generation/fbootGenerator";
 import type { WebviewMessage, MessageContext } from "../messageRouter";
+import { readSettingsFromVsCodeConfig } from "../settingsManager";
+import { t } from "../../shared/i18n";
 
 function toFileNames(paths: string[]): string[] {
   return paths.map((filePath) => path.basename(filePath));
@@ -25,16 +27,17 @@ function getExpectedFbootPaths(ctx: MessageContext): string[] {
 async function generateFbootFiles(ctx: MessageContext, showSuccessNotification: boolean): Promise<string[]> {
   const fbGenerator = new FBootGenerator(ctx.shared.model!, ctx.uri.fsPath, ctx.shared.searchPaths);
   const files = await fbGenerator.generate();
+  const lang = readSettingsFromVsCodeConfig().uiLanguage;
   const fileNames = toFileNames(files);
   const message = fileNames.length > 1
-    ? `Файлы ${fileNames.join(", ")} созданы`
-    : `Файл ${fileNames[0]} создан`;
+    ? t(lang, "deploy.createdMany", { names: fileNames.join(", ") })
+    : t(lang, "deploy.createdOne", { name: fileNames[0] });
   ctx.logger.info(message, files);
   if (showSuccessNotification) {
     await vscode.window.showInformationMessage(
       message,
       { modal: true },
-      "ОК",
+      t(lang, "common.ok"),
     );
   }
   return files;
@@ -51,10 +54,11 @@ export function handleDeploy(_m: WebviewMessage, ctx: MessageContext): boolean {
       let missingFiles = fbootPaths.filter((filePath: string) => !fs.existsSync(filePath));
 
       if (missingFiles.length > 0) {
+        const lang = readSettingsFromVsCodeConfig().uiLanguage;
         const missingNames = toFileNames(missingFiles);
-        const promptMsg = `.fboot файл(ы) не найдены: ${missingNames.join(", ")}. Создать сейчас?`;
-        const createOption: vscode.MessageItem = { title: "Создать" };
-        const cancelOption: vscode.MessageItem = { title: "Отмена", isCloseAffordance: true };
+        const promptMsg = t(lang, "deploy.missingPrompt", { names: missingNames.join(", ") });
+        const createOption: vscode.MessageItem = { title: t(lang, "common.create") };
+        const cancelOption: vscode.MessageItem = { title: t(lang, "common.cancel"), isCloseAffordance: true };
         const choice = await vscode.window.showWarningMessage(
           promptMsg,
           { modal: true },
@@ -71,7 +75,7 @@ export function handleDeploy(_m: WebviewMessage, ctx: MessageContext): boolean {
         missingFiles = fbootPaths.filter((filePath: string) => !fs.existsSync(filePath));
         if (missingFiles.length > 0) {
           const missingNamesAfterGenerate = toFileNames(missingFiles);
-          vscode.window.showErrorMessage(`Не удалось создать .fboot файл(ы): ${missingNamesAfterGenerate.join(", ")}`);
+          vscode.window.showErrorMessage(t(lang, "deploy.missingAfterGenerate", { names: missingNamesAfterGenerate.join(", ") }));
           return;
         }
       }
@@ -86,9 +90,10 @@ export function handleDeploy(_m: WebviewMessage, ctx: MessageContext): boolean {
       }
 
       const deployedNames = toFileNames(fbootPaths);
+      const dLang = readSettingsFromVsCodeConfig().uiLanguage;
       const message = deployedNames.length > 1
-        ? `Деплой завершён: ${deployedNames.join(", ")}`
-        : `Деплой завершён: ${deployedNames[0]}`;
+        ? t(dLang, "deploy.completedMany", { names: deployedNames.join(", ") })
+        : t(dLang, "deploy.completedOne", { name: deployedNames[0] });
       vscode.window.showInformationMessage(message);
     } catch (err) {
       if (err instanceof DeployAbortedByUserError) {
@@ -96,11 +101,11 @@ export function handleDeploy(_m: WebviewMessage, ctx: MessageContext): boolean {
         return;
       }
       ctx.logger.error("Deploy failed", err);
-      vscode.window.showErrorMessage(`Не удалось выполнить деплой: ${err}`);
+      vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "deploy.failed", { error: String(err) }));
     }
   })().catch((err) => {
     ctx.logger.error("Error handling deploy message", err);
-    vscode.window.showErrorMessage(`Ошибка при деплое: ${err}`);
+    vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "deploy.error", { error: String(err) }));
   });
 
   return true;
@@ -119,9 +124,10 @@ export function handleGenerateFboot(_m: WebviewMessage, ctx: MessageContext): bo
       const existing = fbootPaths.filter((filePath) => fs.existsSync(filePath));
 
       if (existing.length > 0) {
-        const promptMsg = "Файл .fboot уже существуют в данном проекте. Перезаписать его?";
-        const overwriteOption: vscode.MessageItem = { title: "Перезаписать" };
-        const cancelOption: vscode.MessageItem = { title: "Отмена", isCloseAffordance: true };
+        const gLang = readSettingsFromVsCodeConfig().uiLanguage;
+        const promptMsg = t(gLang, "deploy.overwritePrompt");
+        const overwriteOption: vscode.MessageItem = { title: t(gLang, "common.overwrite") };
+        const cancelOption: vscode.MessageItem = { title: t(gLang, "common.cancel"), isCloseAffordance: true };
         const choice = await vscode.window.showWarningMessage(
           promptMsg,
           { modal: true },
@@ -137,7 +143,7 @@ export function handleGenerateFboot(_m: WebviewMessage, ctx: MessageContext): bo
 
       await generateFbootFiles(ctx, true);
     } catch (err: unknown) {
-      const errorMsg = `Не удалось создать FBOOT: ${err}`;
+      const errorMsg = t(readSettingsFromVsCodeConfig().uiLanguage, "deploy.generateFailed", { error: String(err) });
       ctx.logger.error(errorMsg, err);
       vscode.window.showErrorMessage(errorMsg);
     }

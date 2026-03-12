@@ -1,7 +1,9 @@
 /**
  * Simple context menu component for the diagram canvas.
- * Creates a floating DOM element with a single "Удалить" (Delete) action.
+ * Creates a floating DOM element with a single "Delete" action.
  */
+
+import { tr } from "../i18nService";
 
 let activeMenu: HTMLDivElement | null = null;
 
@@ -33,7 +35,7 @@ export function showContextMenu(
   `;
 
   const item = document.createElement("div");
-  item.textContent = "Удалить";
+  item.textContent = tr("common.delete");
   item.style.cssText = `
     padding: 6px 24px;
     cursor: pointer;

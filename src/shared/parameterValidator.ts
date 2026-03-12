@@ -21,6 +21,9 @@
  *   DATE_AND_TIME/DT/LDT → DT#... / DATE_AND_TIME#...
  */
 
+import { t } from "./i18n";
+import type { UiLanguage } from "./pluginSettings";
+
 // ═══════════════════════════════════════════════════════════════════
 //  Validation result
 // ═══════════════════════════════════════════════════════════════════
@@ -111,107 +114,107 @@ function parseIecInteger(raw: string): bigint | null {
 //  Type-specific validators
 // ═══════════════════════════════════════════════════════════════════
 
-function validateBool(value: string): ValidationResult {
+function validateBool(value: string, lang: UiLanguage): ValidationResult {
   const v = stripTypePrefix(value, "BOOL").toUpperCase().trim();
   if (["TRUE", "FALSE", "0", "1"].includes(v)) return OK;
-  return fail("BOOL: допустимые значения TRUE, FALSE, 0, 1");
+  return fail(t(lang, "validation.param.boolExpected"));
 }
 
-function validateSignedInt(value: string, typeName: string): ValidationResult {
+function validateSignedInt(value: string, typeName: string, lang: UiLanguage): ValidationResult {
   const range = INT_RANGES[typeName];
-  if (!range) return fail(`Неизвестный тип ${typeName}`);
+  if (!range) return fail(t(lang, "validation.param.unknownType", { typeName }));
 
   const raw = stripTypePrefix(value, typeName);
   const n = parseIecInteger(raw);
-  if (n === null) return fail(`${typeName}: ожидается целое число`);
+  if (n === null) return fail(t(lang, "validation.param.intExpected", { typeName }));
 
   if (n < BigInt(range.min) || n > BigInt(range.max)) {
-    return fail(`${typeName}: значение вне диапазона [${range.min} .. ${range.max}]`);
+    return fail(t(lang, "validation.param.outOfRange", { typeName, min: String(range.min), max: String(range.max) }));
   }
   return OK;
 }
 
-function validateUnsignedInt(value: string, typeName: string): ValidationResult {
+function validateUnsignedInt(value: string, typeName: string, lang: UiLanguage): ValidationResult {
   const range = INT_RANGES[typeName];
-  if (!range) return fail(`Неизвестный тип ${typeName}`);
+  if (!range) return fail(t(lang, "validation.param.unknownType", { typeName }));
 
   const raw = stripTypePrefix(value, typeName);
   const n = parseIecInteger(raw);
-  if (n === null) return fail(`${typeName}: ожидается целое неотрицательное число`);
+  if (n === null) return fail(t(lang, "validation.param.uintExpected", { typeName }));
 
   if (n < BigInt(range.min) || n > BigInt(range.max)) {
-    return fail(`${typeName}: значение вне диапазона [${range.min} .. ${range.max}]`);
+    return fail(t(lang, "validation.param.outOfRange", { typeName, min: String(range.min), max: String(range.max) }));
   }
   return OK;
 }
 
-function validateReal(value: string, typeName: string): ValidationResult {
+function validateReal(value: string, typeName: string, lang: UiLanguage): ValidationResult {
   const raw = stripTypePrefix(value, typeName).replace(/_/g, "").trim();
   // Allow scientific notation: 1.5E+10, -3.14, etc.
   if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(raw)) {
-    return fail(`${typeName}: ожидается число с плавающей точкой`);
+    return fail(t(lang, "validation.param.floatExpected", { typeName }));
   }
   const n = parseFloat(raw);
   if (!isFinite(n)) {
-    return fail(`${typeName}: значение вне допустимого диапазона`);
+    return fail(t(lang, "validation.param.floatOutOfRange", { typeName }));
   }
   // REAL is 32-bit IEEE 754: ±3.4028235E+38
   if (typeName === "REAL" && Math.abs(n) > 3.4028235e38) {
-    return fail(`REAL: значение вне диапазона ±3.4028235E+38`);
+    return fail(t(lang, "validation.param.realOutOfRange"));
   }
   return OK;
 }
 
-function validateBitType(value: string, typeName: string): ValidationResult {
-  if (typeName === "BOOL") return validateBool(value);
+function validateBitType(value: string, typeName: string, lang: UiLanguage): ValidationResult {
+  if (typeName === "BOOL") return validateBool(value, lang);
 
   const range = BIT_RANGES[typeName];
-  if (!range) return fail(`Неизвестный тип ${typeName}`);
+  if (!range) return fail(t(lang, "validation.param.unknownType", { typeName }));
 
   const raw = stripTypePrefix(value, typeName);
   const n = parseIecInteger(raw);
-  if (n === null) return fail(`${typeName}: ожидается целое число или hex (16#FF)`);
+  if (n === null) return fail(t(lang, "validation.param.hexExpected", { typeName }));
 
   if (n < BigInt(range.min) || n > BigInt(range.max)) {
-    return fail(`${typeName}: значение вне диапазона [${range.min} .. ${range.max}]`);
+    return fail(t(lang, "validation.param.outOfRange", { typeName, min: String(range.min), max: String(range.max) }));
   }
   return OK;
 }
 
-function validateString(value: string): ValidationResult {
+function validateString(value: string, lang: UiLanguage): ValidationResult {
   const trimmed = value.trim();
   // IEC 61131-3 STRING literals are single-quoted: 'Hello'
   // Also accept unquoted for convenience in parameter assignment
   if (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2) return OK;
   // Accept unquoted strings (common in 4diac FORTE parameter values)
   if (trimmed.length > 0) return OK;
-  return fail("STRING: ожидается строка (например, 'text')");
+  return fail(t(lang, "validation.param.stringExpected"));
 }
 
-function validateWString(value: string): ValidationResult {
+function validateWString(value: string, lang: UiLanguage): ValidationResult {
   const trimmed = value.trim();
   // IEC WSTRING literals use double quotes: "Hello"
   if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) return OK;
   // Accept unquoted
   if (trimmed.length > 0) return OK;
-  return fail('WSTRING: ожидается строка (например, "text")');
+  return fail(t(lang, "validation.param.wstringExpected"));
 }
 
-function validateChar(value: string): ValidationResult {
+function validateChar(value: string, lang: UiLanguage): ValidationResult {
   const trimmed = value.trim();
   if (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length === 3) return OK;
   if (trimmed.length === 1) return OK;
-  return fail("CHAR: ожидается один символ ('x')");
+  return fail(t(lang, "validation.param.charExpected"));
 }
 
-function validateWChar(value: string): ValidationResult {
+function validateWChar(value: string, lang: UiLanguage): ValidationResult {
   const trimmed = value.trim();
   if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length === 3) return OK;
   if (trimmed.length === 1) return OK;
-  return fail('WCHAR: ожидается один символ ("x")');
+  return fail(t(lang, "validation.param.wcharExpected"));
 }
 
-function validateTime(value: string, typeName: string): ValidationResult {
+function validateTime(value: string, typeName: string, lang: UiLanguage): ValidationResult {
   // Accept: T#5s, T#100ms, TIME#1h2m3s, LTIME#500us, t#1s500ms, etc.
   const prefixes = typeName === "LTIME"
     ? ["LTIME", "LT", "T", "TIME"]
@@ -221,33 +224,33 @@ function validateTime(value: string, typeName: string): ValidationResult {
   if (/^-?(\d+(\.\d+)?\s*(d|h|m(?!s)|s|ms|us|ns|μs)_?\s*)+$/i.test(raw)) return OK;
   // Also accept plain numeric (milliseconds)
   if (/^-?\d+(\.\d+)?$/.test(raw)) return OK;
-  return fail(`${typeName}: ожидается формат T#5s, T#100ms, T#1h2m3s`);
+  return fail(t(lang, "validation.param.timeExpected", { typeName }));
 }
 
-function validateDate(value: string, typeName: string): ValidationResult {
+function validateDate(value: string, typeName: string, lang: UiLanguage): ValidationResult {
   const prefixes = typeName === "LDATE"
     ? ["LDATE", "LD", "D", "DATE"]
     : ["DATE", "D"];
   const raw = stripTypePrefix(value, ...prefixes).trim();
   // Accept: YYYY-MM-DD
   if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw)) return OK;
-  return fail(`${typeName}: ожидается формат D#YYYY-MM-DD`);
+  return fail(t(lang, "validation.param.dateExpected", { typeName }));
 }
 
-function validateTimeOfDay(value: string, typeName: string): ValidationResult {
+function validateTimeOfDay(value: string, typeName: string, lang: UiLanguage): ValidationResult {
   const prefixes = ["LTOD", "LTIME_OF_DAY", "TOD", "TIME_OF_DAY"];
   const raw = stripTypePrefix(value, ...prefixes).trim();
   // Accept: HH:MM:SS or HH:MM:SS.ms
   if (/^\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(raw)) return OK;
-  return fail(`${typeName}: ожидается формат TOD#HH:MM:SS`);
+  return fail(t(lang, "validation.param.todExpected", { typeName }));
 }
 
-function validateDateAndTime(value: string, typeName: string): ValidationResult {
+function validateDateAndTime(value: string, typeName: string, lang: UiLanguage): ValidationResult {
   const prefixes = ["LDT", "LDATE_AND_TIME", "DT", "DATE_AND_TIME"];
   const raw = stripTypePrefix(value, ...prefixes).trim();
   // Accept: YYYY-MM-DD-HH:MM:SS
   if (/^\d{4}-\d{1,2}-\d{1,2}-\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(raw)) return OK;
-  return fail(`${typeName}: ожидается формат DT#YYYY-MM-DD-HH:MM:SS`);
+  return fail(t(lang, "validation.param.dtExpected", { typeName }));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -259,9 +262,10 @@ function validateDateAndTime(value: string, typeName: string): ValidationResult 
  *
  * @param value    - literal value to validate
  * @param dataType - IEC type name (e.g. "INT", "BOOL", "TIME", "STRING")
+ * @param language - UI language for error messages (defaults to "en")
  * @returns { valid: true } or { valid: false, error: "..." }
  */
-export function validateParameterValue(value: string, dataType?: string): ValidationResult {
+export function validateParameterValue(value: string, dataType?: string, language: UiLanguage = "en"): ValidationResult {
   // Empty value is always valid (clears the parameter)
   if (value.trim() === "") return OK;
 
@@ -271,46 +275,46 @@ export function validateParameterValue(value: string, dataType?: string): Valida
   const type = dataType.toUpperCase();
 
   // Boolean
-  if (type === "BOOL") return validateBool(value);
+  if (type === "BOOL") return validateBool(value, language);
 
   // Signed integers
   if (type === "SINT" || type === "INT" || type === "DINT" || type === "LINT") {
-    return validateSignedInt(value, type);
+    return validateSignedInt(value, type, language);
   }
 
   // Unsigned integers
   if (type === "USINT" || type === "UINT" || type === "UDINT" || type === "ULINT") {
-    return validateUnsignedInt(value, type);
+    return validateUnsignedInt(value, type, language);
   }
 
   // Real
-  if (type === "REAL" || type === "LREAL") return validateReal(value, type);
+  if (type === "REAL" || type === "LREAL") return validateReal(value, type, language);
 
   // Bit types
   if (type === "BYTE" || type === "WORD" || type === "DWORD" || type === "LWORD") {
-    return validateBitType(value, type);
+    return validateBitType(value, type, language);
   }
 
   // Strings
-  if (type === "STRING") return validateString(value);
-  if (type === "WSTRING") return validateWString(value);
-  if (type === "CHAR") return validateChar(value);
-  if (type === "WCHAR") return validateWChar(value);
+  if (type === "STRING") return validateString(value, language);
+  if (type === "WSTRING") return validateWString(value, language);
+  if (type === "CHAR") return validateChar(value, language);
+  if (type === "WCHAR") return validateWChar(value, language);
 
   // Time
-  if (type === "TIME" || type === "LTIME") return validateTime(value, type);
+  if (type === "TIME" || type === "LTIME") return validateTime(value, type, language);
 
   // Date
-  if (type === "DATE" || type === "LDATE") return validateDate(value, type);
+  if (type === "DATE" || type === "LDATE") return validateDate(value, type, language);
 
   // Time of day
   if (type === "TIME_OF_DAY" || type === "TOD" || type === "LTOD" || type === "LTIME_OF_DAY") {
-    return validateTimeOfDay(value, type);
+    return validateTimeOfDay(value, type, language);
   }
 
   // Date and time
   if (type === "DATE_AND_TIME" || type === "DT" || type === "LDT" || type === "LDATE_AND_TIME") {
-    return validateDateAndTime(value, type);
+    return validateDateAndTime(value, type, language);
   }
 
   // Generic types (ANY, ANY_INT, etc.) — accept any non-empty value

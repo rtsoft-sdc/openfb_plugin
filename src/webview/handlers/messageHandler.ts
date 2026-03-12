@@ -5,6 +5,8 @@ import { PluginSettings, clonePluginSettings, applyLockedPath } from "../../shar
 import type { EditorState } from "../editorState";
 import type { TreeNode } from "../panels/leftPanel";
 import type { WebviewLogger } from "../logging";
+import { tr, setLanguage } from "../i18nService";
+import { resolveLanguage } from "../../shared/i18n";
 
 export interface ExtensionMessage {
   type: string;
@@ -40,6 +42,7 @@ interface MessageHandlerDeps {
   updateSettingsDirtyState: (dirty: boolean) => void;
   setSettingsStatus: (text: string, color: string) => void;
   handleCreateFbTypeResult: (payload?: { success?: boolean; filePath?: string; error?: string }) => void;
+  refreshStaticLabels: () => void;
 }
 
 function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
@@ -51,13 +54,15 @@ function handleSettingsLoaded(event: MessageEvent<ExtensionMessage>, deps: Messa
   const loadedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
   const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
   const nextSettings = applyLockedPath(clonePluginSettings(loadedSettings), lockedPath);
+  setLanguage(resolveLanguage(nextSettings.uiLanguage));
+  deps.refreshStaticLabels();
   deps.setSettingsDraft(nextSettings);
   deps.setLockedFbPath(lockedPath);
   deps.setIsSettingsLoading(false);
   deps.setIsSettingsSaving(false);
   deps.setSettingsLoadError(undefined);
   deps.setSettingsDirty(false);
-  deps.setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
+  deps.setSettingsStatus(tr("settings.saved"), COLORS.SUCCESS_TEXT);
 
   deps.updateSettingsModal();
 }
@@ -70,7 +75,7 @@ function handleSettingsPathPicked(event: MessageEvent<ExtensionMessage>, deps: M
 
   const settingsDraft = deps.getSettingsDraft();
   if (settingsDraft.fbPaths.includes(selectedPath)) {
-    deps.setSettingsStatus("Путь уже добавлен", COLORS.WARNING_TEXT);
+    deps.setSettingsStatus(tr("settings.pathAlreadyAdded"), COLORS.WARNING_TEXT);
     deps.updateSettingsModal();
     return;
   }
@@ -89,13 +94,15 @@ function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: Messag
     const savedSettings = "settings" in payload ? (payload.settings as PluginSettings) : (payload as PluginSettings);
     const lockedPath = "settings" in payload ? payload.lockedPath : undefined;
     const nextSettings = applyLockedPath(clonePluginSettings(savedSettings), lockedPath);
+    setLanguage(resolveLanguage(nextSettings.uiLanguage));
+    deps.refreshStaticLabels();
     deps.setSettingsDraft(nextSettings);
     deps.setLockedFbPath(lockedPath);
   }
 
   deps.setIsSettingsSaving(false);
   deps.setSettingsDirty(false);
-  deps.setSettingsStatus("Сохранено", COLORS.SUCCESS_TEXT);
+  deps.setSettingsStatus(tr("settings.saved"), COLORS.SUCCESS_TEXT);
 
   deps.updateSettingsModal();
   deps.closeSettingsModal();
@@ -103,13 +110,13 @@ function handleSettingsSaved(event: MessageEvent<ExtensionMessage>, deps: Messag
   if (deps.leftPanel.isPaletteOpen()) {
     const requested = deps.requestAllFbTypes();
     if (!requested) {
-      deps.leftPanel.handleAllFbTypesError("Host API недоступен");
+      deps.leftPanel.handleAllFbTypesError(tr("settings.hostApiUnavailable"));
     }
   }
 }
 
 function handleSettingsError(event: MessageEvent<ExtensionMessage>, deps: MessageHandlerDeps): void {
-  const message = typeof event.data.payload === "string" ? event.data.payload : "Ошибка загрузки настроек";
+  const message = typeof event.data.payload === "string" ? event.data.payload : tr("settings.loadError");
 
   if (deps.getIsSettingsLoading()) {
     deps.setSettingsLoadError(message);
@@ -189,7 +196,7 @@ function handleSaveSysResult(event: MessageEvent<ExtensionMessage>, deps: Messag
     deps.logger.info("File saved successfully:", result.filePath);
     deps.state.dispatch({ type: "RESET_DIRTY" });
   } else {
-    const error = result?.error || "Неизвестная ошибка сохранения";
+    const error = result?.error || tr("saveSys.unknownError");
     deps.logger.error("Save failed:", error);
   }
 }
@@ -201,7 +208,7 @@ function handleCreateFbTypeResult(event: MessageEvent<ExtensionMessage>, deps: M
   if (payload?.success && deps.leftPanel.isPaletteOpen()) {
     const requested = deps.requestAllFbTypes();
     if (!requested) {
-      deps.leftPanel.handleAllFbTypesError("Host API недоступен");
+      deps.leftPanel.handleAllFbTypesError(tr("settings.hostApiUnavailable"));
     }
   }
 }

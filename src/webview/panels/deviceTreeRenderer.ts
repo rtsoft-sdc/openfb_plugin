@@ -4,6 +4,7 @@
 
 import { buildCollapsibleSectionHtml } from "./components/collapsible";
 import type { SysDevice, SysConnection } from "../../shared/models/sysModel";
+import { tr } from "../i18nService";
 
 export function buildDeviceParametersHtml(deviceId: string, device: SysDevice): string {
   if (!device.parameters || device.parameters.length === 0) return "";
@@ -16,8 +17,8 @@ export function buildDeviceParametersHtml(deviceId: string, device: SysDevice): 
 
   return buildCollapsibleSectionHtml({
     sectionId: paramsId,
-    title: "Параметры",
-    toggleTitle: "Раскрыть/скрыть параметры",
+    title: tr("field.parameters"),
+    toggleTitle: tr("hint.toggleParameters"),
     containerClass: "device-params-container",
     itemsCount: device.parameters.length,
     contentHtml,
@@ -37,8 +38,8 @@ export function buildDeviceResourcesHtml(deviceId: string, device: SysDevice): s
 
   return buildCollapsibleSectionHtml({
     sectionId: resId,
-    title: "Ресурсы",
-    toggleTitle: "Раскрыть/скрыть ресурсы",
+    title: tr("field.resources"),
+    toggleTitle: tr("hint.toggleResources"),
     containerClass: "device-resources-container",
     itemsCount: device.resources.length,
     contentHtml,
@@ -59,7 +60,7 @@ export function buildDeviceFBsHtml(deviceId: string, uniqueFBs: string[]): strin
   return buildCollapsibleSectionHtml({
     sectionId: fbListId,
     title: "Function Blocks",
-    toggleTitle: "Раскрыть/скрыть список FB",
+    toggleTitle: tr("hint.toggleFbList"),
     containerClass: "device-fbs-container",
     itemsCount: uniqueFBs.length,
     contentHtml,
@@ -82,7 +83,7 @@ export function buildDeviceConnectionsHtml(deviceId: string, deviceConnections: 
   return buildCollapsibleSectionHtml({
     sectionId: connListId,
     title: "Connections",
-    toggleTitle: "Раскрыть/скрыть список соединений",
+    toggleTitle: tr("hint.toggleConnections"),
     containerClass: "device-conns-container",
     itemsCount: deviceConnections.length,
     contentHtml,

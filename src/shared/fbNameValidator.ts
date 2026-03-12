@@ -4,6 +4,8 @@
  */
 
 import { ST_RESERVED_KEYWORDS } from "./iecConstants";
+import { t } from "./i18n";
+import type { UiLanguage } from "./pluginSettings";
 
 interface NameValidationResult {
   valid: boolean;
@@ -16,9 +18,11 @@ const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /**
  * Generic identifier validation used for FB type names, port names, algorithms, etc.
  */
-function validateIdentifier(name: string, label = "Имя"): NameValidationResult {
+function validateIdentifier(name: string, language: UiLanguage, label?: string): NameValidationResult {
+  const displayLabel = label ?? t(language, "validation.fbName.label");
+
   if (!name || name.trim().length === 0) {
-    return { valid: false, error: `${label} не может быть пустым` };
+    return { valid: false, error: t(language, "validation.fbName.empty", { label: displayLabel }) };
   }
 
   const trimmed = name.trim();
@@ -26,28 +30,28 @@ function validateIdentifier(name: string, label = "Имя"): NameValidationResul
   if (!IDENTIFIER_RE.test(trimmed)) {
     return {
       valid: false,
-      error: `${label} "${trimmed}" содержит недопустимые символы. Допускаются буквы, цифры, подчёркивание; первый символ — буква или _`,
+      error: t(language, "validation.fbName.invalidChars", { label: displayLabel }),
     };
   }
 
   if (trimmed.includes("__")) {
     return {
       valid: false,
-      error: `${label} "${trimmed}" не должно содержать двойное подчёркивание (__)`,
+      error: t(language, "validation.fbName.noDoubleUnderscore", { label: displayLabel }),
     };
   }
 
   if (trimmed.endsWith("_")) {
     return {
       valid: false,
-      error: `${label} "${trimmed}" не должно заканчиваться подчёркиванием`,
+      error: t(language, "validation.fbName.noTrailingUnderscore", { label: displayLabel }),
     };
   }
 
   if (ST_RESERVED_KEYWORDS.has(trimmed.toUpperCase())) {
     return {
       valid: false,
-      error: `${label} "${trimmed}" является зарезервированным ключевым словом`,
+      error: t(language, "validation.fbName.reservedKeyword", { label: displayLabel }),
     };
   }
 
@@ -55,6 +59,6 @@ function validateIdentifier(name: string, label = "Имя"): NameValidationResul
 }
 
 /** Validate FB type name. */
-export function validateFBName(name: string): NameValidationResult {
-  return validateIdentifier(name, "Имя типа FB");
+export function validateFBName(name: string, language: UiLanguage): NameValidationResult {
+  return validateIdentifier(name, language);
 }

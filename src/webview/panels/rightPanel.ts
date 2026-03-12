@@ -10,6 +10,7 @@ import {
   buildDeviceFBsHtml,
   buildDeviceConnectionsHtml,
 } from "./deviceTreeRenderer";
+import { tr, getLanguage } from "../i18nService";
 
 export type DiagramTabMode = "devices" | "blockinfo";
 
@@ -34,11 +35,11 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     if (!sidepanelContent) return;
 
     if (sidepanelHeader) {
-      sidepanelHeader.textContent = "Устройства";
+      sidepanelHeader.textContent = tr("panel.devices.title");
     }
 
     if (!state.model || !state.model.devices || state.model.devices.length === 0) {
-      sidepanelContent.innerHTML = '<div class="sidepanel-empty">Нет устройств</div>';
+      sidepanelContent.innerHTML = `<div class="sidepanel-empty">${tr("panel.devices.empty")}</div>`;
       return;
     }
 
@@ -64,7 +65,7 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
 
       html += '<div class="device-info-container">';
       if (device.type) {
-        html += `<div class="device-item"><span class="device-label">Тип:</span><span class="device-value">${device.type}</span></div>`;
+        html += `<div class="device-item"><span class="device-label">${tr("field.type")}:</span><span class="device-value">${device.type}</span></div>`;
       }
       html += "</div>";
 
@@ -83,8 +84,8 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     const safeType = (displayType && displayType.trim()) || node.type || "—";
     const safeKind = displayKind || (node.fbKind ? String(node.fbKind) : undefined);
     let html = '<div class="sidepanel-section">';
-    html += `<div class="sidepanel-item"><span class="sidepanel-label">Имя:</span><span class="sidepanel-value">${node.id}</span></div>`;
-    html += `<div class="sidepanel-item"><span class="sidepanel-label">Тип:</span><span class="sidepanel-value">${safeType}</span></div>`;
+    html += `<div class="sidepanel-item"><span class="sidepanel-label">${tr("field.name")}:</span><span class="sidepanel-value">${node.id}</span></div>`;
+    html += `<div class="sidepanel-item"><span class="sidepanel-label">${tr("field.type")}:</span><span class="sidepanel-value">${safeType}</span></div>`;
 
     if (safeKind) {
       const kindLabels: Record<string, string> = {
@@ -97,12 +98,12 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
         UNKNOWN: "Unknown",
       };
       const kindLabel = kindLabels[safeKind] || safeKind;
-      html += `<div class="sidepanel-item"><span class="sidepanel-label">Класс:</span><span class="sidepanel-value">${kindLabel}</span></div>`;
+      html += `<div class="sidepanel-item"><span class="sidepanel-label">${tr("field.class")}:</span><span class="sidepanel-value">${kindLabel}</span></div>`;
     }
     html += "</div>";
 
     html += '<div class="sidepanel-section">';
-    html += `<div class="sidepanel-item"><span class="sidepanel-label">Позиция:</span><span class="sidepanel-value">X: ${node.x.toFixed(0)}, Y: ${node.y.toFixed(0)}</span></div>`;
+    html += `<div class="sidepanel-item"><span class="sidepanel-label">${tr("field.position")}:</span><span class="sidepanel-value">X: ${node.x.toFixed(0)}, Y: ${node.y.toFixed(0)}</span></div>`;
     html += "</div>";
 
     return html;
@@ -119,8 +120,8 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     html += buildPortSectionHtml({
       nodeId,
       sectionIdSuffix: "inputs",
-      title: "Входы",
-      toggleTitle: "Раскрыть/скрыть входы",
+      title: tr("field.inputs"),
+      toggleTitle: tr("hint.toggleInputs"),
       ports: inputPorts,
       nodeParamMap,
       opcMappingSet,
@@ -135,8 +136,8 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     html += buildPortSectionHtml({
       nodeId,
       sectionIdSuffix: "outputs",
-      title: "Выходы",
-      toggleTitle: "Раскрыть/скрыть выходы",
+      title: tr("field.outputs"),
+      toggleTitle: tr("hint.toggleOutputs"),
       ports: outputPorts,
       nodeParamMap,
       showValueWhenTruthyOnly: true,
@@ -167,19 +168,19 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
     if (!sidepanelContent) return;
 
     if (sidepanelHeader) {
-      sidepanelHeader.textContent = "Информация о блоке";
+      sidepanelHeader.textContent = tr("panel.blockInfo.title");
     }
 
     const selectedNodeId = state.selection.nodeId;
 
     if (!selectedNodeId) {
-      sidepanelContent.innerHTML = '<div class="sidepanel-empty">Выберите блок на диаграмме</div>';
+      sidepanelContent.innerHTML = `<div class="sidepanel-empty">${tr("panel.blockInfo.selectBlock")}</div>`;
       return;
     }
 
     const node = state.nodes.find((n) => n.id === selectedNodeId);
     if (!node) {
-      sidepanelContent.innerHTML = '<div class="sidepanel-empty">Блок не найден</div>';
+      sidepanelContent.innerHTML = `<div class="sidepanel-empty">${tr("panel.blockInfo.notFound")}</div>`;
       return;
     }
 
@@ -231,11 +232,11 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
         if (newValue === lastCommittedValue) return;
 
         // Validate before dispatching
-        const validation = validateParameterValue(newValue, portType);
+        const validation = validateParameterValue(newValue, portType, getLanguage());
         if (!validation.valid) {
           logger.warn(`Parameter validation failed: ${nodeId}.${portName} = "${newValue}" — ${validation.error}`);
           input.style.borderColor = '#e74c3c';
-          input.title = validation.error || 'Некорректное значение';
+          input.title = validation.error || tr('validation.invalidValue');
           return;
         }
 
@@ -282,7 +283,7 @@ export function createRightPanelController(options: RightPanelOptions): RightPan
           input.title = '';
           return;
         }
-        const v = validateParameterValue(val, portType);
+        const v = validateParameterValue(val, portType, getLanguage());
         if (!v.valid) {
           input.style.borderColor = '#e7a33c';
           input.title = v.error || '';

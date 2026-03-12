@@ -1,5 +1,6 @@
 import type { WebviewLogger } from "../logging";
 import { createFbtTreePanelController, type TreeNode, type FbtTreePanelController } from "./fbtTreePanel";
+import { tr } from "../i18nService";
 
 export type { TreeNode, FbtTreePanelController };
 
@@ -38,7 +39,7 @@ export function createLeftPanelController(options: LeftPanelOptions): LeftPanelC
     setLeftPanelVisible(true);
     fbtTreeController.openFbtTreePanel();
     if (!requestAllFbTypes()) {
-      fbtTreeController.handleAllFbTypesError("Host API недоступен");
+      fbtTreeController.handleAllFbTypesError(tr("settings.hostApiUnavailable"));
     }
   }
 

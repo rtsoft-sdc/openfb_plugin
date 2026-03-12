@@ -3,6 +3,8 @@ import * as path from "path";
 import * as fs from "fs";
 import { FBTypeRegistry } from "../fbTypeRegistry";
 import type { WebviewMessage, MessageContext } from "../messageRouter";
+import { readSettingsFromVsCodeConfig } from "../settingsManager";
+import { t } from "../../shared/i18n";
 
 export function handleRequestAllFbTypes(ctx: MessageContext): boolean {
   ctx.logger.info("Request for all FB types (library palette)");
@@ -24,7 +26,7 @@ export function handleRequestAllFbTypes(ctx: MessageContext): boolean {
     ctx.logger.error("Failed to scan all FB types", err);
     ctx.panel.webview.postMessage({
       type: "all-fb-types-error",
-      payload: `Не удалось загрузить библиотеку типов: ${err}`,
+      payload: t(readSettingsFromVsCodeConfig().uiLanguage, "fbType.libraryLoadFailed", { error: String(err) }),
     });
   }
   return true;
@@ -34,7 +36,7 @@ export async function handleCreateFbType(m: WebviewMessage & { type: "create-fb-
   try {
     const fbDef = m.payload as import("../../shared/fbtypes").NewFBTypeDefinition;
     if (!fbDef || !fbDef.name) {
-      ctx.panel.webview.postMessage({ type: "create-fb-type-result", payload: { success: false, error: "Определение типа отсутствует или не содержит имени" } });
+      ctx.panel.webview.postMessage({ type: "create-fb-type-result", payload: { success: false, error: t(readSettingsFromVsCodeConfig().uiLanguage, "fbType.noDefinition") } });
       return true;
     }
 
@@ -51,24 +53,26 @@ export async function handleCreateFbType(m: WebviewMessage & { type: "create-fb-
     const targetPath = path.join(typeLibDir, `${fbDef.name}${ext}`);
 
     if (fs.existsSync(targetPath)) {
+      const lang = readSettingsFromVsCodeConfig().uiLanguage;
+      const overwriteLabel = t(lang, "common.overwrite");
       const overwrite = await vscode.window.showWarningMessage(
-        `Файл "${fbDef.name}${ext}" уже существует. Перезаписать?`,
+        t(lang, "fbType.fileExists", { fileName: `${fbDef.name}${ext}` }),
         { modal: true },
-        "Перезаписать"
+        overwriteLabel
       );
-      if (overwrite !== "Перезаписать") {
-        ctx.panel.webview.postMessage({ type: "create-fb-type-result", payload: { success: false, error: "Отменено пользователем" } });
+      if (overwrite !== overwriteLabel) {
+        ctx.panel.webview.postMessage({ type: "create-fb-type-result", payload: { success: false, error: t(lang, "fbType.cancelledByUser") } });
         return true;
       }
     }
 
     fs.writeFileSync(targetPath, xml, "utf8");
     ctx.logger.info("FB type saved", targetPath);
-    vscode.window.showInformationMessage(`Тип ФБ сохранён: ${targetPath}`);
+    vscode.window.showInformationMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "fbType.saved", { filePath: targetPath }));
     ctx.panel.webview.postMessage({ type: "create-fb-type-result", payload: { success: true, filePath: targetPath } });
   } catch (err) {
     ctx.logger.error("Failed to create FB type", err);
-    vscode.window.showErrorMessage(`Не удалось создать тип ФБ: ${err}`);
+    vscode.window.showErrorMessage(t(readSettingsFromVsCodeConfig().uiLanguage, "fbType.createFailed") + ": " + String(err));
     ctx.panel.webview.postMessage({ type: "create-fb-type-result", payload: { success: false, error: String(err) } });
   }
   return true;

@@ -1,0 +1,13 @@
+{
+  "displayName": "OpenFB Плагин",
+  "description": "Отображает диаграмму проекта на основе .sys файла, fbt элементов, генерит .fboot файл",
+  "command.showSysDiagram": "OpenFB: Открыть диаграмму проекта",
+  "config.title": "OpenFB",
+  "config.fbLibraryPaths": "Пути для поиска библиотек функциональных блоков .fbt",
+  "config.host": "Хост/IP-адрес сервера openFB runtime",
+  "config.port": "Порт сервера openFB runtime",
+  "config.deployTimeoutMs": "Таймаут операции deploy в миллисекундах",
+  "config.uiLanguage": "Язык интерфейса панели OpenFB",
+  "config.uiLanguage.ru": "Русский",
+  "config.uiLanguage.en": "Английский"
+}
