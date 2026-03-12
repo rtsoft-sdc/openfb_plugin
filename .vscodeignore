@@ -3,6 +3,8 @@
 
 # Keep only production runtime package contents
 !package.json
+!package.nls.json
+!package.nls.ru.json
 !README.md
 !LICENSE
 !out/extension.js
