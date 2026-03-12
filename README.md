@@ -1,6 +1,6 @@
 # OpenFB Plugin for VS Code
 
-OpenFB Plugin provides an interactive editor for IEC 61499 Function Block Diagram (FBD) to VS Code for 4diac and ForgeLogic projects (`.sys` files). It enables deployment to the OpenFB runtime environment.
+OpenFB Plugin adds an interactive IEC 61499 Function Block Diagram (FBD) editor to VS Code for 4diac and ForgeLogic projects (`.sys` files). It also supports deployment to the OpenFB runtime environment.
 
 ## Features
 
@@ -11,8 +11,8 @@ OpenFB Plugin provides an interactive editor for IEC 61499 Function Block Diagra
 - Allows editing block parameters and OPC UA mappings (marks inputs and outputs as publishable via an OPC UA server using a ForgeLogic-compatible format)
 - Saves project changes back to `.sys`
 - Generates `.fboot` and deploys to the OpenFB runtime
-- Shows logs in both the webview and extension output
-- During deployment, prompts to create a `.fboot` file if one is missing
+- Shows logs in both Webview and Extension Output
+- During deployment, prompts to create a `.fboot` file if it is missing
 - When generating `.fboot`, asks for confirmation before overwriting existing files
 - Automatically refreshes the `Block Library` panel:
   - after creating a new FB type

@@ -30,8 +30,8 @@ const resources = {
   },
   extension: {
     description: {
-      en: "Displays a project diagram based on a .sys file and FBT elements, and generates .fboot files",
-      ru: "Отображает диаграмму проекта на основе .sys файла, fbt элементов, генерит .fboot файл",
+      en: "Edits an IEC 61499 project diagram based on .sys file, fbt elements and deploys it to PLC",
+      ru: "Редактирует диаграмму IEC 61499 проекта на основе .sys файла, fbt элементов и загружает проект в ПЛК",
     },
   },
   toolbar: {

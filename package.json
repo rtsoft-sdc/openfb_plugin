@@ -2,8 +2,9 @@
   "name": "openfb-plugin",
   "publisher": "RITMS",
   "displayName": "%displayName%",
-  "description": "%description%",
-  "version": "0.1.3",
+  "description": "%description%",  
+  "icon": "images/icon.png",
+  "version": "0.1.4",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -65,7 +66,6 @@
             "%config.uiLanguage.ru%",
             "%config.uiLanguage.en%"
           ],
-          "default": "en",
           "description": "%config.uiLanguage%",
           "scope": "window"
         }

@@ -14,6 +14,11 @@ export function isUiLanguage(value: unknown): value is UiLanguage {
   return value === "ru" || value === "en";
 }
 
+function resolveSystemUiLanguage(): UiLanguage {
+  const language = vscode.env.language.toLowerCase();
+  return language.startsWith("en") ? "en" : "ru";
+}
+
 export function mergePluginSettings(raw: unknown): PluginSettings {
   if (!raw || typeof raw !== "object") {
     return DEFAULT_PLUGIN_SETTINGS;
@@ -53,7 +58,12 @@ export function readSettingsFromVsCodeConfig(): PluginSettings {
   const host = config.get<string>("host");
   const port = config.get<number>("port");
   const timeoutMs = config.get<number>("deployTimeoutMs");
-  const uiLanguage = config.get<string>("uiLanguage");
+  const uiLanguageInspect = config.inspect<string>("uiLanguage");
+  const configuredUiLanguage = [
+    uiLanguageInspect?.workspaceFolderValue,
+    uiLanguageInspect?.workspaceValue,
+    uiLanguageInspect?.globalValue,
+  ].find(isUiLanguage);
 
   const normalizedFbPaths = Array.isArray(fbPaths)
     ? fbPaths.filter((pathValue): pathValue is string => typeof pathValue === "string")
@@ -67,6 +77,6 @@ export function readSettingsFromVsCodeConfig(): PluginSettings {
       port: typeof port === "number" ? port : DEFAULT_PLUGIN_SETTINGS.deploy.port,
       timeoutMs: typeof timeoutMs === "number" ? timeoutMs : DEFAULT_PLUGIN_SETTINGS.deploy.timeoutMs,
     },
-    uiLanguage: isUiLanguage(uiLanguage) ? uiLanguage : DEFAULT_PLUGIN_SETTINGS.uiLanguage,
+    uiLanguage: configuredUiLanguage ?? resolveSystemUiLanguage(),
   };
 }

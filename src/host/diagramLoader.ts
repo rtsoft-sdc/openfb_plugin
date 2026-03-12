@@ -47,7 +47,7 @@ export function createDiagramLoader(
 
     const uniquePaths = new Set<string>();
     if (typeLibPath) uniquePaths.add(typeLibPath);
-    //uniquePaths.add(sysFileDir);
+    uniquePaths.add(sysFileDir);
     //uniquePaths.add(workspaceFolder.uri.fsPath);
     userPaths.forEach((p) => uniquePaths.add(p));
     shared.searchPaths = Array.from(uniquePaths);
