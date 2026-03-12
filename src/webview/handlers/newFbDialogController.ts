@@ -12,6 +12,7 @@ import {
 } from "../panels/createFb/newFbModel";
 import { renderNewFbDialog } from "../panels/createFb/newFbDialog";
 import { validateNewFbDraft } from "../panels/createFb/newFbValidation";
+import { tr } from "../i18nService";
 
 interface HostApi {
   postMessage(message: unknown): void;
@@ -91,7 +92,7 @@ export function createNewFbDialogController(options: NewFbDialogControllerOption
           const validation = validateNewFbDraft(draft);
           if (!validation.valid) {
             nameError = validation.nameError;
-            statusText = validation.nameError || "Проверьте введённые данные";
+            statusText = validation.nameError || tr("fbType.validationError");
             statusColor = COLORS.ERROR_TEXT;
             updateNewFbDialog();
             return;
@@ -153,7 +154,7 @@ export function createNewFbDialogController(options: NewFbDialogControllerOption
   function submit(): void {
     if (!vscode || isSubmitting) {
       if (!vscode) {
-        statusText = "Host API недоступен";
+        statusText = tr("settings.hostApiUnavailable");
         statusColor = COLORS.ERROR_TEXT;
         updateNewFbDialog();
       }
@@ -163,14 +164,14 @@ export function createNewFbDialogController(options: NewFbDialogControllerOption
     const validation = validateNewFbDraft(draft);
     if (!validation.valid) {
       nameError = validation.nameError;
-      statusText = validation.nameError || "Проверьте введённые данные";
+      statusText = validation.nameError || tr("fbType.validationError");
       statusColor = COLORS.ERROR_TEXT;
       updateNewFbDialog();
       return;
     }
 
     isSubmitting = true;
-    statusText = "Создание типа...";
+    statusText = tr("fbType.creating");
     statusColor = COLORS.STATUS_SAVING;
     updateNewFbDialog();
 
@@ -187,14 +188,14 @@ export function createNewFbDialogController(options: NewFbDialogControllerOption
     isSubmitting = false;
 
     if (payload.success) {
-      statusText = payload.filePath ? `Тип создан: ${payload.filePath}` : "Тип FB создан";
+      statusText = payload.filePath ? tr("fbType.createdWithPath", { filePath: payload.filePath }) : tr("fbType.createdShort");
       statusColor = COLORS.SUCCESS_TEXT;
       updateNewFbDialog();
       closeNewFbDialog();
       return;
     }
 
-    statusText = payload.error || "Не удалось создать тип FB";
+    statusText = payload.error || tr("fbType.createFailed");
     statusColor = COLORS.ERROR_TEXT;
     updateNewFbDialog();
   }

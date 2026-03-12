@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 export type UiLanguage = "ru" | "en";
 
 export interface DeploySettings {
@@ -19,7 +21,7 @@ export const DEFAULT_PLUGIN_SETTINGS: PluginSettings = {
     port: 61499,
     timeoutMs: 30000,
   },
-  uiLanguage: "ru",
+  uiLanguage: "en",
 };
 
 /** Deep-clone a PluginSettings object (one-level nesting). */
@@ -38,20 +40,22 @@ export function clonePluginSettings(settings: PluginSettings): PluginSettings {
  */
 export function validatePluginSettings(
   settings: PluginSettings,
+  language?: UiLanguage,
 ): { settings: PluginSettings; error?: undefined } | { settings?: undefined; error: string } {
+  const lang = language ?? settings.uiLanguage;
   const host = settings.deploy.host.trim();
   if (!host) {
-    return { error: "Host не должен быть пустым" };
+    return { error: t(lang, "validation.hostRequired") };
   }
 
   const port = Math.trunc(settings.deploy.port);
   if (!Number.isFinite(port) || port < 1 || port > 65535) {
-    return { error: "Port должен быть от 1 до 65535" };
+    return { error: t(lang, "validation.portRange") };
   }
 
   const timeoutMs = Math.trunc(settings.deploy.timeoutMs);
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1000) {
-    return { error: "Timeout должен быть не меньше 1000 мс" };
+    return { error: t(lang, "validation.timeoutMin") };
   }
 
   const uniquePaths = new Set<string>();

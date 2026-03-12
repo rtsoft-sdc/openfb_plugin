@@ -1,6 +1,7 @@
 import type { WebviewLogger } from "../logging";
 import { renderTreeHtml, attachTreeHandlers } from "./components/treeView";
 import { renderButton } from "./components/button";
+import { tr } from "../i18nService";
 
 export type { TreeNode } from "./components/treeView";
 import type { TreeNode } from "./components/treeView";
@@ -36,17 +37,17 @@ export function createFbtTreePanelController(options: FbtTreePanelOptions): FbtT
     if (!leftContent) return;
 
     if (fbTypesTreeLoading) {
-      leftContent.innerHTML = `<div class="fbt-loading">Загружаю библиотеку типов...</div>`;
+      leftContent.innerHTML = `<div class="fbt-loading">${tr("panel.typeLibrary.loading")}</div>`;
       return;
     }
 
     if (fbTypesTreeError) {
-      leftContent.innerHTML = `<div class="fbt-error"><strong>Ошибка:</strong> ${fbTypesTreeError}</div>`;
+      leftContent.innerHTML = `<div class="fbt-error"><strong>${tr("common.error")}:</strong> ${fbTypesTreeError}</div>`;
       return;
     }
 
     if (!fbTypesTree || fbTypesTree.length === 0) {
-      leftContent.innerHTML = '<div class="sidepanel-empty">Нет доступных типов блоков</div>';
+      leftContent.innerHTML = `<div class="sidepanel-empty">${tr("panel.typeLibrary.empty")}</div>`;
       return;
     }
 
@@ -54,7 +55,7 @@ export function createFbtTreePanelController(options: FbtTreePanelOptions): FbtT
     let html = renderTreeHtml(fbTypesTree, treeOptions);
 
     html += `<div class="fbt-tree-footer">
-    ${renderButton({ id: "closeFbtTreeBtn", label: "Закрыть", style: "secondary", fullWidth: true, extraCss: "font-size:12px; padding:8px 10px;" })}
+    ${renderButton({ id: "closeFbtTreeBtn", label: tr("common.close"), style: "secondary", fullWidth: true, extraCss: "font-size:12px; padding:8px 10px;" })}
   </div>`;
 
     leftContent.innerHTML = html;
@@ -108,7 +109,7 @@ export function createFbtTreePanelController(options: FbtTreePanelOptions): FbtT
   function handleAllFbTypesError(message?: string): void {
     fbTypesTree = [];
     fbTypesTreeLoading = false;
-    fbTypesTreeError = message || "Не удалось загрузить типы";
+    fbTypesTreeError = message || tr("fbType.loadFailed");
 
     if (isFbtTreeOpened) {
       renderFbtTree();

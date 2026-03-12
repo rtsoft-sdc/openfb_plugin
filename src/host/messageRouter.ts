@@ -7,6 +7,8 @@ import type { SysModel } from "../shared/models/sysModel";
 import type { FBTypeModel } from "../shared/models/fbtModel";
 import type { Logger } from "./logging";
 import type { NormParams } from "./parsing/sysPatcher";
+import { readSettingsFromVsCodeConfig } from "./settingsManager";
+import { t } from "../shared/i18n";
 
 /**
  * Shared context available to every message handler.
@@ -109,7 +111,8 @@ function handleReady(ctx: MessageContext): boolean {
 
 function handleDirtyStateChanged(m: WebviewMessage & { type: "dirty-state-changed" }, ctx: MessageContext): boolean {
   const isDirty = !!m.isDirty;
-  ctx.panel.title = isDirty ? `${ctx.basePanelTitle} (изм)` : ctx.basePanelTitle;
+  const lang = readSettingsFromVsCodeConfig().uiLanguage;
+  ctx.panel.title = isDirty ? `${ctx.basePanelTitle} ${t(lang, "host.dirtyMark")}` : ctx.basePanelTitle;
   return true;
 }
 

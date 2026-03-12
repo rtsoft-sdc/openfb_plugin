@@ -1,9 +1,9 @@
 {
   "name": "openfb-plugin",
-  "publisher": "rtsoft",
-  "displayName": "openfb plugin",
-  "description": "Отображает диаграмму проекта на основе .sys файла, fbt элементов, генерит .fboot файл",
-  "version": "0.1.2",
+  "publisher": "RITMS",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.1.3",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -13,7 +13,7 @@
     "commands": [
       {
         "command": "openfb.plugin.showSysDiagram",
-        "title": "OpenFB: Открыть диаграмму проекта"
+        "title": "%command.showSysDiagram%"
       }
     ],
     "menus": {
@@ -26,7 +26,7 @@
       ]
     },
     "configuration": {
-      "title": "OpenFB",
+      "title": "%config.title%",
       "properties": {
         "openfb.fbLibraryPaths": {
           "type": "array",
@@ -34,25 +34,25 @@
             "type": "string"
           },
           "default": [],
-          "description": "Paths to search for .fbt function block libraries",
+          "description": "%config.fbLibraryPaths%",
           "scope": "window"
         },
         "openfb.host": {
           "type": "string",
           "default": "127.0.0.1",
-          "description": "Host/IP address of openFB runtime server",
+          "description": "%config.host%",
           "scope": "window"
         },
         "openfb.port": {
           "type": "number",
           "default": 61499,
-          "description": "Port of openFB runtime server",
+          "description": "%config.port%",
           "scope": "window"
         },
         "openfb.deployTimeoutMs": {
           "type": "number",
           "default": 30000,
-          "description": "Timeout in milliseconds for deploy operation",
+          "description": "%config.deployTimeoutMs%",
           "scope": "window"
         },
         "openfb.uiLanguage": {
@@ -61,8 +61,12 @@
             "ru",
             "en"
           ],
-          "default": "ru",
-          "description": "UI language for OpenFB panel settings",
+          "enumDescriptions": [
+            "%config.uiLanguage.ru%",
+            "%config.uiLanguage.en%"
+          ],
+          "default": "en",
+          "description": "%config.uiLanguage%",
           "scope": "window"
         }
       }

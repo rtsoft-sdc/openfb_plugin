@@ -7,6 +7,7 @@ import { renderFbPreview } from "./newFbPreviewRenderer";
 import { renderBasicEcc } from "./newFbBasicEcc";
 import { renderSimpleAlgorithm } from "./newFbSimpleAlgorithm";
 import { renderButton, renderButtonRow } from "../components/button";
+import { tr } from "../../i18nService";
 
 export interface NewFbDialogState {
   draft: NewFbDialogDraft;
@@ -65,8 +66,8 @@ export function renderNewFbDialog(
 
     if (modalHeader) {
       const stepTitle = (state.draft.category === FBKind.BASIC || state.draft.category === FBKind.SIMPLE)
-        ? `Создание нового типа FB — Шаг ${step}/${maxStep}`
-        : "Создание нового типа FB";
+        ? tr("newFbDialog.titleWithStep", { step: String(step), maxStep: String(maxStep) })
+        : tr("newFbDialog.title");
       modalHeader.textContent = stepTitle;
     }
 
@@ -81,8 +82,8 @@ export function renderNewFbDialog(
     console.error("renderNewFbDialog failed", err);
     modalBody.innerHTML = `
       <div class="sidepanel-section">
-        <div class="sidepanel-section-title">Ошибка</div>
-        <div class="sidepanel-label">Не удалось отрисовать диалог. Проверьте консоль.</div>
+        <div class="sidepanel-section-title">${tr("common.error")}</div>
+        <div class="sidepanel-label">${tr("newFbDialog.renderError")}</div>
       </div>
     `;
   }
@@ -99,14 +100,14 @@ function renderStep1(
 ): void {
   modalBody.innerHTML = `
     <div class="sidepanel-section">
-      <div class="sidepanel-section-title form-section-title">Основное</div>
+      <div class="sidepanel-section-title form-section-title">${tr("newFbDialog.sectionBasic")}</div>
       <div class="sidepanel-item form-field-block--flush">
-        <div class="sidepanel-label form-label">Имя типа FB</div>
+        <div class="sidepanel-label form-label">${tr("newFbDialog.fbTypeName")}</div>
         <input id="newFbNameInput" class="form-input${state.nameError ? " form-input--error" : ""}" value="${escapeHtml(state.draft.name)}" />
         <div class="form-error-hint">${escapeHtml(state.nameError || "")}</div>
       </div>
       <div class="sidepanel-item form-field-block">
-        <div class="sidepanel-label form-label">Категория</div>
+        <div class="sidepanel-label form-label">${tr("newFbDialog.category")}</div>
         <select id="newFbCategorySelect" class="form-input">
           ${categoryOption(FBKind.BASIC, state.draft.category, "BASIC")}
           ${categoryOption(FBKind.SIMPLE, state.draft.category, "SIMPLE")}
@@ -116,14 +117,14 @@ function renderStep1(
         </select>
       </div>
       <div class="sidepanel-item form-field-block">
-        <div class="sidepanel-label form-label">Комментарий (опционально)</div>
+        <div class="sidepanel-label form-label">${tr("newFbDialog.commentOptional")}</div>
         <textarea id="newFbCommentInput" class="form-textarea" rows="3">${escapeHtml(state.draft.comment)}</textarea>
       </div>
     </div>
 
     <div class="sidepanel-section btn-row" style="margin-top:16px;">
-      ${renderButton({ id: "newFbNextBtn", label: "Далее →", style: "primary" })}
-      ${renderButton({ id: "newFbCancelBtn", label: "Отмена" })}
+      ${renderButton({ id: "newFbNextBtn", label: tr("newFbDialog.next"), style: "primary" })}
+      ${renderButton({ id: "newFbCancelBtn", label: tr("common.cancel") })}
     </div>
 
     <div class="sidepanel-section">
@@ -182,7 +183,7 @@ function renderStep2(
   callbacks: NewFbDialogCallbacks,
   maxStep: WizardStep,
 ): void {
-  const nextLabel = maxStep > 2 ? "Далее →" : "Создать";
+  const nextLabel = maxStep > 2 ? tr("newFbDialog.next") : tr("common.create");
   const isBasicOrSimple = state.draft.category === FBKind.BASIC || state.draft.category === FBKind.SIMPLE;
   const storedTab = modalBody.dataset.step2Tab;
   const activeTab = isBasicOrSimple && storedTab === "internal"
@@ -208,9 +209,9 @@ function renderStep2(
           ${isBasicOrSimple ? `<div id="wizardInternalVarsEditor" class="wizard-step2-editor-pane ${activeTab === "internal" ? "is-active" : ""}"></div>` : ""}
         </div>
         <div class="wizard-step2-actions">
-          ${renderButton({ id: "newFbBackBtn", label: "← Назад", disabled: state.isSubmitting })}
+          ${renderButton({ id: "newFbBackBtn", label: tr("newFbDialog.back"), disabled: state.isSubmitting })}
           ${renderButton({ id: "newFbNextBtn", label: nextLabel, style: "primary", disabled: state.isSubmitting })}
-          ${renderButton({ id: "newFbCancelBtn", label: "Отмена", disabled: state.isSubmitting, minWidth: 100 })}
+          ${renderButton({ id: "newFbCancelBtn", label: tr("common.cancel"), disabled: state.isSubmitting, minWidth: 100 })}
         </div>
         <div id="newFbStatus" class="wizard-step2-status form-status" style="color:${state.statusColor};">${escapeHtml(state.statusText)}</div>
       </div>
@@ -326,9 +327,9 @@ function renderStep3(
     </div>
 
     <div class="sidepanel-section btn-row">
-      ${renderButton({ id: "basicEccBackBtn", label: "← Назад", disabled: state.isSubmitting })}
-      ${renderButton({ id: "basicEccCreateBtn", label: state.isSubmitting ? "Создание..." : "Создать", style: "primary", disabled: state.isSubmitting })}
-      ${renderButton({ id: "basicEccCancelBtn", label: "Отмена", disabled: state.isSubmitting, minWidth: 100 })}
+      ${renderButton({ id: "basicEccBackBtn", label: tr("newFbDialog.back"), disabled: state.isSubmitting })}
+      ${renderButton({ id: "basicEccCreateBtn", label: state.isSubmitting ? tr("newFbDialog.creating") : tr("common.create"), style: "primary", disabled: state.isSubmitting })}
+      ${renderButton({ id: "basicEccCancelBtn", label: tr("common.cancel"), disabled: state.isSubmitting, minWidth: 100 })}
     </div>
   `;
 
@@ -376,9 +377,9 @@ function renderSimpleStep3(
     </div>
 
     <div class="sidepanel-section btn-row">
-      ${renderButton({ id: "simpleAlgBackBtn", label: "← Назад", disabled: state.isSubmitting })}
-      ${renderButton({ id: "simpleAlgCreateBtn", label: state.isSubmitting ? "Создание..." : "Создать", style: "primary", disabled: state.isSubmitting })}
-      ${renderButton({ id: "simpleAlgCancelBtn", label: "Отмена", disabled: state.isSubmitting, minWidth: 100 })}
+      ${renderButton({ id: "simpleAlgBackBtn", label: tr("newFbDialog.back"), disabled: state.isSubmitting })}
+      ${renderButton({ id: "simpleAlgCreateBtn", label: state.isSubmitting ? tr("newFbDialog.creating") : tr("common.create"), style: "primary", disabled: state.isSubmitting })}
+      ${renderButton({ id: "simpleAlgCancelBtn", label: tr("common.cancel"), disabled: state.isSubmitting, minWidth: 100 })}
     </div>
   `;
 

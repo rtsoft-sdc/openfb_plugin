@@ -26,10 +26,10 @@ import { drawStatsAndLegend } from "./legendRenderer";
 import {
   EMPTY_NODES_COLOR,
   EMPTY_NODES_FONT,
-  EMPTY_NODES_MESSAGE,
   EMPTY_NODES_X,
   EMPTY_NODES_Y,
 } from "./constants";
+import { tr } from "../i18nService";
 
 /**
  * Main canvas renderer class
@@ -135,7 +135,7 @@ export class CanvasRenderer {
     if (state.nodes.length === 0) {
       this.ctx.fillStyle = EMPTY_NODES_COLOR;
       this.ctx.font = EMPTY_NODES_FONT;
-      this.ctx.fillText(EMPTY_NODES_MESSAGE, EMPTY_NODES_X, EMPTY_NODES_Y);
+      this.ctx.fillText(tr("canvas.emptyDiagram"), EMPTY_NODES_X, EMPTY_NODES_Y);
     }
 
     // Draw overlay UI (stats and legend) - not affected by zoom

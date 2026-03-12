@@ -10,6 +10,8 @@ import {
   extractRequestFbInfo,
   extractResourceNamesFromQueryResponse,
 } from "./protocol";
+import { readSettingsFromVsCodeConfig } from "../settingsManager";
+import { t } from "../../shared/i18n";
 
 export class DeployAbortedByUserError extends Error {
   constructor(message: string) {
@@ -131,9 +133,10 @@ export class OpenFBHandler {
     const missing = targetResources.filter((resource) => !serverSet.has(resource));
 
     if (existing.length > 0) {
-      const promptMsg = `Ресурс(ы) уже существуют на сервере: ${existing.join(", ")}.`;
-      const abortOption: vscode.MessageItem = { title: "Прервать", isCloseAffordance: true };
-      const overwriteOption: vscode.MessageItem = { title: "Перезаписать" };
+      const lang = readSettingsFromVsCodeConfig().uiLanguage;
+      const promptMsg = t(lang, "deploy.resourcesExist", { resources: existing.join(", ") });
+      const abortOption: vscode.MessageItem = { title: t(lang, "deploy.abort"), isCloseAffordance: true };
+      const overwriteOption: vscode.MessageItem = { title: t(lang, "common.overwrite") };
 
       this.logger.warn(promptMsg, { serverResources, targetResources });
       const choice = await vscode.window.showWarningMessage(
@@ -144,17 +147,18 @@ export class OpenFBHandler {
       );
 
       if (choice?.title !== overwriteOption.title) {
-        const abortMsg = `Деплой прерван пользователем: ресурс(ы) уже существуют (${existing.join(", ")}).`;
+        const abortMsg = t(lang, "deploy.abortedExisting") + ` (${existing.join(", ")})`;
         this.logger.info(abortMsg);
         throw new DeployAbortedByUserError(abortMsg);
       }
 
-      this.logger.info(`Пользователь выбрал перезапись ресурсов: ${existing.join(", ")}`);
+      this.logger.info(`User chose to overwrite resources: ${existing.join(", ")}`);
       await this.prepareOverwriteExistingResources(socket, existing);
     }
 
     if (missing.length > 0) {
-      const missingMsg = `Ресурс(ы) отсутствуют на сервере: ${missing.join(", ")}. Продолжаю деплой.`;
+      const lang = readSettingsFromVsCodeConfig().uiLanguage;
+      const missingMsg = t(lang, "deploy.resourcesMissing", { resources: missing.join(", ") }) + " " + t(lang, "deploy.continue");
       this.logger.info(missingMsg, { serverResources, targetResources });
     }
   }
@@ -217,7 +221,8 @@ export class OpenFBHandler {
               
               let msg = xmlError.message || responseStr || "Error response from server";
               if (/NO_SUCH_OBJECT/i.test(msg)) {
-                msg = `Объект не найден`;
+                const lang = readSettingsFromVsCodeConfig().uiLanguage;
+                msg = t(lang, "deploy.noSuchObject");
               }
 
               const cmdLabel = `cmd ${commandIndex + 1}/${totalCommands}`;
@@ -243,7 +248,10 @@ export class OpenFBHandler {
                 // ignore output channel errors
               }
 
-              try { vscode.window.showErrorMessage(`Ошибка деплоя OpenFB (${cmdLabel} ${shortRes}): ${msg}`); } catch (e) {}
+              try {
+                const lang = readSettingsFromVsCodeConfig().uiLanguage;
+                vscode.window.showErrorMessage(t(lang, "deploy.errorUserMessage", { cmdLabel, resource: shortRes, msg }));
+              } catch (e) {}
               reject(new Error(`OpenFB error ${cmdLabel} for ${shortRes}: ${msg}`));
               return;
             }

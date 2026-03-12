@@ -1,0 +1,13 @@
+{
+  "displayName": "OpenFB Plugin",
+  "description": "Displays a project diagram based on .sys file, fbt elements, generates .fboot file",
+  "command.showSysDiagram": "OpenFB: Open Project Diagram",
+  "config.title": "OpenFB",
+  "config.fbLibraryPaths": "Paths to search for .fbt function block libraries",
+  "config.host": "Host/IP address of openFB runtime server",
+  "config.port": "Port of openFB runtime server",
+  "config.deployTimeoutMs": "Timeout in milliseconds for deploy operation",
+  "config.uiLanguage": "UI language for OpenFB panel",
+  "config.uiLanguage.ru": "Russian",
+  "config.uiLanguage.en": "English"
+}

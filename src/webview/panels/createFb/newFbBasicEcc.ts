@@ -8,6 +8,7 @@
 import type { Algorithm, ECC, ECState } from "../../../shared/fbtypes";
 import { escapeXml } from "../../../shared/utils/xmlEscape";
 import type { NewFbDialogDraft } from "./newFbModel";
+import { tr as tr2 } from "../../i18nService";
 import {
   ALGORITHM_LANGUAGE_SPECS,
   DEFAULT_ALGORITHM_LANGUAGE,
@@ -64,7 +65,7 @@ export function renderBasicEcc(
         <div class="ife-section">
           <div class="ife-section-header">
             <span class="ife-section-title">ECC States</span>
-            <button class="ife-add-btn" id="eccStateAddBtn" title="Добавить">+</button>
+            <button class="ife-add-btn" id="eccStateAddBtn" title="${tr2("common.add")}">+</button>
           </div>
           <div class="ife-list" id="eccStateList"></div>
         </div>
@@ -73,7 +74,7 @@ export function renderBasicEcc(
         <div class="ife-section">
           <div class="ife-section-header">
             <span class="ife-section-title">Transitions</span>
-            <button class="ife-add-btn" id="eccTransitionAddBtn" title="Добавить">+</button>
+            <button class="ife-add-btn" id="eccTransitionAddBtn" title="${tr2("common.add")}">+</button>
           </div>
           <div class="ife-list" id="eccTransitionList"></div>
         </div>
@@ -113,7 +114,7 @@ export function renderBasicEcc(
       `
       : `
         <div class="ife-event-row">
-          <button class="ife-add-alg-btn" data-idx="${idx}">+ Алгоритм</button>
+          <button class="ife-add-alg-btn" data-idx="${idx}">${tr2("newFbDialog.addAlgorithm")}</button>
         </div>
       `;
 
@@ -127,7 +128,7 @@ export function renderBasicEcc(
           <label class="ife-inline-label">Comment</label>
           <input class="ife-input" data-idx="${idx}" data-field="state-comment" value="${escapeAttr(st.comment || "")}" placeholder="Comment" />
         </div>
-        <button class="ife-remove-btn" data-idx="${idx}" title="Удалить">✕</button>
+        <button class="ife-remove-btn" data-idx="${idx}" title="${tr2("common.delete")}">✕</button>
       </div>
       <div class="ife-alg-block">
         ${algorithmControls}
@@ -159,7 +160,7 @@ export function renderBasicEcc(
           <label class="ife-inline-label">Condition</label>
           <input class="ife-input" data-idx="${idx}" data-field="tr-cond" value="${escapeAttr(tr.condition || "")}" placeholder="REQ / 1 / REQ[IN > 0]" />
         </div>
-        <button class="ife-remove-btn" data-idx="${idx}" title="Удалить">✕</button>
+        <button class="ife-remove-btn" data-idx="${idx}" title="${tr2("common.delete")}">✕</button>
       `;
       transitionList.appendChild(row);
     });
