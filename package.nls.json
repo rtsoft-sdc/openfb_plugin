@@ -1,6 +1,6 @@
 {
   "displayName": "OpenFB Plugin",
-  "description": "Displays a project diagram based on .sys file, fbt elements, generates .fboot file",
+  "description": "Edits an IEC 61499 project diagram based on .sys file, fbt elements and deploys it to PLC",
   "command.showSysDiagram": "OpenFB: Open Project Diagram",
   "config.title": "OpenFB",
   "config.fbLibraryPaths": "Paths to search for .fbt function block libraries",

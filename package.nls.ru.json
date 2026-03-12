@@ -1,6 +1,6 @@
 {
   "displayName": "OpenFB Плагин",
-  "description": "Отображает диаграмму проекта на основе .sys файла, fbt элементов, генерит .fboot файл",
+  "description": "Редактирует диаграмму IEC 61499 проекта на основе .sys файла, fbt элементы и загружает проект в ПЛК",
   "command.showSysDiagram": "OpenFB: Открыть диаграмму проекта",
   "config.title": "OpenFB",
   "config.fbLibraryPaths": "Пути для поиска библиотек функциональных блоков .fbt",
