@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.5]
+- Обновлено поле `repository` в `package.json` на корректный URL репозитория: `https://github.com/rtsoft-sdc/openfb_plugin`.
+
 ## [0.1.4]
 - Добавлена иконка расширения (`images/icon.png`) в пакет VSIX через обновление `.vscodeignore`.
 - Язык панели OpenFB по умолчанию изменён на английский (`en`).
